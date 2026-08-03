@@ -1,0 +1,78 @@
+[project]
+name = "auth"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "aiosqlite>=0.22.1",
+    "alembic>=1.18.5",
+    "argon2-cffi>=25.1.0",
+    "asyncpg>=0.31.0",
+    "dotenv>=0.9.9",
+    "emails>=1.1.2",
+    "fastapi-limiter>=0.2.0",
+    "fastapi[standard]>=0.141.1",
+    "passlib[argon2]>=1.7.4",
+    "psycopg2-binary>=2.9.12",
+    "pydantic-settings>=2.14.2",
+    "python-jose[cryptography]>=3.5.0",
+    "python-multipart>=0.0.32",
+    "slowapi>=0.1.10",
+    "sqlalchemy>=2.0.51",
+    "uvicorn[standard]>=0.52.0",
+]
+
+[dependency-groups]
+dev = [
+    "black>=25.11.0",
+    "mypy>=1.18.2",
+    "pytest>=9.0.1",
+    "pytest-asyncio>=1.3.0",
+    "pytest-cov>=7.0.0",
+    "pytest-postgresql>=7.0.2",
+    "ruff>=0.14.5",
+    "taskipy>=1.14.1",
+]
+
+[tool.ruff]
+line-length = 79
+extend-exclude = ['migration', 'doc','__pycache__', 'sketch', '.venv']
+
+[tool.ruff.lint]
+preview = true
+ignore = ["B008"]
+
+[tool.ruff.lint.per-file-ignores]
+"schemas/__init__.py" = ["F403", "F405"]
+
+[tool.ruff.format]
+preview = true
+quote-style = 'single'
+
+[tool.pytest.ini_options]
+pythonpath = "."
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.coverage.run]
+omit = ["*/__init__.py", "*/___python___/*"]
+
+[tool.coverage.report]
+exclude_lines = ["def __repr__", "if __name__ == .__main__.:", "___python___"]
+
+[tool.taskipy.tasks]
+lint = 'ruff check'
+
+pre_format = 'ruff check --fix'
+format = 'ruff format'
+
+runmain = 'python main.py'
+run = 'fastapi dev api/main.py'
+runserver = 'uv run uvicorn api.main:app --host 0.0.0.0 --port 8001'
+
+pre_test = 'task lint'
+test = 'pytest -s -x --cov=src -vv'
+post_test='coverage html'
+
+html='open htmlcov/index.html'
