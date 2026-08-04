@@ -1,13 +1,25 @@
+from __future__ import annotations
+
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class Settings(BaseSettings):
+class EnvironmentSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file='.env', env_file_encoding='utf-8', extra='ignore'
     )
+
+    environment: Literal['development', 'test', 'production'] = Field(
+        default='development',
+        alias='ENVIRONMENT',
+    )
+
+
+class BaseAppSettings(BaseSettings):
+    model_config = SettingsConfigDict(extra='ignore')
 
     app_name: str = Field(default='Auth API', alias='APP_NAME')
     app_version: str = Field(default='0.1.0', alias='APP_VERSION')
@@ -22,7 +34,7 @@ class Settings(BaseSettings):
     )
     cors_origins: str = Field(default='*', alias='CORS_ORIGINS')
     secret_key: str = Field(
-        default='supersecretkey_please_change_in_production',
+        default='dev-only-secret-change-me',
         alias='SECRET_KEY',
     )
     algorithm: str = Field(default='HS256', alias='ALGORITHM')
@@ -47,6 +59,60 @@ class Settings(BaseSettings):
         ]
 
 
+class DevelopmentSettings(BaseAppSettings):
+    model_config = SettingsConfigDict(
+        env_file='.env', env_file_encoding='utf-8', extra='ignore'
+    )
+
+    debug: bool = Field(default=True, alias='DEBUG')
+    database_url: str = Field(
+        default='sqlite+aiosqlite:///./.data/app.db',
+        alias='DATABASE_URL',
+    )
+    cors_origins: str = Field(default='*', alias='CORS_ORIGINS')
+    secret_key: str = Field(
+        default='dev-only-secret-change-me',
+        alias='SECRET_KEY',
+    )
+
+
+class TestSettings(BaseAppSettings):
+    model_config = SettingsConfigDict(
+        env_file='.env', env_file_encoding='utf-8', extra='ignore'
+    )
+
+    debug: bool = Field(default=False, alias='DEBUG')
+    database_url: str = Field(
+        default='sqlite+aiosqlite:///./.data/test.db',
+        alias='DATABASE_URL',
+    )
+    cors_origins: str = Field(default='*', alias='CORS_ORIGINS')
+    secret_key: str = Field(
+        default='test-only-secret-change-me',
+        alias='SECRET_KEY',
+    )
+
+
+class ProductionSettings(BaseAppSettings):
+    model_config = SettingsConfigDict(env_file=None, extra='ignore')
+
+    database_url: str = Field(min_length=1, alias='DATABASE_URL')
+    cors_origins: str = Field(min_length=1, alias='CORS_ORIGINS')
+    secret_key: str = Field(min_length=1, alias='SECRET_KEY')
+
+
 @lru_cache(maxsize=1)
-def get_settings() -> Settings:
-    return Settings()
+def get_settings() -> BaseAppSettings:
+    environment = EnvironmentSettings().environment
+
+    settings_map = {
+        'development': DevelopmentSettings,
+        'test': TestSettings,
+        'production': ProductionSettings,
+    }
+
+    settings_class = settings_map.get(environment)
+    if settings_class is None:
+        raise ValueError(f'Unsupported environment: {environment}')
+
+    return settings_class()
