@@ -79,3 +79,24 @@ Reúne os testes automatizados do projeto, cobrindo rotas, serviços, repositór
 5. Os dados retornados são validados e serializados por `app/schemas/`.
 
 Essa separação reduz acoplamento e deixa cada parte do sistema com uma responsabilidade clara.
+
+## Configuração da aplicação
+
+As configurações são carregadas com `pydantic-settings` em [app/core/config.py](app/core/config.py).
+
+Variáveis principais:
+
+- `ENVIRONMENT`: seleciona o perfil da aplicação (`development`, `test` ou `production`).
+- `APP_NAME`, `APP_VERSION`, `APP_DESCRIPTION`: metadados da aplicação.
+- `DEBUG`: ativa ou desativa modo de depuração.
+- `DATABASE_URL`: URL do banco de dados.
+- `CORS_ORIGINS`: origens permitidas pelo CORS.
+- `SECRET_KEY`: chave usada para recursos de autenticação e segurança.
+- `ALGORITHM`: algoritmo de assinatura JWT.
+- `JWT_ACCESS_MINUTES` e `JWT_REFRESH_DAYS`: tempos de expiração dos tokens.
+
+Comportamento por ambiente:
+
+- `development`: usa defaults seguros para desenvolvimento e lê o arquivo `.env`.
+- `test`: usa defaults próprios para testes e também pode ler `.env`.
+- `production`: exige que `DATABASE_URL`, `CORS_ORIGINS` e `SECRET_KEY` sejam informados por variáveis de ambiente.
