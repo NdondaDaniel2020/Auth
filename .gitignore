@@ -30,4 +30,5 @@ wheels/
 .ruff_cache
 .data
 .env
+architecture.md
 .env.template
