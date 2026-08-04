@@ -33,8 +33,8 @@ def get_engine():
     settings = get_settings()
 
     return create_async_engine(
-        _build_async_database_url(settings.database_url),
-        echo=settings.debug,
+        _build_async_database_url(settings.DATABASE_URL),
+        echo=settings.DEBUG,
     )
 
 

@@ -4,26 +4,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.router import api_router
 from app.core.config import get_settings
 from app.core.lifespan import lifespan
+from app.core.middleware import setup_cors_middleware
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
 
     app = FastAPI(
-        title=settings.app_name,
-        version=settings.app_version,
-        description=settings.app_description,
-        debug=settings.debug,
+        title=settings.APP_NAME,
+        version=settings.APP_VERSION,
+        description=settings.APP_DESCRIPTION,
+        debug=settings.DEBUG,
         lifespan=lifespan
     )
 
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.cors_origins_list,
-        allow_credentials=True,
-        allow_methods=['*'],
-        allow_headers=['*'],
-    )
+    setup_cors_middleware(app)
 
     app.include_router(api_router, prefix='/api')
 

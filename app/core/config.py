@@ -115,4 +115,28 @@ def get_settings() -> BaseAppSettings:
     if settings_class is None:
         raise ValueError(f'Unsupported environment: {environment}')
 
-    return settings_class()
+    settings = settings_class()
+
+    # Expose uppercase constant-style attributes for backward-compatibility
+    # and to allow access like `settings.APP_NAME` as requested.
+    try:
+        data = settings.model_dump()
+    except Exception:
+        # Fallback to __dict__ if model_dump isn't available
+        data = getattr(settings, '__dict__', {})
+
+    for key, value in data.items():
+        try:
+            setattr(settings, key.upper(), value)
+        except Exception:
+            # Ignore attributes that can't be set
+            pass
+
+    # Expose computed properties that are not part of model_dump
+    if hasattr(settings, 'cors_origins_list'):
+        try:
+            setattr(settings, 'CORS_ORIGINS_LIST', settings.cors_origins_list)
+        except Exception:
+            pass
+
+    return settings
