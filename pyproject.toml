@@ -67,9 +67,8 @@ lint = 'ruff check'
 pre_format = 'ruff check --fix'
 format = 'ruff format'
 
-runmain = 'python main.py'
-run = 'fastapi dev api/main.py'
-runserver = 'uv run uvicorn api.main:app --host 0.0.0.0 --port 8001'
+run = 'fastapi dev app/main.py --host 0.0.0.0 --port 8001'
+runserver = 'uvicorn app.main:app --host 0.0.0.0 --reload --port 8001'
 
 pre_test = 'task lint'
 test = 'pytest -s -x --cov=src -vv'

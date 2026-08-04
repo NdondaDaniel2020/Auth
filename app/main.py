@@ -1,8 +1,8 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.core.config import get_settings
+from app.core.error_handlers import register_exception_handlers
 from app.core.lifespan import lifespan
 from app.core.middleware import setup_cors_middleware
 
@@ -19,6 +19,7 @@ def create_app() -> FastAPI:
     )
 
     setup_cors_middleware(app)
+    register_exception_handlers(app)
 
     app.include_router(api_router, prefix='/api')
 

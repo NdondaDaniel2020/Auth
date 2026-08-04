@@ -10,9 +10,6 @@ format:
 	uv run task format
 
 run:
-	uv run task runmain
-
-runserver:
 	uv run task runserver
 
 test:
