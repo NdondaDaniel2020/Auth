@@ -33,3 +33,4 @@ wheels/
 architecture.md
 .env.template
 .coverage
+secrets/
