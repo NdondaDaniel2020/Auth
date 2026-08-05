@@ -54,6 +54,11 @@ class BaseAppSettings(BaseSettings):
     DB_PORT: str = Field(default='', alias='DB_PORT')
     DB_NAME: str = Field(default='', alias='DB_NAME')
 
+    # Seed configuration
+    RUN_SEED_ON_STARTUP: bool = Field(default=False, alias='RUN_SEED_ON_STARTUP')
+    ADMIN_EMAIL: str = Field(default='admin@example.com', alias='ADMIN_EMAIL')
+    ADMIN_PASSWORD: str = Field(default='admin123', alias='ADMIN_PASSWORD')
+
     @property
     def CORS_ORIGINS_LIST(self) -> list[str]:
         if self.CORS_ORIGINS.strip() == '*':

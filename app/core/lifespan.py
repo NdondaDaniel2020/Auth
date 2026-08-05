@@ -1,25 +1,28 @@
-import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.db.base import Base
-from app.db.session import get_engine
 from app.core.config import get_settings
+from app.db.init_db import init_db
+from app.db.session import get_engine
+from app.models import role  # noqa: F401
+from app.models import user  # noqa: F401
+from app.models import permission  # noqa: F401
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
 
-    if settings.DB_ENGINE == 'sqlite' and 'memory' not in settings.DB_NAME:
-        path = settings.DB_NAME.split('/')[:-1]
-        path='/'.join(path)
-        os.makedirs(path, exist_ok=True)
-
     engine = get_engine()
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    if settings.DB_ENGINE == 'sqlite' and settings.DB_NAME != ':memory:':
+        import os
+
+        path = settings.DB_NAME.rsplit('/', 1)[0] if '/' in settings.DB_NAME else ''
+        if path:
+            os.makedirs(path, exist_ok=True)
+
+    await init_db()
 
     yield
     await engine.dispose()
