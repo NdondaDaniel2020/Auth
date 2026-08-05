@@ -19,6 +19,7 @@ app/
 ├── static/
 ├── templates/
 └── utils/
+secrets/
 migrations/
 tests/
 ```
@@ -163,5 +164,33 @@ DATABASE_URL=
 Nesse cenário, `localhost` aponta para o próprio container da aplicação, não para o
 container do PostgreSQL. O hostname `db` funciona porque o Docker Compose cria uma
 rede interna e resolve o nome do serviço automaticamente.
+
+## PostgreSQL com Docker Compose e secrets
+
+O arquivo [docker-compose.yml](docker-compose.yml) usa secrets para injetar as credenciais do PostgreSQL no container do banco. Por isso, o diretório `secrets/` precisa existir na raiz do projeto com estes arquivos:
+
+```text
+secrets/
+├── db_user.txt
+├── db_password.txt
+└── db_name.txt
+```
+
+Cada arquivo deve conter apenas o valor do secret correspondente, sem aspas nem espaços extras.
+
+Exemplo:
+
+- `secrets/db_user.txt` -> `Auth`
+- `secrets/db_password.txt` -> `Auth1234`
+- `secrets/db_name.txt` -> `Auth`
+
+Quando a aplicação rodar em um container no mesmo compose, use:
+
+```env
+DB_HOST=db
+DB_PORT=5432
+```
+
+Com isso, a aplicação acessa o banco pelo nome do serviço `db` dentro da rede interna do Docker Compose.
 
 Se você trocar credenciais do container, recrie também o volume do Postgres para reaplicar `POSTGRES_USER`, `POSTGRES_PASSWORD` e `POSTGRES_DB`.
