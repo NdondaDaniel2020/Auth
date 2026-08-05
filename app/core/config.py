@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from typing import Literal
+from urllib.parse import quote_plus
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -46,6 +47,12 @@ class BaseAppSettings(BaseSettings):
         default=7,
         alias='JWT_REFRESH_DAYS',
     )
+    DB_ENGINE: str = Field(default='', alias='DB_ENGINE')
+    DB_USER: str = Field(default='', alias='DB_USER')
+    DB_PASSWORD: str = Field(default='', alias='DB_PASSWORD')
+    DB_HOST: str = Field(default='', alias='DB_HOST')
+    DB_PORT: str = Field(default='', alias='DB_PORT')
+    DB_NAME: str = Field(default='', alias='DB_NAME')
 
     @property
     def CORS_ORIGINS_LIST(self) -> list[str]:
@@ -57,6 +64,51 @@ class BaseAppSettings(BaseSettings):
             for origin in self.CORS_ORIGINS.split(',')
             if origin.strip()
         ]
+
+    def build_database_url(self) -> str:
+        """Build DATABASE_URL from DB_* components when provided.
+
+        Priority: if `DATABASE_URL` env var is provided (non-empty), return it.
+        Otherwise, if DB_ENGINE or other DB_* vars are set, construct a URL.
+        Supports sqlite (sqlite+aiosqlite) and postgresql (postgresql+asyncpg).
+        """
+        # prefer explicit DATABASE_URL when provided
+        if self.DATABASE_URL and self.DATABASE_URL.strip():
+            return self.DATABASE_URL
+
+        # if no DB_ENGINE specified, return default DATABASE_URL
+        engine = (self.DB_ENGINE or '').strip()
+        if not engine:
+            return self.DATABASE_URL
+
+        # SQLite handling
+        if 'sqlite' in engine:
+            name = self.DB_NAME or './.data/app.db'
+            if name == ':memory:':
+                return 'sqlite+aiosqlite:///:memory:'
+            if name.startswith('/'):
+                return f'sqlite+aiosqlite:///{name}'
+            return f'sqlite+aiosqlite:///{name}'
+
+        # Postgres-like handling
+        if 'postgres' in engine:
+            scheme = engine
+            if 'asyncpg' not in scheme:
+                scheme = scheme.split('+')[0] + '+asyncpg'
+
+            user = quote_plus(self.DB_USER) if self.DB_USER else ''
+            pwd = quote_plus(self.DB_PASSWORD) if self.DB_PASSWORD else ''
+            host = self.DB_HOST or 'localhost'
+            port = f":{self.DB_PORT}" if self.DB_PORT else ''
+
+            auth = ''
+            if user or pwd:
+                auth = f"{user}:{pwd}@"
+
+            dbname = self.DB_NAME or ''
+            return f"{scheme}://{auth}{host}{port}/{dbname}"
+
+        return self.DATABASE_URL
 
 
 class DevelopmentSettings(BaseAppSettings):
@@ -117,26 +169,25 @@ def get_settings() -> BaseAppSettings:
 
     settings = settings_class()
 
-    # Expose uppercase constant-style attributes for backward-compatibility
-    # and to allow access like `settings.APP_NAME` as requested.
+    try:
+        settings.DATABASE_URL = settings.build_database_url()
+    except Exception:
+        pass
+
     try:
         data = settings.model_dump()
     except Exception:
-        # Fallback to __dict__ if model_dump isn't available
         data = getattr(settings, '__dict__', {})
 
     for key, value in data.items():
         try:
             setattr(settings, key.upper(), value)
         except Exception:
-            # Ignore attributes that can't be set
             pass
 
-    # Expose computed properties that are not part of model_dump
-    if hasattr(settings, 'cors_origins_list'):
-        try:
-            settings.CORS_ORIGINS_LIST = settings.cors_origins_list
-        except Exception:
-            pass
+    try:
+        settings.CORS_ORIGINS_LIST = settings.CORS_ORIGINS_LIST
+    except Exception:
+        pass
 
     return settings
