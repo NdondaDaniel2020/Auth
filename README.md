@@ -90,6 +90,7 @@ Variáveis principais:
 - `APP_NAME`, `APP_VERSION`, `APP_DESCRIPTION`: metadados da aplicação.
 - `DEBUG`: ativa ou desativa modo de depuração.
 - `DATABASE_URL`: URL do banco de dados.
+- `DB_ENGINE`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`: permitem montar a URL dinamicamente para SQLite e PostgreSQL sem alterar o código.
 - `CORS_ORIGINS`: origens permitidas pelo CORS.
 - `SECRET_KEY`: chave usada para recursos de autenticação e segurança.
 - `ALGORITHM`: algoritmo de assinatura JWT.
@@ -100,3 +101,47 @@ Comportamento por ambiente:
 - `development`: usa defaults seguros para desenvolvimento e lê o arquivo `.env`.
 - `test`: usa defaults próprios para testes e também pode ler `.env`.
 - `production`: exige que `DATABASE_URL`, `CORS_ORIGINS` e `SECRET_KEY` sejam informados por variáveis de ambiente.
+
+## Alternar entre SQLite e PostgreSQL
+
+A aplicação pode trocar de banco apenas alterando variáveis de ambiente.
+
+### SQLite (desenvolvimento/teste)
+
+Use:
+
+```env
+DB_ENGINE=sqlite
+DB_NAME=./.data/app.db
+DATABASE_URL=
+```
+
+Para banco em memória durante testes:
+
+```env
+DB_ENGINE=sqlite
+DB_NAME=:memory:
+DATABASE_URL=
+```
+
+### PostgreSQL local (Docker)
+
+Use:
+
+```env
+DB_ENGINE=postgresql
+DB_USER=Auth
+DB_PASSWORD=Auth1234
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=Auth
+DATABASE_URL=
+```
+
+O `DATABASE_URL` é montado automaticamente a partir desses campos e será algo como:
+
+```text
+postgresql+asyncpg://Auth:Auth1234@localhost:5432/Auth
+```
+
+Se você trocar credenciais do container, recrie também o volume do Postgres para reaplicar `POSTGRES_USER`, `POSTGRES_PASSWORD` e `POSTGRES_DB`.
