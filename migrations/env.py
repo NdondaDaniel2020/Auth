@@ -13,6 +13,8 @@ BASE_DIR = Path(__file__).resolve().parents[1]
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
+from app.core.config import get_settings
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
@@ -23,8 +25,10 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # add your model's MetaData object here for 'autogenerate' support.
-# Import model packages so they can register themselves on Base.metadata.
-import app.models  # noqa: F401
+# Import model modules so they can register themselves on Base.metadata.
+import app.models.role  # noqa: F401
+import app.models.user  # noqa: F401
+import app.models.permission  # noqa: F401
 from app.db.base import Base
 
 target_metadata = Base.metadata
@@ -47,7 +51,7 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = os.getenv("DATABASE_URL", config.get_main_option("sqlalchemy.url"))
+    url = get_settings().DATABASE_URL
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -66,7 +70,7 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    url = os.getenv("DATABASE_URL", config.get_main_option("sqlalchemy.url"))
+    url = get_settings().DATABASE_URL
     config.set_main_option("sqlalchemy.url", url)
 
     parsed_url = make_url(url)
