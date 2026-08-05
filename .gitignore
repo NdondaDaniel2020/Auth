@@ -32,3 +32,4 @@ wheels/
 .env
 architecture.md
 .env.template
+.coverage
