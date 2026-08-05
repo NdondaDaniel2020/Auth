@@ -144,4 +144,24 @@ O `DATABASE_URL` é montado automaticamente a partir desses campos e será algo 
 postgresql+asyncpg://Auth:Auth1234@localhost:5432/Auth
 ```
 
+### PostgreSQL via Docker Compose com a aplicação em container
+
+Se a aplicação também estiver rodando em um container no mesmo `docker-compose.yml`,
+use o nome do serviço do banco como host. Neste projeto, o serviço do banco se chama
+`db`, então a configuração correta é:
+
+```env
+DB_ENGINE=postgresql
+DB_USER=Auth
+DB_PASSWORD=Auth1234
+DB_HOST=db
+DB_PORT=5432
+DB_NAME=Auth
+DATABASE_URL=
+```
+
+Nesse cenário, `localhost` aponta para o próprio container da aplicação, não para o
+container do PostgreSQL. O hostname `db` funciona porque o Docker Compose cria uma
+rede interna e resolve o nome do serviço automaticamente.
+
 Se você trocar credenciais do container, recrie também o volume do Postgres para reaplicar `POSTGRES_USER`, `POSTGRES_PASSWORD` e `POSTGRES_DB`.
