@@ -194,3 +194,88 @@ DB_PORT=5432
 Com isso, a aplicação acessa o banco pelo nome do serviço `db` dentro da rede interna do Docker Compose.
 
 Se você trocar credenciais do container, recrie também o volume do Postgres para reaplicar `POSTGRES_USER`, `POSTGRES_PASSWORD` e `POSTGRES_DB`.
+
+## Migrações (Alembic)
+
+O controle de versão do schema do banco de dados é feito com o [Alembic](https://alembic.sqlalchemy.org/). A configuração central está em `alembic.ini` e `migrations/env.py`. O Alembic foi configurado para ler automaticamente o `DATABASE_URL` do seu ambiente local, então basta definir as variáveis de ambiente corretas (via `.env` ou exportando-as).
+
+### Gerar uma nova migração (autogenerate)
+Quando adicionar ou modificar tabelas no seu `app/models/`, gere a migração correspondente:
+```bash
+uv run alembic revision --autogenerate -m "descrição da migração"
+```
+*Sempre revise o arquivo gerado em `migrations/versions/` antes de aplicar, especialmente para operações destrutivas como drops ou alteração de restrições (constraints).*
+
+### Aplicar as migrações (upgrade)
+Para atualizar o banco de dados até a última migração:
+```bash
+uv run alembic upgrade head
+```
+
+### Reverter migrações (downgrade)
+Para desfazer a última migração aplicada:
+```bash
+uv run alembic downgrade -1
+```
+Ou para reverter todas as migrações até o estado inicial (banco limpo):
+```bash
+uv run alembic downgrade base
+```
+
+## Seed de dados iniciais
+
+O módulo `app/db/init_db.py` contém toda a lógica de seed do projecto. Ele é **idempotente**: pode ser executado múltiplas vezes sem criar duplicados nem lançar erros.
+
+### O que o seed cria
+
+| Entidade | Valores padrão |
+|---|---|
+| Roles | `admin` (acesso total), `user` (somente leitura) |
+| Permissões | `users:create/read/update/delete`, `roles:read`, `roles:manage` |
+| Atribuições | Todas as permissões → `admin`; apenas `users:read` → `user` |
+| Utilizador admin | `ADMIN_EMAIL` (default: `admin@example.com`) com a role `admin` |
+
+### Variáveis de ambiente relevantes
+
+```env
+# Ativa o seed automático no arranque da aplicação (default: false)
+RUN_SEED_ON_STARTUP=true
+
+# Credenciais do utilizador admin criado pelo seed
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=admin123
+```
+
+> **Aviso de segurança**: Altere sempre `ADMIN_PASSWORD` antes de correr o seed em produção.
+
+### Execução standalone (recomendado para CI/CD e produção)
+
+```bash
+uv run python -m app.db.init_db
+```
+
+Use esta forma em pipelines de deploy, após aplicar as migrações:
+
+```bash
+# Pipeline típico
+uv run alembic upgrade head
+uv run python -m app.db.init_db
+```
+
+### Execução automática no arranque (desenvolvimento)
+
+Defina `RUN_SEED_ON_STARTUP=true` no `.env`. O seed será chamado pelo lifespan da aplicação cada vez que ela arrancar.
+
+```env
+RUN_SEED_ON_STARTUP=true
+```
+
+Este modo é conveniente em desenvolvimento mas **não é recomendado em produção**, pois o seed corre antes de aceitar tráfego e pode atrasar o arranque.
+
+### Quando executar o seed
+
+| Contexto | Método recomendado |
+|---|---|
+| Desenvolvimento local | `RUN_SEED_ON_STARTUP=true` no `.env` |
+| CI/CD (staging/produção) | `uv run python -m app.db.init_db` após `alembic upgrade head` |
+| Reset de base local | `alembic downgrade base && alembic upgrade head && python -m app.db.init_db` |

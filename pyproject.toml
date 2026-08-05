@@ -14,6 +14,7 @@ dependencies = [
     "fastapi-limiter>=0.2.0",
     "fastapi[standard]>=0.141.1",
     "passlib[argon2]>=1.7.4",
+    "psycopg-binary>=3.3.4",
     "psycopg2-binary>=2.9.12",
     "pydantic-settings>=2.14.2",
     "pytest>=9.1.1",
