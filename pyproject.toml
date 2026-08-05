@@ -16,10 +16,12 @@ dependencies = [
     "passlib[argon2]>=1.7.4",
     "psycopg2-binary>=2.9.12",
     "pydantic-settings>=2.14.2",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
     "python-jose[cryptography]>=3.5.0",
     "python-multipart>=0.0.32",
     "slowapi>=0.1.10",
-    "sqlalchemy>=2.0.51",
+    "sqlalchemy[asyncio]>=2.0.51",
     "uvicorn[standard]>=0.52.0",
 ]
 
@@ -72,6 +74,8 @@ runserver = 'uvicorn app.main:app --host 0.0.0.0 --reload --port 8001'
 
 pre_test = 'task lint'
 test = 'pytest -s -x --cov=src -vv'
+test-dev = "pytest -p no:pytest_postgresql -s -x --cov=src -vv"
+test-pg = "pytest -s -x --cov=src -vv"
 post_test='coverage html'
 
 html='open htmlcov/index.html'

@@ -15,5 +15,11 @@ run:
 test:
 	uv run task test
 
+test-dev:
+	uv run task test-dev
+
+test-pg:
+	uv run task test-pg
+
 html:
 	uv run task html
