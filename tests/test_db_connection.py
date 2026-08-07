@@ -1,5 +1,4 @@
 import pytest
-
 from sqlalchemy import text
 
 from app.db.session import get_engine, get_session_factory

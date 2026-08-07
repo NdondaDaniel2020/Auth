@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 from functools import lru_cache
 from typing import Literal
 from urllib.parse import quote_plus
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
 
 
 class EnvironmentSettings(BaseSettings):
@@ -223,22 +226,23 @@ def get_settings() -> BaseAppSettings:
     try:
         settings.DATABASE_URL = settings.build_database_url()
     except Exception:
-        pass
+        logger.warning('Could not build DATABASE_URL from DB_* parts', exc_info=True)
 
     try:
         data = settings.model_dump()
     except Exception:
+        logger.warning('Could not dump settings; falling back to __dict__', exc_info=True)
         data = getattr(settings, '__dict__', {})
 
     for key, value in data.items():
         try:
             setattr(settings, key.upper(), value)
         except Exception:
-            pass
+            logger.debug('Could not set attribute %r on settings', key, exc_info=True)
 
     try:
         settings.CORS_ORIGINS_LIST = settings.CORS_ORIGINS_LIST
     except Exception:
-        pass
+        logger.warning('Could not materialize CORS_ORIGINS_LIST', exc_info=True)
 
     return settings

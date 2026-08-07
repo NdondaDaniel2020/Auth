@@ -10,9 +10,12 @@ from __future__ import annotations
 
 import asyncio
 
-import pytest
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.orm import selectinload
 
 from app.db.base import Base
@@ -24,7 +27,6 @@ from app.db.init_db import (
 from app.models.permission import Permission
 from app.models.role import Role
 from app.models.user import User
-
 
 # ---------------------------------------------------------------------------
 # Helpers

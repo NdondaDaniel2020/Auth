@@ -1,8 +1,8 @@
-from fastapi import FastAPI, Body
+from fastapi import Body, FastAPI
 from fastapi.testclient import TestClient
 
 from app.core.error_handlers import register_exception_handlers
-from app.core.exceptions import NotFoundError, BusinessRuleError
+from app.core.exceptions import BusinessRuleError, NotFoundError
 
 
 def create_test_app() -> FastAPI:
