@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from app.core.config import get_settings
 
 
-def configure_logger(name: str = 'auth_app', level: Optional[int] = None) -> logging.Logger:
+def configure_logger(name: str = 'auth_app', level: int | None = None) -> logging.Logger:
     """Configure and return a logger for the application.
 
     If the logger already has handlers, it is returned as-is. The level

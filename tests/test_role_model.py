@@ -3,7 +3,11 @@ from __future__ import annotations
 import asyncio
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from app.db.base import Base
 from app.db.init_db import DEFAULT_ROLES, seed_roles_and_permissions

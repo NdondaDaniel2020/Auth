@@ -5,7 +5,7 @@ import logging
 from collections.abc import Iterable
 
 from passlib.context import CryptContext
-from sqlalchemy import insert, select
+from sqlalchemy import select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import selectinload
 
@@ -13,7 +13,6 @@ from app.db.session import get_engine, get_session_factory
 from app.models.permission import Permission, role_permissions
 from app.models.role import Role
 from app.models.user import User, user_roles
-
 
 logger = logging.getLogger(__name__)
 
@@ -197,7 +196,7 @@ async def init_db() -> None:
     engine = get_engine()
 
     async with engine.begin() as connection:
-        from app.db.base import Base  # noqa: PLC0415
+        from app.db.base import Base
 
         await connection.run_sync(Base.metadata.create_all)
 

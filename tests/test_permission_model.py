@@ -3,12 +3,16 @@ from __future__ import annotations
 import asyncio
 
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.orm import selectinload
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.db.base import Base
-from app.models.role import Role
 from app.models.permission import Permission
+from app.models.role import Role
 
 
 def _run(coro):

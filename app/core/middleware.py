@@ -10,7 +10,7 @@ def setup_cors_middleware(app: FastAPI) -> None:
 
     origins = getattr(settings, 'CORS_ORIGINS_LIST', settings.CORS_ORIGINS_LIST)
 
-    allow_credentials = False if origins == ["*"] else True
+    allow_credentials = origins != ['*']
 
     app.add_middleware(
         CORSMiddleware,
