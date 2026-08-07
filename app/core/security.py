@@ -12,7 +12,9 @@ from app.core.config import get_settings
 
 def _get_pwd_context() -> CryptContext:
     settings = get_settings()
-    return CryptContext(schemes=[settings.PASSWORD_HASH_SCHEME], deprecated='auto')
+    return CryptContext(
+        schemes=[settings.PASSWORD_HASH_SCHEME], deprecated='auto'
+    )
 
 
 def hash_password(password: str) -> str:
@@ -37,12 +39,16 @@ def create_access_token(
 
     payload = dict(data)
     now = datetime.now(UTC)
-    expire = now + (expires_delta or timedelta(minutes=settings.JWT_ACCESS_MINUTES))
+    expire = now + (
+        expires_delta or timedelta(minutes=settings.JWT_ACCESS_MINUTES)
+    )
     payload['exp'] = expire
     payload['iat'] = now
     payload['type'] = 'access'
 
-    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    return jwt.encode(
+        payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM
+    )
 
 
 def create_refresh_token(
@@ -66,7 +72,9 @@ def create_refresh_token(
     )
 
 
-def decode_token(token: str, *, expected_type: str | None = None) -> dict[str, Any]:
+def decode_token(
+    token: str, *, expected_type: str | None = None
+) -> dict[str, Any]:
     """Decode and validate a JWT.
 
     Validates signature and expiration. When ``expected_type`` is given,

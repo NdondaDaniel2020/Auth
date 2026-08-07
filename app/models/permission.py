@@ -24,9 +24,20 @@ if TYPE_CHECKING:
 role_permissions = Table(
     'role_permissions',
     Base.metadata,
-    Column('role_id', String(36), ForeignKey('roles.id', ondelete='CASCADE'), primary_key=True),
-    Column('permission_id', String(36), ForeignKey('permissions.id', ondelete='CASCADE'), primary_key=True),
+    Column(
+        'role_id',
+        String(36),
+        ForeignKey('roles.id', ondelete='CASCADE'),
+        primary_key=True,
+    ),
+    Column(
+        'permission_id',
+        String(36),
+        ForeignKey('permissions.id', ondelete='CASCADE'),
+        primary_key=True,
+    ),
 )
+
 
 class Permission(Base):
     """Permission model used for authorization."""
@@ -60,7 +71,7 @@ class Permission(Base):
     )
 
     roles: Mapped[list[Role]] = relationship(
-        "Role",
+        'Role',
         secondary=role_permissions,
-        back_populates="permissions",
+        back_populates='permissions',
     )

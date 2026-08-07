@@ -27,7 +27,7 @@ def _send_via_smtp(to_email: str, subject: str, html: str) -> None:
 
     if not settings.SMTP_HOST:
         logger.info(
-            "SMTP not configured — would send e-mail to %s\nSubject: %s\nBody: %s",
+            'SMTP not configured — would send e-mail to %s\nSubject: %s\nBody: %s',
             to_email,
             subject,
             html,

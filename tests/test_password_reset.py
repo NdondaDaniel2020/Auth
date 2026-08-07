@@ -1,4 +1,5 @@
 """Endpoint tests for password reset flow — #20 recuperação, #21 redefinição."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
@@ -35,10 +36,13 @@ def test_request_reset_for_existing_email_sends_email(
 ) -> None:
     captured = _capture_reset_email(monkeypatch)
 
-    assert api_client.post(
-        '/auth/register',
-        json={'email': 'reset@example.com', 'password': 'password123'},
-    ).status_code == 201
+    assert (
+        api_client.post(
+            '/auth/register',
+            json={'email': 'reset@example.com', 'password': 'password123'},
+        ).status_code
+        == 201
+    )
 
     response = api_client.post(
         '/auth/password-reset/request',
@@ -49,7 +53,9 @@ def test_request_reset_for_existing_email_sends_email(
     assert 'token=' in captured['link']
 
 
-def test_request_reset_for_unknown_email_is_generic(api_client, monkeypatch) -> None:
+def test_request_reset_for_unknown_email_is_generic(
+    api_client, monkeypatch
+) -> None:
     captured = _capture_reset_email(monkeypatch)
 
     response = api_client.post(
@@ -92,7 +98,9 @@ def test_reset_password_with_valid_token(api_client, monkeypatch) -> None:
     assert new_login.status_code == 200
 
 
-def test_reset_password_revokes_refresh_tokens(api_client, monkeypatch) -> None:
+def test_reset_password_revokes_refresh_tokens(
+    api_client, monkeypatch
+) -> None:
     captured = _capture_reset_email(monkeypatch)
 
     api_client.post(
@@ -120,14 +128,19 @@ def test_reset_password_revokes_refresh_tokens(api_client, monkeypatch) -> None:
     assert stale_refresh.status_code == 401
 
 
-def test_reset_password_with_expired_token_rejected(api_client, isolated_db_path) -> None:
+def test_reset_password_with_expired_token_rejected(
+    api_client, isolated_db_path
+) -> None:
     async def _make_expired_token(factory):
         async with factory() as session:
             from app.core.security import hash_password
             from app.models.user import User
 
             session.add(
-                User(email='expired@example.com', hashed_password=hash_password('password123'))
+                User(
+                    email='expired@example.com',
+                    hashed_password=hash_password('password123'),
+                )
             )
             await session.flush()
             user = (await session.execute(select(User))).scalar_one()

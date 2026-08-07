@@ -1,4 +1,5 @@
 """Endpoint tests for POST /auth/refresh — #18 refresh token, #24 rotação."""
+
 from __future__ import annotations
 
 from datetime import timedelta
@@ -6,11 +7,18 @@ from datetime import timedelta
 from app.core.security import create_refresh_token
 
 
-def _login(api_client, email: str = 'refresh@example.com', password: str = 'password123'):
-    assert api_client.post(
-        '/auth/register',
-        json={'email': email, 'password': password},
-    ).status_code == 201
+def _login(
+    api_client,
+    email: str = 'refresh@example.com',
+    password: str = 'password123',
+):
+    assert (
+        api_client.post(
+            '/auth/register',
+            json={'email': email, 'password': password},
+        ).status_code
+        == 201
+    )
     response = api_client.post(
         '/auth/login',
         json={'email': email, 'password': password},
@@ -33,9 +41,10 @@ def test_refresh_rotates_tokens(api_client) -> None:
     assert body['refresh_token'] != tokens['refresh_token']
     from app.core.security import decode_access_token
 
-    assert decode_access_token(body['access_token'])['sub'] == decode_access_token(
-        tokens['access_token']
-    )['sub']
+    assert (
+        decode_access_token(body['access_token'])['sub']
+        == decode_access_token(tokens['access_token'])['sub']
+    )
 
 
 def test_refresh_token_is_single_use(api_client) -> None:

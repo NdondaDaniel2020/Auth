@@ -37,7 +37,9 @@ class PasswordResetTokenRepository(BaseRepository[PasswordResetToken]):
         )
         return result.scalar_one_or_none()
 
-    async def mark_used(self, record: PasswordResetToken, *, used_at: datetime) -> None:
+    async def mark_used(
+        self, record: PasswordResetToken, *, used_at: datetime
+    ) -> None:
         await self.session.execute(
             update(PasswordResetToken)
             .where(PasswordResetToken.id == record.id)

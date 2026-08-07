@@ -1,4 +1,5 @@
 """Tests for app/repositories/user_repository.py — #15 registro de usuário."""
+
 from __future__ import annotations
 
 import pytest

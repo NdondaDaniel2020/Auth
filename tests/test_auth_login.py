@@ -1,4 +1,5 @@
 """Endpoint tests for POST /auth/login — #17 login com JWT."""
+
 from __future__ import annotations
 
 from app.core.security import (
@@ -10,7 +11,9 @@ from app.models.user import User
 from tests.conftest import run_in_isolated_db
 
 
-def _register(api_client, email: str = 'login@example.com', password: str = 'password123'):
+def _register(
+    api_client, email: str = 'login@example.com', password: str = 'password123'
+):
     response = api_client.post(
         '/auth/register',
         json={'email': email, 'password': password},
@@ -143,10 +146,16 @@ def test_successful_login_resets_failed_attempts(api_client) -> None:
     _register(api_client, email='reset-counter@example.com')
 
     for _ in range(3):
-        assert api_client.post(
-            '/auth/login',
-            json={'email': 'reset-counter@example.com', 'password': 'wrongpass'},
-        ).status_code == 401
+        assert (
+            api_client.post(
+                '/auth/login',
+                json={
+                    'email': 'reset-counter@example.com',
+                    'password': 'wrongpass',
+                },
+            ).status_code
+            == 401
+        )
 
     ok = api_client.post(
         '/auth/login',
@@ -155,7 +164,13 @@ def test_successful_login_resets_failed_attempts(api_client) -> None:
     assert ok.status_code == 200
 
     for _ in range(5):
-        assert api_client.post(
-            '/auth/login',
-            json={'email': 'reset-counter@example.com', 'password': 'wrongpass'},
-        ).status_code == 401
+        assert (
+            api_client.post(
+                '/auth/login',
+                json={
+                    'email': 'reset-counter@example.com',
+                    'password': 'wrongpass',
+                },
+            ).status_code
+            == 401
+        )

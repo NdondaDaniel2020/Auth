@@ -23,7 +23,11 @@ async def lifespan(app: FastAPI):
     if settings.DB_ENGINE == 'sqlite' and settings.DB_NAME != ':memory:':
         import os
 
-        path = settings.DB_NAME.rsplit('/', 1)[0] if '/' in settings.DB_NAME else ''
+        path = (
+            settings.DB_NAME.rsplit('/', 1)[0]
+            if '/' in settings.DB_NAME
+            else ''
+        )
         if path:
             os.makedirs(path, exist_ok=True)
 
