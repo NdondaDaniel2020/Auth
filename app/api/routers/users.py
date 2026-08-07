@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -11,7 +12,7 @@ from app.api.dependencies.permissions import require_role
 from app.models.user import User
 from app.schemas.pagination import PaginatedResponse
 from app.schemas.user import UserPublic, UserRead
-from app.services.user_service import list_users
+from app.services.user_service import get_user, list_users
 
 router = APIRouter(prefix='/users', tags=['users'])
 
@@ -42,3 +43,17 @@ async def list_all_users(
         page=pagination.page,
         page_size=pagination.page_size,
     )
+
+
+@router.get('/{user_id}', response_model=UserRead)
+async def get_user_by_id(
+    db: SessionDep,
+    admin_user: Annotated[User, Depends(require_role('admin'))],
+    user_id: uuid.UUID,
+) -> UserRead:
+    """Return a single user by ``id`` (admin only).
+
+    The ``id`` is validated as a UUID (malformed values yield HTTP 422);
+    unknown users yield HTTP 404 via ``UserNotFoundError``.
+    """
+    return await get_user(db, user_id=str(user_id))

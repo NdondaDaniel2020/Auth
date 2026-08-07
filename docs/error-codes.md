@@ -53,6 +53,7 @@ Formato padrão de resposta de erro, aplicado centralmente por
 | `TOO_MANY_ATTEMPTS` | Limite de tentativas de login excedido (header `Retry-After`). | 429 | `TooManyLoginAttemptsError` |
 | `EMAIL_ALREADY_EXISTS` | E-mail já registado. | 409 | `EmailAlreadyExistsError` |
 | `NOT_FOUND` | Recurso não encontrado. | 404 | `NotFoundError` |
+| `USER_NOT_FOUND` | Utilizador não encontrado pelo `id`. | 404 | `UserNotFoundError` |
 
 ## Como o frontend deve reagir
 
