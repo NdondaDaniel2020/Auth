@@ -25,7 +25,8 @@ def require_role(*allowed_roles: str):
                 message=(
                     'Access denied: requires one of the roles '
                     f'{", ".join(allowed_roles)}'
-                )
+                ),
+                code='INSUFFICIENT_ROLE',
             )
         return current_user
 
@@ -43,7 +44,8 @@ def check_permission(required_code: str):
         }
         if required_code not in granted:
             raise PermissionDeniedError(
-                message=f'Access denied: requires the permission "{required_code}"'
+                message=f'Access denied: requires the permission "{required_code}"',
+                code='INSUFFICIENT_PERMISSION',
             )
         return current_user
 
