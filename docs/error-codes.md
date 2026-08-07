@@ -54,6 +54,9 @@ Formato padrão de resposta de erro, aplicado centralmente por
 | `EMAIL_ALREADY_EXISTS` | E-mail já registado. | 409 | `EmailAlreadyExistsError` |
 | `NOT_FOUND` | Recurso não encontrado. | 404 | `NotFoundError` |
 | `USER_NOT_FOUND` | Utilizador não encontrado pelo `id`. | 404 | `UserNotFoundError` |
+| `ROLE_NOT_FOUND` | Role não encontrada pelos `id`s informados. | 404 | `RoleNotFoundError` |
+| `SELF_DEACTIVATION_NOT_ALLOWED` | Admin tentou desativar a própria conta. | 400 | `SelfDeactivationError` |
+| `SELF_ROLE_REMOVAL_NOT_ALLOWED` | Admin tentou remover a própria role `admin`. | 400 | `SelfRoleRemovalError` |
 
 ## Como o frontend deve reagir
 
