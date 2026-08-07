@@ -322,3 +322,42 @@ logs (modo de desenvolvimento). Para envio real, configure as variáveis
 
 TTLs, rotação, revogação e estrutura de claims dos tokens estão documentados
 em [docs/token-policy.md](docs/token-policy.md).
+
+## Autorização (RBAC)
+
+Toda a autorização está centralizada em `app/api/dependencies/` — as rotas
+**não** implementam verificações ad-hoc:
+
+| Dependência | Uso | Sem acesso |
+|---|---|---|
+| `get_current_user` (`auth.py`) | Extrai e valida o access token, resolve o utilizador ativo | HTTP 401 `NotAuthenticatedError` |
+| `require_role('admin')` (`permissions.py`) | Exige uma das roles listadas | HTTP 403 `PermissionDeniedError` |
+| `check_permission('users:delete')` (`permissions.py`) | Exige uma permissão específica (via roles do utilizador) | HTTP 403 `PermissionDeniedError` |
+
+Exemplo:
+
+```python
+from app.api.dependencies.auth import CurrentUserDep
+from app.api.dependencies.permissions import require_role, check_permission
+from fastapi import Depends
+
+@router.get('/users/me')
+async def profile(user: CurrentUserDep) -> UserRead:
+    ...
+
+@router.get('/users')
+async def list_users(
+    user=Depends(require_role('admin')),
+    db: SessionDep,
+) -> list[UserRead]:
+    ...
+```
+
+- `get_current_user` carrega as roles e permissões do utilizador de forma
+  antecipada (`selectinload`), para que `require_role`/`check_permission`
+  funcionem em contexto assíncrono.
+- O `OAuth2PasswordBearer` aponta para `/api/auth/login-form` (o endpoint
+  OAuth2 com `OAuth2PasswordRequestForm`).
+- As roles/permissões seedadas estão em `app/db/init_db.py`
+  (`DEFAULT_ROLES`/`DEFAULT_PERMISSIONS`): a role `admin` tem todas as
+  permissões; a role `user` apenas `users:read`.
