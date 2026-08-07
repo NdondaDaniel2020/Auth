@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from sqlalchemy import DateTime, Index, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+
+if TYPE_CHECKING:
+    from app.models.permission import Permission
+    from app.models.user import User
 
 
 class Role(Base):
@@ -45,13 +50,13 @@ class Role(Base):
         onupdate=func.now(),
     )
 
-    permissions: Mapped[list["Permission"]] = relationship(
+    permissions: Mapped[list[Permission]] = relationship(
         "Permission",
         secondary="role_permissions",
         back_populates="roles",
     )
 
-    users: Mapped[list["User"]] = relationship(
+    users: Mapped[list[User]] = relationship(
         "User",
         secondary="user_roles",
         back_populates="roles",
