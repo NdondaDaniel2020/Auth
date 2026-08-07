@@ -28,7 +28,7 @@ class UserRepository(BaseRepository[User]):
         )
         return result.scalar_one_or_none()
 
-    async def create(
+    async def create(  # type: ignore[override]
         self,
         *,
         email: str,

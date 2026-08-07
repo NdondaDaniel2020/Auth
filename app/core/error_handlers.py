@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
@@ -94,7 +95,7 @@ async def handle_http_exception(
     return JSONResponse(status_code=exc.status_code, content=content)
 
 
-def _normalize_validation_details(errors: list[Any]) -> list[dict[str, str]]:
+def _normalize_validation_details(errors: Sequence[Any]) -> list[dict[str, str]]:
     """Flatten pydantic errors into ``{"field": ..., "message": ...}`` items."""
     location_parts = {'body', 'query', 'path', 'header', 'cookie'}
 
@@ -146,7 +147,7 @@ async def handle_generic_exception(
 
 def register_exception_handlers(app: FastAPI) -> None:
     """Register global exception handlers on the FastAPI app."""
-    app.add_exception_handler(AppError, handle_app_error)
-    app.add_exception_handler(HTTPException, handle_http_exception)
-    app.add_exception_handler(RequestValidationError, handle_validation_error)
+    app.add_exception_handler(AppError, handle_app_error)  # type: ignore[arg-type]
+    app.add_exception_handler(HTTPException, handle_http_exception)  # type: ignore[arg-type]
+    app.add_exception_handler(RequestValidationError, handle_validation_error)  # type: ignore[arg-type]
     app.add_exception_handler(Exception, handle_generic_exception)

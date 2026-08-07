@@ -336,7 +336,7 @@ class ProductionSettings(BaseAppSettings):
 def get_settings() -> BaseAppSettings:
     environment = EnvironmentSettings().ENVIRONMENT
 
-    settings_map = {
+    settings_map: dict[str, type[BaseAppSettings]] = {
         'development': DevelopmentSettings,
         'test': TestSettings,
         'production': ProductionSettings,

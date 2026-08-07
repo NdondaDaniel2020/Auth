@@ -200,7 +200,7 @@ async def _set_active_status(
 
     await record_admin_action(
         db,
-        actor_user_id=actor.id,
+        actor_user_id=actor.id if actor is not None else None,
         action=action,
         resource_type='user',
         resource_id=user_id,

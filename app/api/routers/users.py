@@ -25,7 +25,7 @@ router = APIRouter(prefix='/users', tags=['users'])
 
 
 @router.get('/me', response_model=UserPublic)
-async def read_current_user(user: CurrentUserDep) -> User:
+async def read_current_user(user: CurrentUserDep) -> UserPublic:
     """Return the profile of the currently authenticated user.
 
     The user is resolved entirely from the access token; no parameters are

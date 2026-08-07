@@ -164,10 +164,10 @@ async def seed_roles_and_permissions(
             logger.warning('Admin role not found; skipping admin user seed.')
             return
 
-        result = await session.execute(
+        admin_user_result = await session.execute(
             select(User).where(User.email == admin_email)
         )
-        admin_user = result.scalar_one_or_none()
+        admin_user = admin_user_result.scalar_one_or_none()
 
         if admin_user is None:
             admin_user = User(
