@@ -80,6 +80,20 @@ class InvalidCredentialsError(AppError):
         super().__init__(message=message, status_code=401, payload=payload)
 
 
+class NotAuthenticatedError(AppError):
+    def __init__(
+        self,
+        message: str = 'Not authenticated',
+        payload: dict[str, Any] | None = None,
+    ):
+        super().__init__(
+            message=message,
+            status_code=401,
+            payload=payload,
+            headers={'WWW-Authenticate': 'Bearer'},
+        )
+
+
 class InvalidRefreshTokenError(AppError):
     def __init__(
         self,
