@@ -52,6 +52,44 @@ def test_login_wrong_password_rejected(api_client) -> None:
     assert response.json()['error']['type'] == 'InvalidCredentialsError'
 
 
+def test_login_form_success_returns_valid_tokens(api_client) -> None:
+    user = _register(api_client, email='form@example.com')
+
+    response = api_client.post(
+        '/auth/login-form',
+        data={'username': 'form@example.com', 'password': 'password123'},
+    )
+    assert response.status_code == 200
+
+    body = response.json()
+    assert body['token_type'] == 'bearer'
+    assert body['access_token']
+    assert body['refresh_token']
+
+    access_payload = decode_access_token(body['access_token'])
+    assert access_payload['sub'] == user['id']
+    assert access_payload['type'] == 'access'
+
+
+def test_login_form_wrong_password_rejected(api_client) -> None:
+    _register(api_client, email='form-wrong@example.com')
+    response = api_client.post(
+        '/auth/login-form',
+        data={'username': 'form-wrong@example.com', 'password': 'wrongpass'},
+    )
+    assert response.status_code == 401
+    assert response.json()['error']['type'] == 'InvalidCredentialsError'
+
+
+def test_login_form_unknown_email_rejected(api_client) -> None:
+    response = api_client.post(
+        '/auth/login-form',
+        data={'username': 'nobody@example.com', 'password': 'password123'},
+    )
+    assert response.status_code == 401
+    assert response.json()['error']['type'] == 'InvalidCredentialsError'
+
+
 def test_login_unknown_email_rejected(api_client) -> None:
     response = api_client.post(
         '/auth/login',
