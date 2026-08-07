@@ -45,6 +45,43 @@ def test_login_success_returns_valid_tokens(api_client) -> None:
     assert refresh_payload['jti']
 
 
+def test_login_token_contains_expiration_claim(api_client) -> None:
+    from datetime import UTC, datetime
+
+    _register(api_client)
+    response = api_client.post(
+        '/auth/login',
+        json={'email': 'login@example.com', 'password': 'T3st!Passw0rd'},
+    )
+    assert response.status_code == 200
+
+    payload = decode_access_token(response.json()['access_token'])
+    exp = payload['exp']
+    assert isinstance(exp, int)
+    assert exp > int(datetime.now(UTC).timestamp())
+
+
+def test_login_missing_fields_rejected(api_client) -> None:
+    no_email = api_client.post('/auth/login', json={'password': 'T3st!Passw0rd'})
+    assert no_email.status_code == 422
+
+    no_password = api_client.post(
+        '/auth/login', json={'email': 'login@example.com'}
+    )
+    assert no_password.status_code == 422
+
+    empty = api_client.post('/auth/login', json={})
+    assert empty.status_code == 422
+
+
+def test_login_invalid_email_format_rejected(api_client) -> None:
+    response = api_client.post(
+        '/auth/login',
+        json={'email': 'not-an-email', 'password': 'T3st!Passw0rd'},
+    )
+    assert response.status_code == 422
+
+
 def test_login_wrong_password_rejected(api_client) -> None:
     _register(api_client)
     response = api_client.post(

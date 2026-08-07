@@ -405,3 +405,32 @@ Todas as respostas de erro seguem o formato `{error: {type, message, code},
 status, path, method}`. O campo `code` é um identificador estável que o
 frontend usa para distinguir cenários (ex: `TOKEN_EXPIRED`,
 `INSUFFICIENT_ROLE`) — ver [docs/error-codes.md](docs/error-codes.md).
+
+## Testes
+
+A suíte é organizada por camada (ver [docs/testing-conventions.md](docs/testing-conventions.md)):
+
+- `tests/` — comportamento via HTTP dos fluxos de auth/RBAC (registro, login,
+  refresh, reset de senha, etc.).
+- `tests/test_services/` — regras de negócio sem a camada HTTP.
+- `tests/test_repositories/` — acesso a dados (CRUD, constraints).
+- `tests/test_integration/` — jornadas ponta a ponta (registro → login →
+  refresh → logout, recuperação de senha, RBAC administrativo, desativação).
+
+### Como rodar
+
+```bash
+uv run task lint   # ruff
+uv run task test   # suíte completa com cobertura
+```
+
+Os testes de integração são marcados com `@pytest.mark.integration` e podem
+ser executados isoladamente:
+
+```bash
+uv run pytest -m integration            # apenas os de integração
+uv run pytest -m "not integration"      # apenas os demais (rápidos)
+```
+
+Em CI/CD, a separação permite rodar os testes unitários/comportamentais em
+todo PR e os de integração antes de merge/release.
