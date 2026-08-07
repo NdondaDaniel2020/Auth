@@ -40,7 +40,7 @@ dev = [
 
 [tool.ruff]
 line-length = 79
-extend-exclude = ['migration', 'doc','__pycache__', 'sketch', '.venv']
+extend-exclude = ['migrations', 'doc', '__pycache__', 'sketch', '.venv']
 
 [tool.ruff.lint]
 preview = true
@@ -74,9 +74,9 @@ run = 'fastapi dev app/main.py --host 0.0.0.0 --port 8001'
 runserver = 'uvicorn app.main:app --host 0.0.0.0 --reload --port 8001'
 
 pre_test = 'task lint'
-test = 'pytest -s -x --cov=src -vv'
-test-dev = "pytest -p no:pytest_postgresql -s -x --cov=src -vv"
-test-pg = "pytest -s -x --cov=src -vv"
+test = 'pytest -s -x --cov=app -vv'
+test-dev = "pytest -p no:pytest_postgresql -s -x --cov=app -vv"
+test-pg = "pytest -s -x --cov=app -vv"
 post_test='coverage html'
 
 html='open htmlcov/index.html'
