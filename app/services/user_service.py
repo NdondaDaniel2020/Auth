@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from app.core.exceptions import (
     EmailAlreadyExistsError,
     InvalidCredentialsError,
@@ -16,6 +18,7 @@ from app.core.rate_limiter import (
     reset_login_attempts,
 )
 from app.core.security import hash_password, verify_password
+from app.core.security_logger import log_security_event
 from app.models.user import User
 from app.repositories.refresh_token_repository import RefreshTokenRepository
 from app.repositories.user_repository import UserRepository
@@ -62,20 +65,37 @@ async def authenticate_user(
 
     blocked_seconds = check_login_blocked(login_key)
     if blocked_seconds is not None:
+        log_security_event(
+            'LOGIN_RATE_LIMITED',
+            ip=client_ip,
+            metadata={'email': email},
+            level=logging.WARNING,
+        )
         raise TooManyLoginAttemptsError(retry_after=blocked_seconds)
 
     repository = UserRepository(db)
     user = await repository.get_by_email(email)
 
-    if (
-        user is None
-        or not user.is_active
-        or not verify_password(password, user.hashed_password)
+    if user is None or not user.is_active or not verify_password(
+        password, user.hashed_password
     ):
+        reason = (
+            'account_inactive'
+            if user is not None and not user.is_active
+            else 'invalid_credentials'
+        )
+        log_security_event(
+            'LOGIN_FAILED',
+            user_id=user.id if user is not None else None,
+            ip=client_ip,
+            metadata={'email': email, 'reason': reason},
+            level=logging.WARNING,
+        )
         register_failed_login(login_key)
         raise InvalidCredentialsError()
 
     reset_login_attempts(login_key)
+    log_security_event('LOGIN_SUCCESS', user_id=user.id, ip=client_ip)
     return user
 
 
