@@ -212,13 +212,13 @@ async def init_db() -> None:
 
 
 async def _main() -> None:
-    from app.core.config import get_settings
+    from app.core.config import EnvironmentSettings, get_settings
     from app.db.session import get_engine
 
     logging.basicConfig(level=logging.INFO)
     settings = get_settings()
 
-    logger.info("Running seed standalone (env=%s)…", settings.ENVIRONMENT)
+    logger.info("Running seed standalone (env=%s)…", EnvironmentSettings().ENVIRONMENT)
     await seed_roles_and_permissions(
         admin_email=settings.ADMIN_EMAIL,
         admin_password=settings.ADMIN_PASSWORD,
