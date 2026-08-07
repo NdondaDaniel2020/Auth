@@ -96,6 +96,7 @@ Variáveis principais:
 - `SECRET_KEY`: chave usada para recursos de autenticação e segurança.
 - `ALGORITHM`: algoritmo de assinatura JWT.
 - `JWT_ACCESS_MINUTES` e `JWT_REFRESH_DAYS`: tempos de expiração dos tokens.
+- `RATE_LIMIT_DEFAULT`, `RATE_LIMIT_REGISTER`, `RATE_LIMIT_PASSWORD_RESET`, `RATE_LIMIT_EMAIL_RESEND`: limites de requisição por rota sensível (formato `"N/timeunit"`).
 
 Comportamento por ambiente:
 
@@ -122,6 +123,21 @@ CORS_ALLOW_CREDENTIALS=true
 ```
 
 > **Segurança:** em produção, `CORS_ALLOWED_ORIGINS` nunca deve ser `*` quando `CORS_ALLOW_CREDENTIALS=true` — a combinação é rejeitada na inicialização.
+
+### Rate limiting por rota
+
+Rotas sensíveis (`POST /auth/register`, `POST /auth/password-reset/request`, `POST /auth/verify-email/resend`) são protegidas por um rate limiter de janela deslizante por IP, configurável por variável de ambiente no formato `"N/timeunit"` (unidades: `second`, `minute`, `hour`, `day`).
+
+```env
+RATE_LIMIT_DEFAULT=60/minute
+RATE_LIMIT_REGISTER=10/minute
+RATE_LIMIT_PASSWORD_RESET=5/minute
+RATE_LIMIT_EMAIL_RESEND=3/minute
+```
+
+Ao exceder o limite, a API responde `429 Too Many Requests` com o código de erro `RATE_LIMIT_EXCEEDED` e o header `Retry-After`.
+
+> **Nota de escalabilidade:** o backend atual é em memória (por processo). Em produção com múltiplas instâncias, cada instância mantém seus próprios contadores; para um limite compartilhado, use um backend distribuído (ex.: Redis).
 
 ## Alternar entre SQLite e PostgreSQL
 

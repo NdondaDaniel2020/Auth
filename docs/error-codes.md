@@ -51,6 +51,7 @@ Formato padrão de resposta de erro, aplicado centralmente por
 | `INVALID_OR_EXPIRED_TOKEN` | Token de redefinição/verificação inválido ou expirado. | 400 | `InvalidOrExpiredTokenError` |
 | `TOKEN_ALREADY_USED` | Token de utilização única já consumido. | 400 | `TokenAlreadyUsedError` |
 | `TOO_MANY_ATTEMPTS` | Limite de tentativas de login excedido (header `Retry-After`). | 429 | `TooManyLoginAttemptsError` |
+| `RATE_LIMIT_EXCEEDED` | Limite de requisições excedido em rota sensível (header `Retry-After`). | 429 | `RateLimitExceededError` |
 | `EMAIL_ALREADY_EXISTS` | E-mail já registado. | 409 | `EmailAlreadyExistsError` |
 | `NOT_FOUND` | Recurso não encontrado. | 404 | `NotFoundError` |
 | `USER_NOT_FOUND` | Utilizador não encontrado pelo `id`. | 404 | `UserNotFoundError` |
@@ -65,3 +66,4 @@ Formato padrão de resposta de erro, aplicado centralmente por
 - `ACCOUNT_INACTIVE` → informar que a conta está desativada.
 - `INSUFFICIENT_ROLE` / `INSUFFICIENT_PERMISSION` → exibir mensagem de acesso negado (sem redirecionar).
 - `TOO_MANY_ATTEMPTS` → aguardar o valor de `Retry-After` antes de tentar novamente.
+- `RATE_LIMIT_EXCEEDED` → aguardar o valor de `Retry-After` antes de tentar novamente.
