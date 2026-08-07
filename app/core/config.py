@@ -47,6 +47,52 @@ class BaseAppSettings(BaseSettings):
         default=7,
         alias='JWT_REFRESH_DAYS',
     )
+    REFRESH_SECRET_KEY: str = Field(
+        default='',
+        alias='REFRESH_SECRET_KEY',
+    )
+    PASSWORD_HASH_SCHEME: str = Field(
+        default='argon2',
+        alias='PASSWORD_HASH_SCHEME',
+    )
+    PASSWORD_MIN_LENGTH: int = Field(
+        default=8,
+        alias='PASSWORD_MIN_LENGTH',
+    )
+    LOGIN_MAX_ATTEMPTS: int = Field(
+        default=5,
+        alias='LOGIN_MAX_ATTEMPTS',
+    )
+    LOGIN_ATTEMPT_WINDOW_MINUTES: int = Field(
+        default=15,
+        alias='LOGIN_ATTEMPT_WINDOW_MINUTES',
+    )
+    LOGIN_BLOCK_DURATION_MINUTES: int = Field(
+        default=30,
+        alias='LOGIN_BLOCK_DURATION_MINUTES',
+    )
+    PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = Field(
+        default=30,
+        alias='PASSWORD_RESET_TOKEN_EXPIRE_MINUTES',
+    )
+    EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES: int = Field(
+        default=1440,
+        alias='EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES',
+    )
+    APP_BASE_URL: str = Field(
+        default='http://localhost:8001',
+        alias='APP_BASE_URL',
+    )
+    SMTP_HOST: str = Field(default='', alias='SMTP_HOST')
+    SMTP_PORT: int = Field(default=587, alias='SMTP_PORT')
+    SMTP_USER: str = Field(default='', alias='SMTP_USER')
+    SMTP_PASSWORD: str = Field(default='', alias='SMTP_PASSWORD')
+    SMTP_FROM: str = Field(default='', alias='SMTP_FROM')
+    SMTP_TLS: bool = Field(default=True, alias='SMTP_TLS')
+
+    @property
+    def REFRESH_SECRET_KEY_ACTIVE(self) -> str:
+        return self.REFRESH_SECRET_KEY or self.SECRET_KEY
     DB_ENGINE: str = Field(default='', alias='DB_ENGINE')
     DB_USER: str = Field(default='', alias='DB_USER')
     DB_PASSWORD: str = Field(default='', alias='DB_PASSWORD')
