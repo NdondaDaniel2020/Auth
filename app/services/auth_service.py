@@ -1,0 +1,229 @@
+from __future__ import annotations
+
+from datetime import timedelta
+from uuid import uuid4
+
+import jwt as pyjwt
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.config import get_settings
+from app.core.exceptions import (
+    InvalidOrExpiredTokenError,
+    InvalidRefreshTokenError,
+    TokenAlreadyUsedError,
+)
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    decode_refresh_token,
+    hash_password,
+)
+from app.models.user import User
+from app.repositories.email_verification_repository import (
+    EmailVerificationTokenRepository,
+)
+from app.repositories.password_reset_repository import (
+    PasswordResetTokenRepository,
+)
+from app.repositories.refresh_token_repository import RefreshTokenRepository
+from app.repositories.user_repository import UserRepository
+from app.schemas.auth import Token
+from app.services import email_service
+from app.utils.datetimes import ensure_utc, utcnow
+from app.utils.tokens import generate_opaque_token
+
+
+async def create_token_pair(db: AsyncSession, user: User) -> Token:
+    """Issue an access token and a persistable, revocable refresh token."""
+    settings = get_settings()
+
+    access_token = create_access_token({'sub': user.id})
+
+    jti = str(uuid4())
+    expires_at = utcnow() + timedelta(days=settings.JWT_REFRESH_DAYS)
+    refresh_repository = RefreshTokenRepository(db)
+    await refresh_repository.create(jti=jti, user_id=user.id, expires_at=expires_at)
+
+    refresh_token = create_refresh_token(
+        {'sub': user.id, 'jti': jti},
+        expires_delta=timedelta(days=settings.JWT_REFRESH_DAYS),
+    )
+
+    await db.commit()
+    return Token(access_token=access_token, refresh_token=refresh_token)
+
+
+async def refresh_tokens(db: AsyncSession, refresh_token: str) -> Token:
+    """Rotate a refresh token and issue a fresh pair.
+
+    The used refresh token is revoked and replaced. If a revoked/rotated
+    token is reused, all active refresh tokens of the user are revoked as a
+    containment measure (possible token compromise).
+    """
+    try:
+        payload = decode_refresh_token(refresh_token)
+    except pyjwt.InvalidTokenError:
+        raise InvalidRefreshTokenError() from None
+
+    jti = payload.get('jti')
+    subject = payload.get('sub')
+    if not jti or not subject:
+        raise InvalidRefreshTokenError()
+
+    refresh_repository = RefreshTokenRepository(db)
+    record = await refresh_repository.get_by_jti(jti)
+
+    if record is None:
+        raise InvalidRefreshTokenError()
+
+    if record.revoked:
+        await refresh_repository.revoke_all_for_user(record.user_id)
+        await db.commit()
+        raise InvalidRefreshTokenError()
+
+    if ensure_utc(record.expires_at) <= utcnow():
+        raise InvalidRefreshTokenError()
+
+    user_repository = UserRepository(db)
+    user = await user_repository.get(record.user_id)
+    if user is None or not user.is_active:
+        raise InvalidRefreshTokenError()
+
+    await refresh_repository.revoke(jti)
+    return await create_token_pair(db, user)
+
+
+async def logout(db: AsyncSession, refresh_token: str) -> None:
+    """Revoke the given refresh token.
+
+    Idempotent for tokens that are or were valid; malformed or unknown
+    tokens are rejected. The access token itself remains valid until its
+    natural expiration.
+    """
+    try:
+        payload = decode_refresh_token(refresh_token)
+    except pyjwt.InvalidTokenError:
+        raise InvalidRefreshTokenError() from None
+
+    jti = payload.get('jti')
+    if not jti:
+        raise InvalidRefreshTokenError()
+
+    refresh_repository = RefreshTokenRepository(db)
+    record = await refresh_repository.get_by_jti(jti)
+    if record is None:
+        raise InvalidRefreshTokenError()
+
+    if not record.revoked:
+        await refresh_repository.revoke(jti)
+        await db.commit()
+
+
+async def request_password_reset(db: AsyncSession, email: str) -> None:
+    """Generate a short-lived reset token and e-mail the reset link.
+
+    The response never reveals whether the e-mail is registered.
+    """
+    settings = get_settings()
+
+    user_repository = UserRepository(db)
+    user = await user_repository.get_by_email(email)
+    if user is None:
+        return
+
+    token = generate_opaque_token()
+    expires_at = utcnow() + timedelta(minutes=settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES)
+
+    reset_repository = PasswordResetTokenRepository(db)
+    await reset_repository.create(user_id=user.id, token=token, expires_at=expires_at)
+    await db.commit()
+
+    reset_link = f'{settings.APP_BASE_URL}/auth/password-reset/confirm?token={token}'
+    await email_service.send_password_reset_email(user.email, reset_link)
+
+
+async def reset_password(db: AsyncSession, token: str, new_password: str) -> None:
+    """Validate a reset token and replace the user's password.
+
+    The token can only be used once and expires after a short window. All
+    active refresh tokens of the user are revoked so other sessions must
+    log in again.
+    """
+    now = utcnow()
+
+    reset_repository = PasswordResetTokenRepository(db)
+    record = await reset_repository.get_by_token(token)
+    if record is None:
+        raise InvalidOrExpiredTokenError()
+
+    if record.used:
+        raise TokenAlreadyUsedError()
+
+    if ensure_utc(record.expires_at) <= now:
+        raise InvalidOrExpiredTokenError()
+
+    user_repository = UserRepository(db)
+    user = await user_repository.get(record.user_id)
+    if user is None:
+        raise InvalidOrExpiredTokenError()
+
+    user.hashed_password = hash_password(new_password)
+    await reset_repository.mark_used(record, used_at=now)
+
+    refresh_repository = RefreshTokenRepository(db)
+    await refresh_repository.revoke_all_for_user(user.id)
+
+    await db.commit()
+
+
+async def verify_email(db: AsyncSession, token: str) -> None:
+    """Confirm a user's e-mail address using a single-use token."""
+    now = utcnow()
+
+    verification_repository = EmailVerificationTokenRepository(db)
+    record = await verification_repository.get_by_token(token)
+    if record is None:
+        raise InvalidOrExpiredTokenError()
+
+    if record.used:
+        raise TokenAlreadyUsedError()
+
+    if ensure_utc(record.expires_at) <= now:
+        raise InvalidOrExpiredTokenError()
+
+    user_repository = UserRepository(db)
+    user = await user_repository.get(record.user_id)
+    if user is None:
+        raise InvalidOrExpiredTokenError()
+
+    user.is_verified = True
+    await verification_repository.mark_used(record, used_at=now)
+    await db.commit()
+
+
+async def send_verification_email_for_user(db: AsyncSession, user: User) -> None:
+    """Create a verification token and e-mail it to the user (if unverified)."""
+    settings = get_settings()
+
+    if user.is_verified:
+        return
+
+    token = generate_opaque_token()
+    expires_at = utcnow() + timedelta(minutes=settings.EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES)
+
+    verification_repository = EmailVerificationTokenRepository(db)
+    await verification_repository.create(user_id=user.id, token=token, expires_at=expires_at)
+    await db.commit()
+
+    verify_link = f'{settings.APP_BASE_URL}/auth/verify-email?token={token}'
+    await email_service.send_verification_email(user.email, verify_link)
+
+
+async def resend_verification_email(db: AsyncSession, email: str) -> None:
+    """Send a fresh verification link to a registered, unverified user."""
+    user_repository = UserRepository(db)
+    user = await user_repository.get_by_email(email)
+    if user is None or user.is_verified:
+        return
+
+    await send_verification_email_for_user(db, user)
