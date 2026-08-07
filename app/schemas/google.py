@@ -17,9 +17,9 @@ class GoogleAuthUrlResponse(BaseModel):
 class GoogleLoginRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
-    code: str | None = Field(default=None, min_length=1)
-    state: str | None = Field(default=None, min_length=1)
-    id_token: str | None = Field(default=None, min_length=1)
+    code: str | None = Field(default=None, min_length=1, max_length=4096)
+    state: str | None = Field(default=None, min_length=1, max_length=2048)
+    id_token: str | None = Field(default=None, min_length=1, max_length=8192)
 
     @model_validator(mode='after')
     def _require_exactly_one_credential(self) -> GoogleLoginRequest:
