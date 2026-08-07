@@ -35,7 +35,9 @@ def _seed_admin(isolated_db_path: str) -> str:
     return out['id']
 
 
-def test_deactivation_journey(full_client: TestClient, isolated_db_path) -> None:
+def test_deactivation_journey(
+    full_client: TestClient, isolated_db_path
+) -> None:
     admin_id = _seed_admin(isolated_db_path)
     admin_headers = {
         'Authorization': f'Bearer {create_access_token({"sub": admin_id})}'
@@ -54,10 +56,10 @@ def test_deactivation_journey(full_client: TestClient, isolated_db_path) -> None
         json={'email': 'worker@example.com', 'password': PASSWORD},
     )
     assert login.status_code == 200
-    user_headers = {
-        'Authorization': f'Bearer {login.json()["access_token"]}'
-    }
-    assert full_client.get('/users/me', headers=user_headers).status_code == 200
+    user_headers = {'Authorization': f'Bearer {login.json()["access_token"]}'}
+    assert (
+        full_client.get('/users/me', headers=user_headers).status_code == 200
+    )
 
     # 2. Admin deactivates the user
     deactivate = full_client.patch(

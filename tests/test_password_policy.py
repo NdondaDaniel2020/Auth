@@ -89,7 +89,10 @@ def test_reset_password_strong_new_password_accepted(
 
     api_client.post(
         '/auth/register',
-        json={'email': 'reset-policy@example.com', 'password': 'Passw0rd!2026'},
+        json={
+            'email': 'reset-policy@example.com',
+            'password': 'Passw0rd!2026',
+        },
     )
     api_client.post(
         '/auth/password-reset/request',

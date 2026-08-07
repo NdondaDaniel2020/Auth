@@ -125,7 +125,9 @@ def _admin_headers(isolated_db_path: str) -> dict[str, str]:
     }
 
 
-def test_logout_revokes_only_the_single_session(client, isolated_db_path) -> None:
+def test_logout_revokes_only_the_single_session(
+    client, isolated_db_path
+) -> None:
     target_id = _seed_user(isolated_db_path, email='target@example.com')
 
     session_a = _login(client, 'target@example.com')
@@ -160,7 +162,9 @@ def test_role_loss_revokes_all_sessions(client, isolated_db_path) -> None:
         'Authorization': f'Bearer {create_access_token({"sub": admin_id})}'
     }
     target_id = _seed_user(
-        isolated_db_path, email='demoted@example.com', role_ids=(admin_role_id,)
+        isolated_db_path,
+        email='demoted@example.com',
+        role_ids=(admin_role_id,),
     )
 
     session_a = _login(client, 'demoted@example.com')
@@ -179,12 +183,16 @@ def test_role_loss_revokes_all_sessions(client, isolated_db_path) -> None:
         assert reuse.json()['error']['type'] == 'InvalidRefreshTokenError'
 
 
-def test_non_sensitive_role_change_keeps_sessions(client, isolated_db_path) -> None:
+def test_non_sensitive_role_change_keeps_sessions(
+    client, isolated_db_path
+) -> None:
     headers = _admin_headers(isolated_db_path)
     user_role_id = _seed_role(isolated_db_path, 'user')
     editor_role_id = _seed_role(isolated_db_path, 'editor')
     target_id = _seed_user(
-        isolated_db_path, email='extended@example.com', role_ids=(user_role_id,)
+        isolated_db_path,
+        email='extended@example.com',
+        role_ids=(user_role_id,),
     )
 
     session_a = _login(client, 'extended@example.com')

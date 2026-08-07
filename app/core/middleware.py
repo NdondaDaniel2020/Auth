@@ -33,7 +33,7 @@ def setup_request_logging_middleware(app: FastAPI) -> None:
     """
     logger = get_logger()
 
-    @app.middleware("http")
+    @app.middleware('http')
     async def _log_requests(request, call_next):
         import time
 
@@ -41,9 +41,11 @@ def setup_request_logging_middleware(app: FastAPI) -> None:
         response = await call_next(request)
         elapsed = time.perf_counter() - start
 
-        client = request.client.host if getattr(request, 'client', None) else None
+        client = (
+            request.client.host if getattr(request, 'client', None) else None
+        )
         logger.info(
-            "%s %s %s %.3fs client=%s",
+            '%s %s %s %.3fs client=%s',
             request.method,
             request.url.path,
             response.status_code,

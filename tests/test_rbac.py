@@ -77,7 +77,9 @@ def _seed_user(
         async with factory() as session:
             user = User(email=email, hashed_password='not-a-real-hash')
 
-            for role_name, permission_codes in (role_permissions or {}).items():
+            for role_name, permission_codes in (
+                role_permissions or {}
+            ).items():
                 role = Role(name=role_name)
                 for code in permission_codes:
                     role.permissions.append(Permission(code=code))
@@ -194,7 +196,9 @@ def test_permission_not_covered_by_any_role_denied(
     assert response.json()['error']['code'] == 'INSUFFICIENT_PERMISSION'
 
 
-def test_unauthenticated_request_to_rbac_route_returns_401(rbac_client) -> None:
+def test_unauthenticated_request_to_rbac_route_returns_401(
+    rbac_client,
+) -> None:
     response = rbac_client.get('/admin-or-manager')
     assert response.status_code == 401
     assert response.json()['error']['code'] == 'NOT_AUTHENTICATED'

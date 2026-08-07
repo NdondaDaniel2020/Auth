@@ -16,7 +16,9 @@ from app.utils.tokens import hash_token
 
 
 @pytest.mark.asyncio
-async def test_create_stores_hash_not_plain_token(isolated_session_factory) -> None:
+async def test_create_stores_hash_not_plain_token(
+    isolated_session_factory,
+) -> None:
     async with isolated_session_factory() as session:
         user = await UserRepository(session).create(
             email='reset-repo@example.com', hashed_password='hashed'
@@ -63,7 +65,9 @@ async def test_get_by_token_missing(isolated_session_factory) -> None:
 
 
 @pytest.mark.asyncio
-async def test_mark_used_sets_flag_and_timestamp(isolated_session_factory) -> None:
+async def test_mark_used_sets_flag_and_timestamp(
+    isolated_session_factory,
+) -> None:
     async with isolated_session_factory() as session:
         user = await UserRepository(session).create(
             email='markused@example.com', hashed_password='hashed'

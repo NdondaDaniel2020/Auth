@@ -52,11 +52,15 @@ def _call(
     headers: dict[str, str] | None = None,
 ) -> tuple[int, dict]:
     url = path.format(user_id=VALID_USER_ID)
-    response = client.request(method, url, headers=headers, json=_body_for(method, path))
+    response = client.request(
+        method, url, headers=headers, json=_body_for(method, path)
+    )
     return response.status_code, response.json()
 
 
-def _seed_user(isolated_db_path: str, *, email: str, is_active: bool = True) -> str:
+def _seed_user(
+    isolated_db_path: str, *, email: str, is_active: bool = True
+) -> str:
     out: dict[str, str] = {}
 
     async def _coro(factory):
@@ -109,7 +113,10 @@ def test_no_token_returns_401(full_client, method, path, role) -> None:
 )
 def test_malformed_token_returns_401(full_client, method, path, role) -> None:
     status, body = _call(
-        full_client, method, path, headers={'Authorization': 'Bearer not-a-jwt'}
+        full_client,
+        method,
+        path,
+        headers={'Authorization': 'Bearer not-a-jwt'},
     )
     assert status == 401
     assert body['error']['code'] == 'TOKEN_INVALID'
@@ -126,7 +133,10 @@ def test_expired_token_returns_401(full_client, method, path, role) -> None:
         {'sub': VALID_USER_ID}, expires_delta=timedelta(minutes=-5)
     )
     status, body = _call(
-        full_client, method, path, headers={'Authorization': f'Bearer {expired}'}
+        full_client,
+        method,
+        path,
+        headers={'Authorization': f'Bearer {expired}'},
     )
     assert status == 401
     assert body['error']['code'] == 'TOKEN_EXPIRED'

@@ -155,12 +155,8 @@ class BaseAppSettings(BaseSettings):
         default=False, alias='GOOGLE_LOGIN_ENABLED'
     )
     GOOGLE_CLIENT_ID: str = Field(default='', alias='GOOGLE_CLIENT_ID')
-    GOOGLE_CLIENT_SECRET: str = Field(
-        default='', alias='GOOGLE_CLIENT_SECRET'
-    )
-    GOOGLE_REDIRECT_URI: str = Field(
-        default='', alias='GOOGLE_REDIRECT_URI'
-    )
+    GOOGLE_CLIENT_SECRET: str = Field(default='', alias='GOOGLE_CLIENT_SECRET')
+    GOOGLE_REDIRECT_URI: str = Field(default='', alias='GOOGLE_REDIRECT_URI')
     GOOGLE_AUTH_URL: str = Field(
         default='https://accounts.google.com/o/oauth2/v2/auth',
         alias='GOOGLE_AUTH_URL',
@@ -187,6 +183,7 @@ class BaseAppSettings(BaseSettings):
     @property
     def REFRESH_SECRET_KEY_ACTIVE(self) -> str:
         return self.REFRESH_SECRET_KEY or self.SECRET_KEY
+
     DB_ENGINE: str = Field(default='', alias='DB_ENGINE')
     DB_USER: str = Field(default='', alias='DB_USER')
     DB_PASSWORD: str = Field(default='', alias='DB_PASSWORD')
@@ -195,7 +192,9 @@ class BaseAppSettings(BaseSettings):
     DB_NAME: str = Field(default='', alias='DB_NAME')
 
     # Seed configuration
-    RUN_SEED_ON_STARTUP: bool = Field(default=False, alias='RUN_SEED_ON_STARTUP')
+    RUN_SEED_ON_STARTUP: bool = Field(
+        default=False, alias='RUN_SEED_ON_STARTUP'
+    )
     ADMIN_EMAIL: str = Field(default='admin@example.com', alias='ADMIN_EMAIL')
     ADMIN_PASSWORD: str = Field(default='admin123', alias='ADMIN_PASSWORD')
 
@@ -260,14 +259,14 @@ class BaseAppSettings(BaseSettings):
             user = quote_plus(self.DB_USER) if self.DB_USER else ''
             pwd = quote_plus(self.DB_PASSWORD) if self.DB_PASSWORD else ''
             host = self.DB_HOST or 'localhost'
-            port = f":{self.DB_PORT}" if self.DB_PORT else ''
+            port = f':{self.DB_PORT}' if self.DB_PORT else ''
 
             auth = ''
             if user or pwd:
-                auth = f"{user}:{pwd}@"
+                auth = f'{user}:{pwd}@'
 
             dbname = self.DB_NAME or ''
-            return f"{scheme}://{auth}{host}{port}/{dbname}"
+            return f'{scheme}://{auth}{host}{port}/{dbname}'
 
         return self.DATABASE_URL
 
@@ -298,7 +297,9 @@ class TestSettings(BaseAppSettings):
         default='sqlite+aiosqlite:///./.data/test.db',
         alias='DATABASE_URL',
     )
-    CORS_ALLOWED_ORIGINS: str = Field(default='*', alias='CORS_ALLOWED_ORIGINS')
+    CORS_ALLOWED_ORIGINS: str = Field(
+        default='*', alias='CORS_ALLOWED_ORIGINS'
+    )
     CORS_ALLOW_CREDENTIALS: bool = Field(
         default=False,
         alias='CORS_ALLOW_CREDENTIALS',
@@ -313,12 +314,17 @@ class ProductionSettings(BaseAppSettings):
     model_config = SettingsConfigDict(env_file=None, extra='ignore')
 
     DATABASE_URL: str = Field(min_length=1, alias='DATABASE_URL')
-    CORS_ALLOWED_ORIGINS: str = Field(min_length=1, alias='CORS_ALLOWED_ORIGINS')
+    CORS_ALLOWED_ORIGINS: str = Field(
+        min_length=1, alias='CORS_ALLOWED_ORIGINS'
+    )
     SECRET_KEY: str = Field(min_length=1, alias='SECRET_KEY')
 
     @model_validator(mode='after')
     def _reject_wildcard_with_credentials(self) -> ProductionSettings:
-        if '*' in self.CORS_ALLOWED_ORIGINS_LIST and self.CORS_ALLOW_CREDENTIALS:
+        if (
+            '*' in self.CORS_ALLOWED_ORIGINS_LIST
+            and self.CORS_ALLOW_CREDENTIALS
+        ):
             raise ValueError(
                 "CORS_ALLOWED_ORIGINS cannot be '*' when "
                 'CORS_ALLOW_CREDENTIALS is enabled'
@@ -345,18 +351,24 @@ def get_settings() -> BaseAppSettings:
     try:
         settings.DATABASE_URL = settings.build_database_url()
     except Exception:
-        logger.warning('Could not build DATABASE_URL from DB_* parts', exc_info=True)
+        logger.warning(
+            'Could not build DATABASE_URL from DB_* parts', exc_info=True
+        )
 
     try:
         data = settings.model_dump()
     except Exception:
-        logger.warning('Could not dump settings; falling back to __dict__', exc_info=True)
+        logger.warning(
+            'Could not dump settings; falling back to __dict__', exc_info=True
+        )
         data = getattr(settings, '__dict__', {})
 
     for key, value in data.items():
         try:
             setattr(settings, key.upper(), value)
         except Exception:
-            logger.debug('Could not set attribute %r on settings', key, exc_info=True)
+            logger.debug(
+                'Could not set attribute %r on settings', key, exc_info=True
+            )
 
     return settings

@@ -13,9 +13,10 @@ from app.repositories.user_repository import UserRepository
 async def test_create_and_get_by_id(isolated_session_factory) -> None:
     async with isolated_session_factory() as session:
         repo = BaseRepository(session, User)
-        created = await repo.create(
-            {'email': 'base@example.com', 'hashed_password': 'hash'}
-        )
+        created = await repo.create({
+            'email': 'base@example.com',
+            'hashed_password': 'hash',
+        })
 
         fetched = await repo.get(created.id)
         assert fetched is not None
@@ -35,21 +36,25 @@ async def test_list_returns_all_rows(isolated_session_factory) -> None:
     async with isolated_session_factory() as session:
         repo = BaseRepository(session, User)
         for index in range(3):
-            await repo.create(
-                {'email': f'list-{index}@example.com', 'hashed_password': 'hash'}
-            )
+            await repo.create({
+                'email': f'list-{index}@example.com',
+                'hashed_password': 'hash',
+            })
 
         rows = await repo.list(offset=0, limit=10)
         assert len(rows) == 3
 
 
 @pytest.mark.asyncio
-async def test_update_changes_only_given_fields(isolated_session_factory) -> None:
+async def test_update_changes_only_given_fields(
+    isolated_session_factory,
+) -> None:
     async with isolated_session_factory() as session:
         repo = BaseRepository(session, User)
-        created = await repo.create(
-            {'email': 'upd@example.com', 'hashed_password': 'old-hash'}
-        )
+        created = await repo.create({
+            'email': 'upd@example.com',
+            'hashed_password': 'old-hash',
+        })
 
         updated = await repo.update(created, {'full_name': 'Renamed'})
         assert updated.full_name == 'Renamed'
@@ -61,9 +66,10 @@ async def test_update_changes_only_given_fields(isolated_session_factory) -> Non
 async def test_delete_removes_row(isolated_session_factory) -> None:
     async with isolated_session_factory() as session:
         repo = BaseRepository(session, User)
-        created = await repo.create(
-            {'email': 'del@example.com', 'hashed_password': 'hash'}
-        )
+        created = await repo.create({
+            'email': 'del@example.com',
+            'hashed_password': 'hash',
+        })
 
         await repo.delete(created)
 

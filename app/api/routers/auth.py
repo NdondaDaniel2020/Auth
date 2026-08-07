@@ -68,7 +68,9 @@ async def refresh(data: RefreshRequest, db: SessionDep) -> Token:
 
 
 @router.post('/logout', status_code=status.HTTP_204_NO_CONTENT)
-async def logout(data: RefreshRequest, request: Request, db: SessionDep) -> Response:
+async def logout(
+    data: RefreshRequest, request: Request, db: SessionDep
+) -> Response:
     client_ip = request.client.host if request.client else None
     await auth_service.logout(db, data.refresh_token, client_ip=client_ip)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -82,7 +84,9 @@ async def request_password_reset(
     data: PasswordResetRequest, request: Request, db: SessionDep
 ) -> dict[str, str]:
     client_ip = request.client.host if request.client else None
-    await auth_service.request_password_reset(db, data.email, client_ip=client_ip)
+    await auth_service.request_password_reset(
+        db, data.email, client_ip=client_ip
+    )
     return {
         'message': 'If the e-mail is registered, a password reset link has been sent.'
     }

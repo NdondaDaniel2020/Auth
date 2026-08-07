@@ -12,7 +12,9 @@ from tests.conftest import run_in_isolated_db
 
 
 def _register(
-    api_client, email: str = 'login@example.com', password: str = 'T3st!Passw0rd'
+    api_client,
+    email: str = 'login@example.com',
+    password: str = 'T3st!Passw0rd',
 ):
     response = api_client.post(
         '/auth/register',
@@ -62,7 +64,9 @@ def test_login_token_contains_expiration_claim(api_client) -> None:
 
 
 def test_login_missing_fields_rejected(api_client) -> None:
-    no_email = api_client.post('/auth/login', json={'password': 'T3st!Passw0rd'})
+    no_email = api_client.post(
+        '/auth/login', json={'password': 'T3st!Passw0rd'}
+    )
     assert no_email.status_code == 422
 
     no_password = api_client.post(
@@ -201,7 +205,10 @@ def test_successful_login_resets_failed_attempts(api_client) -> None:
 
     ok = api_client.post(
         '/auth/login',
-        json={'email': 'reset-counter@example.com', 'password': 'T3st!Passw0rd'},
+        json={
+            'email': 'reset-counter@example.com',
+            'password': 'T3st!Passw0rd',
+        },
     )
     assert ok.status_code == 200
 
