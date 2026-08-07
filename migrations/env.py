@@ -20,12 +20,14 @@ config = context.config
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+# ``disable_existing_loggers=False`` is required: alembic must NOT disable the
+# application's own loggers (e.g. ``auth_app.security``) while it runs.
+fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # add your model's MetaData object here for 'autogenerate' support.
 # Import model modules so they can register themselves on Base.metadata.
 import app.models.email_verification_token  # noqa: F401
+import app.models.mfa_method  # noqa: F401
 import app.models.password_reset_token  # noqa: F401
 import app.models.permission  # noqa: F401
 import app.models.refresh_token  # noqa: F401

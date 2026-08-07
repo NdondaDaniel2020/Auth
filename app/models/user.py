@@ -19,6 +19,7 @@ from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.models.email_verification_token import EmailVerificationToken
+    from app.models.mfa_method import MfaMethod
     from app.models.password_reset_token import PasswordResetToken
     from app.models.refresh_token import RefreshToken
     from app.models.role import Role
@@ -75,6 +76,17 @@ class User(Base):
         default=False,
         server_default=func.false(),
     )
+    mfa_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=func.false(),
+    )
+    mfa_type: Mapped[str | None] = mapped_column(
+        String(16),
+        nullable=True,
+        default=None,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -108,4 +120,9 @@ class User(Base):
             back_populates='user',
             cascade='all, delete-orphan',
         )
+    )
+    mfa_methods: Mapped[list[MfaMethod]] = relationship(
+        'MfaMethod',
+        back_populates='user',
+        cascade='all, delete-orphan',
     )

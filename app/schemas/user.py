@@ -103,6 +103,8 @@ class UserRead(BaseModel):
     is_active: bool
     is_superuser: bool
     is_verified: bool
+    mfa_enabled: bool
+    mfa_type: str | None
     created_at: datetime
     updated_at: datetime
 
@@ -115,4 +117,6 @@ class UserPublic(BaseModel):
     full_name: str | None
     is_active: bool
     is_verified: bool
+    mfa_enabled: bool
+    mfa_type: str | None
     created_at: datetime

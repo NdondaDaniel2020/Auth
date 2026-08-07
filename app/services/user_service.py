@@ -94,6 +94,11 @@ async def authenticate_user(
         register_failed_login(login_key)
         raise InvalidCredentialsError()
 
+    # MFA_HOOK: verificação de segundo fator entraria aqui, após a senha ter
+    # sido validada e antes de emitir o access token final. Quando MFA for
+    # ativado (ver docs/mfa-readiness.md), este ponto emitiria um token
+    # intermediário de curta duração e retornaria um desafio pendente em vez
+    # de seguir direto para a emissão do token.
     reset_login_attempts(login_key)
     log_security_event('LOGIN_SUCCESS', user_id=user.id, ip=client_ip)
     return user
