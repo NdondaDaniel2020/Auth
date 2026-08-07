@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Request, Response, status
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Request, Response, status
+from fastapi.security import OAuth2PasswordRequestForm
 
 from app.api.dependencies.database import SessionDep
 from app.schemas.auth import (
@@ -36,6 +39,22 @@ async def login(data: LoginRequest, request: Request, db: SessionDep) -> Token:
         db,
         email=data.email,
         password=data.password,
+        client_ip=client_ip,
+    )
+    return await auth_service.create_token_pair(db, user)
+
+
+@router.post('/login-form', response_model=Token)
+async def login_form(
+    form: Annotated[OAuth2PasswordRequestForm, Depends()],
+    request: Request,
+    db: SessionDep,
+) -> Token:
+    client_ip = request.client.host if request.client else None
+    user = await user_service.authenticate_user(
+        db,
+        email=form.username,
+        password=form.password,
         client_ip=client_ip,
     )
     return await auth_service.create_token_pair(db, user)
