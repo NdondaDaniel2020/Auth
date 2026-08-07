@@ -361,3 +361,10 @@ async def list_users(
 - As roles/permissões seedadas estão em `app/db/init_db.py`
   (`DEFAULT_ROLES`/`DEFAULT_PERMISSIONS`): a role `admin` tem todas as
   permissões; a role `user` apenas `users:read`.
+
+### Códigos de erro de acesso
+
+Todas as respostas de erro seguem o formato `{error: {type, message, code},
+status, path, method}`. O campo `code` é um identificador estável que o
+frontend usa para distinguir cenários (ex: `TOKEN_EXPIRED`,
+`INSUFFICIENT_ROLE`) — ver [docs/error-codes.md](docs/error-codes.md).
