@@ -1,13 +1,20 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from app.schemas.validators import validate_password_strength
 
 
 class LoginRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     email: EmailStr
-    password: str
+    password: str = Field(min_length=1)
+
+    @field_validator('email')
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        return value.strip().lower()
 
 
 class Token(BaseModel):
@@ -17,15 +24,26 @@ class Token(BaseModel):
 
 
 class RefreshRequest(BaseModel):
-    refresh_token: str
+    model_config = ConfigDict(extra='forbid')
+
+    refresh_token: str = Field(min_length=1)
 
 
 class PasswordResetRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     email: EmailStr
+
+    @field_validator('email')
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        return value.strip().lower()
 
 
 class PasswordResetConfirm(BaseModel):
-    token: str
+    model_config = ConfigDict(extra='forbid')
+
+    token: str = Field(min_length=1)
     new_password: str
 
     @field_validator('new_password')
@@ -35,8 +53,17 @@ class PasswordResetConfirm(BaseModel):
 
 
 class EmailVerificationConfirm(BaseModel):
-    token: str
+    model_config = ConfigDict(extra='forbid')
+
+    token: str = Field(min_length=1)
 
 
 class ResendVerificationRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     email: EmailStr
+
+    @field_validator('email')
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        return value.strip().lower()
