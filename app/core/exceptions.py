@@ -258,3 +258,22 @@ class TooManyLoginAttemptsError(AppError):
             headers=headers,
             code='TOO_MANY_ATTEMPTS',
         )
+
+
+class RateLimitExceededError(AppError):
+    def __init__(
+        self,
+        message: str = 'Too many requests. Try again later.',
+        payload: dict[str, Any] | None = None,
+        retry_after: int | None = None,
+    ):
+        headers = {}
+        if retry_after is not None:
+            headers['Retry-After'] = str(retry_after)
+        super().__init__(
+            message=message,
+            status_code=429,
+            payload=payload,
+            headers=headers,
+            code='RATE_LIMIT_EXCEEDED',
+        )

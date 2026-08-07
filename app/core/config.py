@@ -89,6 +89,22 @@ class BaseAppSettings(BaseSettings):
         default=30,
         alias='LOGIN_BLOCK_DURATION_MINUTES',
     )
+    RATE_LIMIT_DEFAULT: str = Field(
+        default='60/minute',
+        alias='RATE_LIMIT_DEFAULT',
+    )
+    RATE_LIMIT_REGISTER: str = Field(
+        default='10/minute',
+        alias='RATE_LIMIT_REGISTER',
+    )
+    RATE_LIMIT_PASSWORD_RESET: str = Field(
+        default='5/minute',
+        alias='RATE_LIMIT_PASSWORD_RESET',
+    )
+    RATE_LIMIT_EMAIL_RESEND: str = Field(
+        default='3/minute',
+        alias='RATE_LIMIT_EMAIL_RESEND',
+    )
     PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = Field(
         default=30,
         alias='PASSWORD_RESET_TOKEN_EXPIRE_MINUTES',

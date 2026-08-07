@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.api.dependencies.database import SessionDep
+from app.api.dependencies.rate_limit import rate_limit
 from app.schemas.auth import (
     EmailVerificationConfirm,
     LoginRequest,
@@ -25,6 +26,7 @@ router = APIRouter(prefix='/auth', tags=['auth'])
     '/register',
     response_model=UserRead,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(rate_limit('RATE_LIMIT_REGISTER'))],
 )
 async def register(data: UserCreate, db: SessionDep) -> UserRead:
     user = await user_service.register_user(db, data)
@@ -71,7 +73,10 @@ async def logout(data: RefreshRequest, db: SessionDep) -> Response:
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.post('/password-reset/request')
+@router.post(
+    '/password-reset/request',
+    dependencies=[Depends(rate_limit('RATE_LIMIT_PASSWORD_RESET'))],
+)
 async def request_password_reset(
     data: PasswordResetRequest, db: SessionDep
 ) -> dict[str, str]:
@@ -97,7 +102,10 @@ async def verify_email(
     return {'message': 'E-mail verified successfully.'}
 
 
-@router.post('/verify-email/resend')
+@router.post(
+    '/verify-email/resend',
+    dependencies=[Depends(rate_limit('RATE_LIMIT_EMAIL_RESEND'))],
+)
 async def resend_verification(
     data: ResendVerificationRequest, db: SessionDep
 ) -> dict[str, str]:

@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+import app.models  # register models on Base.metadata
 from app.db.base import Base
 
 os.environ.setdefault('ENVIRONMENT', 'test')
@@ -76,11 +77,13 @@ def client(app: FastAPI) -> Iterator[TestClient]:
 
 @pytest.fixture(autouse=True)
 def _clear_rate_limiter() -> Iterator[None]:
-    from app.core.rate_limiter import rate_limiter
+    from app.core.rate_limiter import rate_limiter, request_rate_limiter
 
     rate_limiter.clear()
+    request_rate_limiter.clear()
     yield
     rate_limiter.clear()
+    request_rate_limiter.clear()
 
 
 @pytest_asyncio.fixture
