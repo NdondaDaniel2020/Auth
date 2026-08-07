@@ -49,7 +49,9 @@ def _user_role_names(isolated_db_path: str, user_id: str) -> list[str]:
     async def _coro(factory):
         async with factory() as session:
             result = await session.execute(
-                select(User).options(selectinload(User.roles)).where(User.id == user_id)
+                select(User)
+                .options(selectinload(User.roles))
+                .where(User.id == user_id)
             )
             user = result.scalar_one()
             out['names'] = sorted(role.name for role in user.roles)

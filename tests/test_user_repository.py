@@ -79,7 +79,9 @@ async def test_list_users_orders_by_creation(isolated_session_factory) -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_users_respects_limit_and_offset(isolated_session_factory) -> None:
+async def test_list_users_respects_limit_and_offset(
+    isolated_session_factory,
+) -> None:
     async with isolated_session_factory() as session:
         repository = UserRepository(session)
         for index in range(5):
@@ -117,11 +119,15 @@ async def test_duplicate_email_violates_unique_constraint(
         await repository.create(email='dup@example.com', hashed_password='a')
 
         with pytest.raises(IntegrityError):
-            await repository.create(email='dup@example.com', hashed_password='b')
+            await repository.create(
+                email='dup@example.com', hashed_password='b'
+            )
 
 
 @pytest.mark.asyncio
-async def test_set_active_status_updates_only_flag(isolated_session_factory) -> None:
+async def test_set_active_status_updates_only_flag(
+    isolated_session_factory,
+) -> None:
     async with isolated_session_factory() as session:
         repository = UserRepository(session)
         user = await repository.create(
@@ -137,7 +143,9 @@ async def test_set_active_status_updates_only_flag(isolated_session_factory) -> 
 
 
 @pytest.mark.asyncio
-async def test_get_roles_by_ids_returns_existing_only(isolated_session_factory) -> None:
+async def test_get_roles_by_ids_returns_existing_only(
+    isolated_session_factory,
+) -> None:
     async with isolated_session_factory() as session:
         session.add(Role(name='user'))
         await session.commit()
@@ -146,9 +154,10 @@ async def test_get_roles_by_ids_returns_existing_only(isolated_session_factory) 
         ).scalar_one()
 
         repository = UserRepository(session)
-        roles = await repository.get_roles_by_ids(
-            [existing.id, '00000000-0000-0000-0000-000000000000']
-        )
+        roles = await repository.get_roles_by_ids([
+            existing.id,
+            '00000000-0000-0000-0000-000000000000',
+        ])
         assert len(roles) == 1
         assert roles[0].id == existing.id
 
@@ -163,7 +172,9 @@ async def test_get_roles_by_ids_empty_returns_empty_list(
 
 
 @pytest.mark.asyncio
-async def test_set_roles_replaces_association(isolated_session_factory) -> None:
+async def test_set_roles_replaces_association(
+    isolated_session_factory,
+) -> None:
     async with isolated_session_factory() as session:
         session.add(Role(name='user'))
         session.add(Role(name='editor'))

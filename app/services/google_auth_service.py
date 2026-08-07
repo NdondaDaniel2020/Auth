@@ -144,7 +144,9 @@ class GoogleIdentityProvider:
                 message='Invalid or expired id_token'
             ) from None
         if header.get('alg') != 'RS256':
-            raise InvalidGoogleTokenError(message='Unsupported token algorithm')
+            raise InvalidGoogleTokenError(
+                message='Unsupported token algorithm'
+            )
 
         certs = await self._fetch_certs()
         signing_key = _signing_key_for_header(certs, header.get('kid'))
@@ -225,9 +227,7 @@ def _signing_key_for_header(
     for key in keys:
         if key.get('kid') == kid and key.get('kty') == 'RSA':
             try:
-                return pyjwt.algorithms.RSAAlgorithm.from_jwk(
-                    json.dumps(key)
-                )
+                return pyjwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(key))
             except pyjwt.PyJWTError:
                 logger.warning(
                     'Could not build signing key from JWK', exc_info=True

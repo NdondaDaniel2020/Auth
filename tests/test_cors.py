@@ -30,7 +30,9 @@ def _build_app() -> FastAPI:
 
 
 def test_allowed_origin_gets_cors_headers(monkeypatch) -> None:
-    monkeypatch.setattr('app.core.middleware.get_settings', lambda: _FakeSettings())
+    monkeypatch.setattr(
+        'app.core.middleware.get_settings', lambda: _FakeSettings()
+    )
 
     app = _build_app()
     setup_cors_middleware(app)
@@ -49,7 +51,9 @@ def test_allowed_origin_gets_cors_headers(monkeypatch) -> None:
 
 
 def test_disallowed_origin_gets_no_cors_headers(monkeypatch) -> None:
-    monkeypatch.setattr('app.core.middleware.get_settings', lambda: _FakeSettings())
+    monkeypatch.setattr(
+        'app.core.middleware.get_settings', lambda: _FakeSettings()
+    )
 
     app = _build_app()
     setup_cors_middleware(app)
@@ -62,7 +66,9 @@ def test_disallowed_origin_gets_no_cors_headers(monkeypatch) -> None:
 
 
 def test_preflight_from_allowed_origin(monkeypatch) -> None:
-    monkeypatch.setattr('app.core.middleware.get_settings', lambda: _FakeSettings())
+    monkeypatch.setattr(
+        'app.core.middleware.get_settings', lambda: _FakeSettings()
+    )
 
     app = _build_app()
     setup_cors_middleware(app)
@@ -81,14 +87,18 @@ def test_preflight_from_allowed_origin(monkeypatch) -> None:
             response.headers.get('access-control-allow-origin')
             == 'http://localhost:5173'
         )
-        assert 'GET' in response.headers.get('access-control-allow-methods', '')
+        assert 'GET' in response.headers.get(
+            'access-control-allow-methods', ''
+        )
         assert 'Authorization' in response.headers.get(
             'access-control-allow-headers', ''
         )
 
 
 def test_preflight_from_disallowed_origin(monkeypatch) -> None:
-    monkeypatch.setattr('app.core.middleware.get_settings', lambda: _FakeSettings())
+    monkeypatch.setattr(
+        'app.core.middleware.get_settings', lambda: _FakeSettings()
+    )
 
     app = _build_app()
     setup_cors_middleware(app)
@@ -138,7 +148,10 @@ def test_origins_list_parsing() -> None:
     settings = BaseAppSettings(
         CORS_ALLOWED_ORIGINS='http://a.com, http://b.com ,'
     )
-    assert settings.CORS_ALLOWED_ORIGINS_LIST == ['http://a.com', 'http://b.com']
+    assert settings.CORS_ALLOWED_ORIGINS_LIST == [
+        'http://a.com',
+        'http://b.com',
+    ]
 
     wildcard = BaseAppSettings(CORS_ALLOWED_ORIGINS='*')
     assert wildcard.CORS_ALLOWED_ORIGINS_LIST == ['*']
@@ -150,4 +163,7 @@ def test_methods_and_headers_list_parsing() -> None:
         CORS_ALLOWED_HEADERS='Authorization, Content-Type ',
     )
     assert settings.CORS_ALLOWED_METHODS_LIST == ['GET', 'POST']
-    assert settings.CORS_ALLOWED_HEADERS_LIST == ['Authorization', 'Content-Type']
+    assert settings.CORS_ALLOWED_HEADERS_LIST == [
+        'Authorization',
+        'Content-Type',
+    ]

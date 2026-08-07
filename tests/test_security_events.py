@@ -94,12 +94,18 @@ def test_login_rate_limited_logs_event(api_client, security_logs) -> None:
     for _ in range(5):
         api_client.post(
             '/auth/login',
-            json={'email': 'brute-events@example.com', 'password': 'wrongpass'},
+            json={
+                'email': 'brute-events@example.com',
+                'password': 'wrongpass',
+            },
         )
 
     blocked = api_client.post(
         '/auth/login',
-        json={'email': 'brute-events@example.com', 'password': 'T3st!Passw0rd'},
+        json={
+            'email': 'brute-events@example.com',
+            'password': 'T3st!Passw0rd',
+        },
     )
     assert blocked.status_code == 429
 
@@ -130,7 +136,9 @@ def test_logout_logs_event(api_client, security_logs) -> None:
     assert 'token_id' in logout[0]
 
 
-def test_password_reset_events_logged(api_client, monkeypatch, security_logs) -> None:
+def test_password_reset_events_logged(
+    api_client, monkeypatch, security_logs
+) -> None:
     from urllib.parse import parse_qs, urlparse
 
     captured: dict = {}
@@ -161,7 +169,9 @@ def test_password_reset_events_logged(api_client, monkeypatch, security_logs) ->
     assert 'user_id' in completed[0]
 
 
-def test_verify_email_logs_event(api_client, monkeypatch, security_logs) -> None:
+def test_verify_email_logs_event(
+    api_client, monkeypatch, security_logs
+) -> None:
     from urllib.parse import parse_qs, urlparse
 
     captured: dict = {}

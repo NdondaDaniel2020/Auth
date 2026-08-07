@@ -44,7 +44,9 @@ def test_register_stores_password_hash_only(
             user = (await session.execute(select(User))).scalar_one()
             assert user.email == 'hash@example.com'
             assert user.hashed_password != 'T3st!Passw0rd'
-            assert verify_password('T3st!Passw0rd', user.hashed_password) is True
+            assert (
+                verify_password('T3st!Passw0rd', user.hashed_password) is True
+            )
 
     run_in_isolated_db(isolated_db_path, _check)
 

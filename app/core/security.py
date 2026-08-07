@@ -91,7 +91,9 @@ def create_signed_token(
     payload['iat'] = now
     payload['exp'] = now + expires_delta
 
-    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    return jwt.encode(
+        payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM
+    )
 
 
 def decode_token(

@@ -41,11 +41,16 @@ async def _make_user(session, *, email: str) -> User:
 
 async def _login(session, user: User) -> dict[str, str]:
     tokens = await auth_service.create_token_pair(session, user)
-    return {'access_token': tokens.access_token, 'refresh_token': tokens.refresh_token}
+    return {
+        'access_token': tokens.access_token,
+        'refresh_token': tokens.refresh_token,
+    }
 
 
 @pytest.mark.asyncio
-async def test_create_token_pair_persists_refresh_token(isolated_session_factory) -> None:
+async def test_create_token_pair_persists_refresh_token(
+    isolated_session_factory,
+) -> None:
     async with isolated_session_factory() as session:
         user = await _make_user(session, email='pair@example.com')
 
@@ -94,12 +99,16 @@ async def test_refresh_tokens_rejects_revoked_and_revokes_all(
 
         await session.commit()
         second_jti = decode_refresh_token(second['refresh_token'])['jti']
-        second_record = await RefreshTokenRepository(session).get_by_jti(second_jti)
+        second_record = await RefreshTokenRepository(session).get_by_jti(
+            second_jti
+        )
         assert second_record.revoked is True
 
 
 @pytest.mark.asyncio
-async def test_refresh_tokens_rejects_unknown_token(isolated_session_factory) -> None:
+async def test_refresh_tokens_rejects_unknown_token(
+    isolated_session_factory,
+) -> None:
     async with isolated_session_factory() as session:
         unknown = create_refresh_token({'sub': 'ghost', 'jti': 'ghost-jti'})
         with pytest.raises(InvalidRefreshTokenError):
@@ -150,7 +159,9 @@ async def test_reset_password_changes_password_and_revokes_sessions(
         )
         await session.commit()
 
-        await auth_service.reset_password(session, 'valid-reset-token', 'NewPass456!')
+        await auth_service.reset_password(
+            session, 'valid-reset-token', 'NewPass456!'
+        )
 
         reloaded = await UserRepository(session).get_by_id(user.id)
         assert verify_password('NewPass456!', reloaded.hashed_password) is True
@@ -160,7 +171,9 @@ async def test_reset_password_changes_password_and_revokes_sessions(
 
 
 @pytest.mark.asyncio
-async def test_reset_password_rejects_used_token(isolated_session_factory) -> None:
+async def test_reset_password_rejects_used_token(
+    isolated_session_factory,
+) -> None:
     async with isolated_session_factory() as session:
         user = await _make_user(session, email='single@example.com')
         reset_repo = PasswordResetTokenRepository(session)
@@ -173,11 +186,15 @@ async def test_reset_password_rejects_used_token(isolated_session_factory) -> No
         await session.commit()
 
         with pytest.raises(TokenAlreadyUsedError):
-            await auth_service.reset_password(session, 'one-shot-token', 'NewPass456!')
+            await auth_service.reset_password(
+                session, 'one-shot-token', 'NewPass456!'
+            )
 
 
 @pytest.mark.asyncio
-async def test_reset_password_rejects_expired_token(isolated_session_factory) -> None:
+async def test_reset_password_rejects_expired_token(
+    isolated_session_factory,
+) -> None:
     async with isolated_session_factory() as session:
         user = await _make_user(session, email='expired@example.com')
         await PasswordResetTokenRepository(session).create(
@@ -188,11 +205,15 @@ async def test_reset_password_rejects_expired_token(isolated_session_factory) ->
         await session.commit()
 
         with pytest.raises(InvalidOrExpiredTokenError):
-            await auth_service.reset_password(session, 'expired-token', 'NewPass456!')
+            await auth_service.reset_password(
+                session, 'expired-token', 'NewPass456!'
+            )
 
 
 @pytest.mark.asyncio
-async def test_verify_email_marks_user_verified(isolated_session_factory) -> None:
+async def test_verify_email_marks_user_verified(
+    isolated_session_factory,
+) -> None:
     async with isolated_session_factory() as session:
         from app.repositories.email_verification_repository import (
             EmailVerificationTokenRepository,
@@ -213,19 +234,27 @@ async def test_verify_email_marks_user_verified(isolated_session_factory) -> Non
 
 
 @pytest.mark.asyncio
-async def test_request_password_reset_creates_token(isolated_session_factory) -> None:
+async def test_request_password_reset_creates_token(
+    isolated_session_factory,
+) -> None:
     async with isolated_session_factory() as session:
         user = await _make_user(session, email='request@example.com')
 
-        await auth_service.request_password_reset(session, 'request@example.com')
+        await auth_service.request_password_reset(
+            session, 'request@example.com'
+        )
 
         rows = (
-            await session.execute(
-                select(PasswordResetToken).where(
-                    PasswordResetToken.user_id == user.id
+            (
+                await session.execute(
+                    select(PasswordResetToken).where(
+                        PasswordResetToken.user_id == user.id
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(rows) == 1
 
 

@@ -135,7 +135,9 @@ def _fetch_state(google_client) -> tuple[str, str]:
 # ---------------------------------------------------------------------------
 
 
-def test_google_url_returns_consent_screen_url(google_client, monkeypatch) -> None:
+def test_google_url_returns_consent_screen_url(
+    google_client, monkeypatch
+) -> None:
     from urllib.parse import parse_qs, urlparse
 
     _enable_google(monkeypatch)
@@ -236,9 +238,7 @@ def test_google_login_links_existing_user_without_duplicate(
 
     async def _check_user(factory):
         async with factory() as session:
-            rows = (
-                await session.execute(select(User))
-            ).scalars().all()
+            rows = (await session.execute(select(User))).scalars().all()
             assert len(rows) == 1
             user = rows[0]
             assert user.id == original_id
@@ -310,7 +310,11 @@ def test_google_login_invalid_code_rejected(
     assert response.status_code == 400
     assert response.json()['error']['code'] == 'INVALID_GOOGLE_TOKEN'
 
-    failed = [e for e in _events(security_logs) if e['event'] == 'GOOGLE_LOGIN_FAILED']
+    failed = [
+        e
+        for e in _events(security_logs)
+        if e['event'] == 'GOOGLE_LOGIN_FAILED'
+    ]
     assert failed
     assert failed[0]['reason'] == 'invalid_token'
 
@@ -333,7 +337,9 @@ def test_google_login_invalid_id_token_rejected(
     assert response.json()['error']['code'] == 'INVALID_GOOGLE_TOKEN'
 
 
-def test_google_login_invalid_state_rejected(google_client, monkeypatch) -> None:
+def test_google_login_invalid_state_rejected(
+    google_client, monkeypatch
+) -> None:
     _enable_google(monkeypatch)
     _patch_provider(monkeypatch, FakeGoogleProvider())
 
@@ -358,7 +364,11 @@ def test_google_login_disabled_returns_403(
     assert response.status_code == 403
     assert response.json()['error']['code'] == 'GOOGLE_LOGIN_DISABLED'
 
-    failed = [e for e in _events(security_logs) if e['event'] == 'GOOGLE_LOGIN_FAILED']
+    failed = [
+        e
+        for e in _events(security_logs)
+        if e['event'] == 'GOOGLE_LOGIN_FAILED'
+    ]
     assert failed
     assert failed[0]['reason'] == 'disabled'
 
@@ -376,7 +386,11 @@ def test_google_login_emits_success_security_event(
     )
     assert response.status_code == 200
 
-    success = [e for e in _events(security_logs) if e['event'] == 'GOOGLE_LOGIN_SUCCESS']
+    success = [
+        e
+        for e in _events(security_logs)
+        if e['event'] == 'GOOGLE_LOGIN_SUCCESS'
+    ]
     assert success
     assert success[0]['user_id']
     assert success[0]['ip'] == 'testclient'
@@ -387,7 +401,9 @@ def test_google_login_emits_success_security_event(
 # ---------------------------------------------------------------------------
 
 
-def test_google_login_requires_code_or_id_token(google_client, monkeypatch) -> None:
+def test_google_login_requires_code_or_id_token(
+    google_client, monkeypatch
+) -> None:
     _enable_google(monkeypatch)
     _patch_provider(monkeypatch, FakeGoogleProvider())
 
@@ -414,7 +430,9 @@ def test_google_login_requires_code_or_id_token(google_client, monkeypatch) -> N
 def _rsa_keypair():
     from cryptography.hazmat.primitives.asymmetric import rsa
 
-    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    private_key = rsa.generate_private_key(
+        public_exponent=65537, key_size=2048
+    )
     return private_key, private_key.public_key()
 
 
@@ -425,9 +443,7 @@ def _make_jwks(public_key, kid: str = 'test-kid') -> dict:
     return {'keys': [jwk]}
 
 
-def _sign_id_token(
-    private_key, *, kid: str = 'test-kid', **claims
-) -> str:
+def _sign_id_token(private_key, *, kid: str = 'test-kid', **claims) -> str:
     default = {
         'iss': 'https://accounts.google.com',
         'aud': 'test-client-id',
@@ -498,7 +514,9 @@ async def test_verify_id_token_rejects_invalid_claims(
     await provider.aclose()
 
 
-async def test_verify_id_token_rejects_unknown_signing_key(monkeypatch) -> None:
+async def test_verify_id_token_rejects_unknown_signing_key(
+    monkeypatch,
+) -> None:
     settings = get_settings()
     monkeypatch.setattr(settings, 'GOOGLE_CLIENT_ID', 'test-client-id')
 

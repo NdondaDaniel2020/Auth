@@ -21,9 +21,7 @@ class UserCreate(BaseModel):
 
     email: EmailStr = Field(..., description='Valid email address')
     password: str = Field(..., description='Plain-text password')
-    full_name: str | None = Field(
-        default=None, min_length=1, max_length=255
-    )
+    full_name: str | None = Field(default=None, min_length=1, max_length=255)
 
     @field_validator('password')
     @classmethod
@@ -88,9 +86,7 @@ class UserRoleUpdate(BaseModel):
     def validate_role_ids(cls, value: list[str]) -> list[str]:
         invalid = [role_id for role_id in value if not _is_uuid(role_id)]
         if invalid:
-            raise ValueError(
-                f'Invalid role id format: {invalid!r}'
-            )
+            raise ValueError(f'Invalid role id format: {invalid!r}')
         return value
 
 

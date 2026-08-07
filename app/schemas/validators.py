@@ -17,34 +17,32 @@ _DIGIT_RE = re.compile(r'[0-9]')
 _SPECIAL_RE = re.compile(r'[^A-Za-z0-9]')
 
 # Commonly used (and therefore weak) passwords, checked case-insensitively.
-COMMON_PASSWORDS = frozenset(
-    {
-        'password',
-        'password1',
-        'password123',
-        'password1234',
-        '12345678',
-        '123456789',
-        '1234567890',
-        'qwerty123',
-        'qwertyuiop',
-        'abc12345',
-        'letmein',
-        'admin123',
-        'admin1234',
-        'welcome1',
-        'iloveyou',
-        'monkey123',
-        'dragon123',
-        'football1',
-        'whatever1',
-        'superman1',
-        'password123!',
-        'passw0rd',
-        'qwerty123!',
-        'admin123!',
-    }
-)
+COMMON_PASSWORDS = frozenset({
+    'password',
+    'password1',
+    'password123',
+    'password1234',
+    '12345678',
+    '123456789',
+    '1234567890',
+    'qwerty123',
+    'qwertyuiop',
+    'abc12345',
+    'letmein',
+    'admin123',
+    'admin1234',
+    'welcome1',
+    'iloveyou',
+    'monkey123',
+    'dragon123',
+    'football1',
+    'whatever1',
+    'superman1',
+    'password123!',
+    'passw0rd',
+    'qwerty123!',
+    'admin123!',
+})
 
 
 def validate_password_strength(password: str) -> str:
@@ -67,13 +65,22 @@ def validate_password_strength(password: str) -> str:
             'characters long'
         )
 
-    if settings.PASSWORD_REJECT_COMMON and password.lower() in COMMON_PASSWORDS:
-        raise ValueError('Password is too common. Choose a more unique password')
+    if (
+        settings.PASSWORD_REJECT_COMMON
+        and password.lower() in COMMON_PASSWORDS
+    ):
+        raise ValueError(
+            'Password is too common. Choose a more unique password'
+        )
 
     missing: list[str] = []
-    if settings.PASSWORD_REQUIRE_UPPERCASE and not _UPPERCASE_RE.search(password):
+    if settings.PASSWORD_REQUIRE_UPPERCASE and not _UPPERCASE_RE.search(
+        password
+    ):
         missing.append('an uppercase letter')
-    if settings.PASSWORD_REQUIRE_LOWERCASE and not _LOWERCASE_RE.search(password):
+    if settings.PASSWORD_REQUIRE_LOWERCASE and not _LOWERCASE_RE.search(
+        password
+    ):
         missing.append('a lowercase letter')
     if settings.PASSWORD_REQUIRE_DIGIT and not _DIGIT_RE.search(password):
         missing.append('a digit')

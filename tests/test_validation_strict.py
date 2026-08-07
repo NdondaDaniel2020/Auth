@@ -63,7 +63,11 @@ def test_string_over_max_length_rejected(api_client) -> None:
 def test_wrong_type_rejected(api_client) -> None:
     response = api_client.post(
         '/auth/register',
-        json={'email': 'type@example.com', 'password': 'T3st!Passw0rd', 'full_name': 42},
+        json={
+            'email': 'type@example.com',
+            'password': 'T3st!Passw0rd',
+            'full_name': 42,
+        },
     )
     assert response.status_code == 422
     details = response.json()['error']['details']
@@ -85,7 +89,11 @@ def test_extra_field_rejected(api_client) -> None:
 def test_whitespace_full_name_rejected(api_client) -> None:
     response = api_client.post(
         '/auth/register',
-        json={'email': 'ws@example.com', 'password': 'T3st!Passw0rd', 'full_name': '   '},
+        json={
+            'email': 'ws@example.com',
+            'password': 'T3st!Passw0rd',
+            'full_name': '   ',
+        },
     )
     assert response.status_code == 422
 
@@ -93,7 +101,11 @@ def test_whitespace_full_name_rejected(api_client) -> None:
 def test_login_rejects_extra_field(api_client) -> None:
     response = api_client.post(
         '/auth/login',
-        json={'email': 'x@example.com', 'password': 'whatever', 'remember_me': True},
+        json={
+            'email': 'x@example.com',
+            'password': 'whatever',
+            'remember_me': True,
+        },
     )
     assert response.status_code == 422
 
@@ -101,7 +113,10 @@ def test_login_rejects_extra_field(api_client) -> None:
 def test_email_normalized_on_register(api_client) -> None:
     response = api_client.post(
         '/auth/register',
-        json={'email': '  Mixed.Case@Example.COM ', 'password': 'T3st!Passw0rd'},
+        json={
+            'email': '  Mixed.Case@Example.COM ',
+            'password': 'T3st!Passw0rd',
+        },
     )
     assert response.status_code == 201
     assert response.json()['email'] == 'mixed.case@example.com'
@@ -129,7 +144,9 @@ def test_partial_update_accepts_only_sent_fields(
     assert update.json()['full_name'] == 'Partial User'
 
 
-def test_invalid_role_id_format_rejected(full_client, isolated_db_path) -> None:
+def test_invalid_role_id_format_rejected(
+    full_client, isolated_db_path
+) -> None:
     from app.core.security import create_access_token
     from app.models.role import Role
     from app.models.user import User

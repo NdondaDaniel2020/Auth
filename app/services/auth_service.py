@@ -178,7 +178,11 @@ async def request_password_reset(
 
 
 async def reset_password(
-    db: AsyncSession, token: str, new_password: str, *, client_ip: str | None = None
+    db: AsyncSession,
+    token: str,
+    new_password: str,
+    *,
+    client_ip: str | None = None,
 ) -> None:
     """Validate a reset token and replace the user's password.
 

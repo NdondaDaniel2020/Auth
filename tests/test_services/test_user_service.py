@@ -21,7 +21,9 @@ from app.services import user_service
 PASSWORD = 'T3st!Passw0rd'
 
 
-async def _make_user(session, *, email: str, role_names: list[str] | None = None) -> User:
+async def _make_user(
+    session, *, email: str, role_names: list[str] | None = None
+) -> User:
     repository = UserRepository(session)
     user = await repository.create(
         email=email, hashed_password=hash_password(PASSWORD)
@@ -41,18 +43,23 @@ async def _make_user(session, *, email: str, role_names: list[str] | None = None
 async def test_register_user_creates_account(isolated_session_factory) -> None:
     async with isolated_session_factory() as session:
         user = await user_service.register_user(
-            session, UserCreate(email='register@example.com', password=PASSWORD)
+            session,
+            UserCreate(email='register@example.com', password=PASSWORD),
         )
 
         assert user.email == 'register@example.com'
-        stored = await UserRepository(session).get_by_email('register@example.com')
+        stored = await UserRepository(session).get_by_email(
+            'register@example.com'
+        )
         assert stored is not None
         assert stored.hashed_password != PASSWORD
         assert verify_password(PASSWORD, stored.hashed_password) is True
 
 
 @pytest.mark.asyncio
-async def test_register_user_rejects_duplicate_email(isolated_session_factory) -> None:
+async def test_register_user_rejects_duplicate_email(
+    isolated_session_factory,
+) -> None:
     async with isolated_session_factory() as session:
         await _make_user(session, email='dup@example.com')
 
@@ -64,13 +71,17 @@ async def test_register_user_rejects_duplicate_email(isolated_session_factory) -
 
 
 @pytest.mark.asyncio
-async def test_register_user_normalizes_email_case(isolated_session_factory) -> None:
+async def test_register_user_normalizes_email_case(
+    isolated_session_factory,
+) -> None:
     async with isolated_session_factory() as session:
         await user_service.register_user(
             session, UserCreate(email='MiXeD@Example.com', password=PASSWORD)
         )
 
-        stored = await UserRepository(session).get_by_email('mixed@example.com')
+        stored = await UserRepository(session).get_by_email(
+            'mixed@example.com'
+        )
         assert stored is not None
 
 
@@ -86,7 +97,9 @@ async def test_authenticate_user_success(isolated_session_factory) -> None:
 
 
 @pytest.mark.asyncio
-async def test_authenticate_user_wrong_password(isolated_session_factory) -> None:
+async def test_authenticate_user_wrong_password(
+    isolated_session_factory,
+) -> None:
     async with isolated_session_factory() as session:
         await _make_user(session, email='wrong@example.com')
 
@@ -100,7 +113,9 @@ async def test_authenticate_user_wrong_password(isolated_session_factory) -> Non
 async def test_authenticate_user_inactive(isolated_session_factory) -> None:
     async with isolated_session_factory() as session:
         user = await _make_user(session, email='inactive@example.com')
-        await UserRepository(session).set_active_status(user.id, is_active=False)
+        await UserRepository(session).set_active_status(
+            user.id, is_active=False
+        )
         await session.commit()
 
         with pytest.raises(InvalidCredentialsError):
@@ -110,7 +125,9 @@ async def test_authenticate_user_inactive(isolated_session_factory) -> None:
 
 
 @pytest.mark.asyncio
-async def test_authenticate_user_unknown_email(isolated_session_factory) -> None:
+async def test_authenticate_user_unknown_email(
+    isolated_session_factory,
+) -> None:
     async with isolated_session_factory() as session:
         with pytest.raises(InvalidCredentialsError):
             await user_service.authenticate_user(
@@ -119,7 +136,9 @@ async def test_authenticate_user_unknown_email(isolated_session_factory) -> None
 
 
 @pytest.mark.asyncio
-async def test_update_user_roles_applies_association(isolated_session_factory) -> None:
+async def test_update_user_roles_applies_association(
+    isolated_session_factory,
+) -> None:
     async with isolated_session_factory() as session:
         actor = await _make_user(session, email='admin@example.com')
         target = await _make_user(session, email='target@example.com')
@@ -140,7 +159,9 @@ async def test_update_user_roles_applies_association(isolated_session_factory) -
 
 
 @pytest.mark.asyncio
-async def test_update_user_roles_nonexistent_role(isolated_session_factory) -> None:
+async def test_update_user_roles_nonexistent_role(
+    isolated_session_factory,
+) -> None:
     async with isolated_session_factory() as session:
         actor = await _make_user(session, email='admin@example.com')
         target = await _make_user(session, email='target@example.com')
@@ -155,7 +176,9 @@ async def test_update_user_roles_nonexistent_role(isolated_session_factory) -> N
 
 
 @pytest.mark.asyncio
-async def test_update_user_roles_nonexistent_user(isolated_session_factory) -> None:
+async def test_update_user_roles_nonexistent_user(
+    isolated_session_factory,
+) -> None:
     async with isolated_session_factory() as session:
         actor = await _make_user(session, email='admin@example.com')
         role = Role(name='editor')
@@ -172,7 +195,9 @@ async def test_update_user_roles_nonexistent_user(isolated_session_factory) -> N
 
 
 @pytest.mark.asyncio
-async def test_actor_cannot_remove_own_admin_role(isolated_session_factory) -> None:
+async def test_actor_cannot_remove_own_admin_role(
+    isolated_session_factory,
+) -> None:
     async with isolated_session_factory() as session:
         actor = await _make_user(
             session, email='admin@example.com', role_names=['admin']
@@ -188,7 +213,9 @@ async def test_actor_cannot_remove_own_admin_role(isolated_session_factory) -> N
 
 
 @pytest.mark.asyncio
-async def test_deactivate_user_marks_inactive(isolated_session_factory) -> None:
+async def test_deactivate_user_marks_inactive(
+    isolated_session_factory,
+) -> None:
     async with isolated_session_factory() as session:
         actor = await _make_user(session, email='admin@example.com')
         target = await _make_user(session, email='target@example.com')
@@ -207,7 +234,9 @@ async def test_activate_user_marks_active(isolated_session_factory) -> None:
     async with isolated_session_factory() as session:
         actor = await _make_user(session, email='admin@example.com')
         target = await _make_user(session, email='target@example.com')
-        await UserRepository(session).set_active_status(target.id, is_active=False)
+        await UserRepository(session).set_active_status(
+            target.id, is_active=False
+        )
         await session.commit()
 
         result = await user_service.activate_user(
@@ -217,7 +246,9 @@ async def test_activate_user_marks_active(isolated_session_factory) -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_users_builds_paginated_envelope(isolated_session_factory) -> None:
+async def test_list_users_builds_paginated_envelope(
+    isolated_session_factory,
+) -> None:
     async with isolated_session_factory() as session:
         for index in range(3):
             await _make_user(session, email=f'page-{index}@example.com')

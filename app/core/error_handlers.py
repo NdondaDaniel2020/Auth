@@ -106,9 +106,7 @@ def _normalize_validation_details(errors: list[Any]) -> list[dict[str, str]]:
         )
         message = error.get('msg', '')
         message = message.removeprefix('Value error, ')
-        normalized.append(
-            {'field': field or 'request', 'message': message}
-        )
+        normalized.append({'field': field or 'request', 'message': message})
     return normalized
 
 

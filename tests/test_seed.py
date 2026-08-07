@@ -6,6 +6,7 @@ Covers:
 - Role-permission assignments are correct for admin and user roles.
 - Admin user is linked to the admin role.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -32,12 +33,13 @@ from app.models.user import User
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _run(coro):
     return asyncio.run(coro)
 
 
-def _make_engine(tmp_path, name: str = "seed-test.db"):
-    url = f"sqlite+aiosqlite:///{tmp_path / name}"
+def _make_engine(tmp_path, name: str = 'seed-test.db'):
+    url = f'sqlite+aiosqlite:///{tmp_path / name}'
     return create_async_engine(url)
 
 
@@ -55,24 +57,31 @@ async def _count(session, model):
 # Tests
 # ---------------------------------------------------------------------------
 
+
 class TestSeedFirstRun:
     """Verify that the first execution populates the database correctly."""
 
     def test_roles_are_created(self, tmp_path, monkeypatch) -> None:
         async def scenario():
-            engine = _make_engine(tmp_path, "first-run-roles.db")
+            engine = _make_engine(tmp_path, 'first-run-roles.db')
             try:
                 await _setup_schema(engine)
-                sf = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
-                monkeypatch.setattr("app.db.init_db.get_session_factory", lambda: sf)
+                sf = async_sessionmaker(
+                    bind=engine, class_=AsyncSession, expire_on_commit=False
+                )
+                monkeypatch.setattr(
+                    'app.db.init_db.get_session_factory', lambda: sf
+                )
 
                 await seed_roles_and_permissions()
 
                 async with sf() as session:
-                    result = await session.execute(select(Role.name).order_by(Role.name))
+                    result = await session.execute(
+                        select(Role.name).order_by(Role.name)
+                    )
                     names = [r[0] for r in result.all()]
 
-                assert names == ["admin", "user"]
+                assert names == ['admin', 'user']
             finally:
                 await engine.dispose()
 
@@ -80,11 +89,15 @@ class TestSeedFirstRun:
 
     def test_permissions_are_created(self, tmp_path, monkeypatch) -> None:
         async def scenario():
-            engine = _make_engine(tmp_path, "first-run-perms.db")
+            engine = _make_engine(tmp_path, 'first-run-perms.db')
             try:
                 await _setup_schema(engine)
-                sf = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
-                monkeypatch.setattr("app.db.init_db.get_session_factory", lambda: sf)
+                sf = async_sessionmaker(
+                    bind=engine, class_=AsyncSession, expire_on_commit=False
+                )
+                monkeypatch.setattr(
+                    'app.db.init_db.get_session_factory', lambda: sf
+                )
 
                 await seed_roles_and_permissions()
 
@@ -98,13 +111,19 @@ class TestSeedFirstRun:
 
         _run(scenario())
 
-    def test_admin_role_has_all_permissions(self, tmp_path, monkeypatch) -> None:
+    def test_admin_role_has_all_permissions(
+        self, tmp_path, monkeypatch
+    ) -> None:
         async def scenario():
-            engine = _make_engine(tmp_path, "first-run-admin-perms.db")
+            engine = _make_engine(tmp_path, 'first-run-admin-perms.db')
             try:
                 await _setup_schema(engine)
-                sf = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
-                monkeypatch.setattr("app.db.init_db.get_session_factory", lambda: sf)
+                sf = async_sessionmaker(
+                    bind=engine, class_=AsyncSession, expire_on_commit=False
+                )
+                monkeypatch.setattr(
+                    'app.db.init_db.get_session_factory', lambda: sf
+                )
 
                 await seed_roles_and_permissions()
 
@@ -112,7 +131,7 @@ class TestSeedFirstRun:
                     result = await session.execute(
                         select(Role)
                         .options(selectinload(Role.permissions))
-                        .where(Role.name == "admin")
+                        .where(Role.name == 'admin')
                     )
                     admin_role = result.scalar_one()
 
@@ -120,7 +139,7 @@ class TestSeedFirstRun:
                 expected_admin_codes = {
                     code
                     for code, _, role_names in DEFAULT_PERMISSIONS
-                    if "admin" in role_names
+                    if 'admin' in role_names
                 }
                 assert expected_admin_codes == admin_perm_codes
             finally:
@@ -128,13 +147,19 @@ class TestSeedFirstRun:
 
         _run(scenario())
 
-    def test_user_role_has_read_permissions_only(self, tmp_path, monkeypatch) -> None:
+    def test_user_role_has_read_permissions_only(
+        self, tmp_path, monkeypatch
+    ) -> None:
         async def scenario():
-            engine = _make_engine(tmp_path, "first-run-user-perms.db")
+            engine = _make_engine(tmp_path, 'first-run-user-perms.db')
             try:
                 await _setup_schema(engine)
-                sf = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
-                monkeypatch.setattr("app.db.init_db.get_session_factory", lambda: sf)
+                sf = async_sessionmaker(
+                    bind=engine, class_=AsyncSession, expire_on_commit=False
+                )
+                monkeypatch.setattr(
+                    'app.db.init_db.get_session_factory', lambda: sf
+                )
 
                 await seed_roles_and_permissions()
 
@@ -142,7 +167,7 @@ class TestSeedFirstRun:
                     result = await session.execute(
                         select(Role)
                         .options(selectinload(Role.permissions))
-                        .where(Role.name == "user")
+                        .where(Role.name == 'user')
                     )
                     user_role = result.scalar_one()
 
@@ -150,39 +175,47 @@ class TestSeedFirstRun:
                 expected_user_codes = {
                     code
                     for code, _, role_names in DEFAULT_PERMISSIONS
-                    if "user" in role_names
+                    if 'user' in role_names
                 }
                 assert user_perm_codes == expected_user_codes
                 # Destructive permissions must NOT be in user role
-                assert "users:delete" not in user_perm_codes
-                assert "users:create" not in user_perm_codes
+                assert 'users:delete' not in user_perm_codes
+                assert 'users:create' not in user_perm_codes
             finally:
                 await engine.dispose()
 
         _run(scenario())
 
-    def test_admin_user_is_created_and_linked(self, tmp_path, monkeypatch) -> None:
+    def test_admin_user_is_created_and_linked(
+        self, tmp_path, monkeypatch
+    ) -> None:
         async def scenario():
-            engine = _make_engine(tmp_path, "first-run-admin-user.db")
+            engine = _make_engine(tmp_path, 'first-run-admin-user.db')
             try:
                 await _setup_schema(engine)
-                sf = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
-                monkeypatch.setattr("app.db.init_db.get_session_factory", lambda: sf)
+                sf = async_sessionmaker(
+                    bind=engine, class_=AsyncSession, expire_on_commit=False
+                )
+                monkeypatch.setattr(
+                    'app.db.init_db.get_session_factory', lambda: sf
+                )
 
-                await seed_roles_and_permissions(admin_email="admin@test.com", admin_password="secret")
+                await seed_roles_and_permissions(
+                    admin_email='admin@test.com', admin_password='secret'
+                )
 
                 async with sf() as session:
                     result = await session.execute(
                         select(User)
                         .options(selectinload(User.roles))
-                        .where(User.email == "admin@test.com")
+                        .where(User.email == 'admin@test.com')
                     )
                     admin_user = result.scalar_one()
 
                 assert admin_user.is_superuser is True
                 assert admin_user.is_active is True
                 role_names = {r.name for r in admin_user.roles}
-                assert "admin" in role_names
+                assert 'admin' in role_names
             finally:
                 await engine.dispose()
 
@@ -194,11 +227,15 @@ class TestSeedIdempotency:
 
     def test_no_duplicate_roles(self, tmp_path, monkeypatch) -> None:
         async def scenario():
-            engine = _make_engine(tmp_path, "idem-roles.db")
+            engine = _make_engine(tmp_path, 'idem-roles.db')
             try:
                 await _setup_schema(engine)
-                sf = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
-                monkeypatch.setattr("app.db.init_db.get_session_factory", lambda: sf)
+                sf = async_sessionmaker(
+                    bind=engine, class_=AsyncSession, expire_on_commit=False
+                )
+                monkeypatch.setattr(
+                    'app.db.init_db.get_session_factory', lambda: sf
+                )
 
                 await seed_roles_and_permissions()
                 await seed_roles_and_permissions()  # second run
@@ -214,11 +251,15 @@ class TestSeedIdempotency:
 
     def test_no_duplicate_permissions(self, tmp_path, monkeypatch) -> None:
         async def scenario():
-            engine = _make_engine(tmp_path, "idem-perms.db")
+            engine = _make_engine(tmp_path, 'idem-perms.db')
             try:
                 await _setup_schema(engine)
-                sf = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
-                monkeypatch.setattr("app.db.init_db.get_session_factory", lambda: sf)
+                sf = async_sessionmaker(
+                    bind=engine, class_=AsyncSession, expire_on_commit=False
+                )
+                monkeypatch.setattr(
+                    'app.db.init_db.get_session_factory', lambda: sf
+                )
 
                 await seed_roles_and_permissions()
                 await seed_roles_and_permissions()  # second run
@@ -234,14 +275,20 @@ class TestSeedIdempotency:
 
     def test_no_duplicate_admin_user(self, tmp_path, monkeypatch) -> None:
         async def scenario():
-            engine = _make_engine(tmp_path, "idem-user.db")
+            engine = _make_engine(tmp_path, 'idem-user.db')
             try:
                 await _setup_schema(engine)
-                sf = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
-                monkeypatch.setattr("app.db.init_db.get_session_factory", lambda: sf)
+                sf = async_sessionmaker(
+                    bind=engine, class_=AsyncSession, expire_on_commit=False
+                )
+                monkeypatch.setattr(
+                    'app.db.init_db.get_session_factory', lambda: sf
+                )
 
-                await seed_roles_and_permissions(admin_email="admin@idem.com")
-                await seed_roles_and_permissions(admin_email="admin@idem.com")  # second run
+                await seed_roles_and_permissions(admin_email='admin@idem.com')
+                await seed_roles_and_permissions(
+                    admin_email='admin@idem.com'
+                )  # second run
 
                 async with sf() as session:
                     count = await _count(session, User)
@@ -252,13 +299,19 @@ class TestSeedIdempotency:
 
         _run(scenario())
 
-    def test_no_duplicate_role_permissions(self, tmp_path, monkeypatch) -> None:
+    def test_no_duplicate_role_permissions(
+        self, tmp_path, monkeypatch
+    ) -> None:
         async def scenario():
-            engine = _make_engine(tmp_path, "idem-role-perms.db")
+            engine = _make_engine(tmp_path, 'idem-role-perms.db')
             try:
                 await _setup_schema(engine)
-                sf = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
-                monkeypatch.setattr("app.db.init_db.get_session_factory", lambda: sf)
+                sf = async_sessionmaker(
+                    bind=engine, class_=AsyncSession, expire_on_commit=False
+                )
+                monkeypatch.setattr(
+                    'app.db.init_db.get_session_factory', lambda: sf
+                )
 
                 await seed_roles_and_permissions()
                 await seed_roles_and_permissions()  # second run
@@ -267,7 +320,7 @@ class TestSeedIdempotency:
                     result = await session.execute(
                         select(Role)
                         .options(selectinload(Role.permissions))
-                        .where(Role.name == "admin")
+                        .where(Role.name == 'admin')
                     )
                     admin_role = result.scalar_one()
 

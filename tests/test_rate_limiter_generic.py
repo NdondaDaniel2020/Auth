@@ -37,15 +37,23 @@ def test_parse_rate_limit_invalid(value: str) -> None:
 
 
 def test_within_limit_is_allowed() -> None:
-    assert request_rate_limiter.check_and_consume('k', 2, 60.0, now=1000.0) is None
-    assert request_rate_limiter.check_and_consume('k', 2, 60.0, now=1001.0) is None
+    assert (
+        request_rate_limiter.check_and_consume('k', 2, 60.0, now=1000.0)
+        is None
+    )
+    assert (
+        request_rate_limiter.check_and_consume('k', 2, 60.0, now=1001.0)
+        is None
+    )
     request_rate_limiter.clear()
 
 
 def test_over_limit_returns_retry_after() -> None:
     request_rate_limiter.check_and_consume('k', 2, 60.0, now=1000.0)
     request_rate_limiter.check_and_consume('k', 2, 60.0, now=1001.0)
-    retry_after = request_rate_limiter.check_and_consume('k', 2, 60.0, now=1002.0)
+    retry_after = request_rate_limiter.check_and_consume(
+        'k', 2, 60.0, now=1002.0
+    )
     assert retry_after is not None
     assert retry_after > 0
     request_rate_limiter.clear()
@@ -54,7 +62,8 @@ def test_over_limit_returns_retry_after() -> None:
 def test_allowed_after_window_elapses() -> None:
     request_rate_limiter.check_and_consume('k', 1, 10.0, now=1000.0)
     assert (
-        request_rate_limiter.check_and_consume('k', 1, 10.0, now=1011.0) is None
+        request_rate_limiter.check_and_consume('k', 1, 10.0, now=1011.0)
+        is None
     )
     request_rate_limiter.clear()
 
@@ -62,11 +71,15 @@ def test_allowed_after_window_elapses() -> None:
 def test_scopes_are_independent() -> None:
     request_rate_limiter.check_and_consume('scope_a:k', 1, 60.0, now=1000.0)
     assert (
-        request_rate_limiter.check_and_consume('scope_b:k', 1, 60.0, now=1001.0)
+        request_rate_limiter.check_and_consume(
+            'scope_b:k', 1, 60.0, now=1001.0
+        )
         is None
     )
     assert (
-        request_rate_limiter.check_and_consume('scope_a:k', 1, 60.0, now=1002.0)
+        request_rate_limiter.check_and_consume(
+            'scope_a:k', 1, 60.0, now=1002.0
+        )
         is not None
     )
     request_rate_limiter.clear()
@@ -79,7 +92,10 @@ def test_reset_clears_key() -> None:
         is not None
     )
     request_rate_limiter.reset('k')
-    assert request_rate_limiter.check_and_consume('k', 1, 60.0, now=1002.0) is None
+    assert (
+        request_rate_limiter.check_and_consume('k', 1, 60.0, now=1002.0)
+        is None
+    )
     request_rate_limiter.clear()
 
 
@@ -89,13 +105,19 @@ def test_register_exceeds_limit_returns_429(api_client, monkeypatch) -> None:
         lambda: _FakeRateLimitSettings(),
     )
 
-    first = api_client.post('/auth/register', json=_register_payload('rl1@example.com'))
+    first = api_client.post(
+        '/auth/register', json=_register_payload('rl1@example.com')
+    )
     assert first.status_code == 201
 
-    second = api_client.post('/auth/register', json=_register_payload('rl2@example.com'))
+    second = api_client.post(
+        '/auth/register', json=_register_payload('rl2@example.com')
+    )
     assert second.status_code == 201
 
-    third = api_client.post('/auth/register', json=_register_payload('rl3@example.com'))
+    third = api_client.post(
+        '/auth/register', json=_register_payload('rl3@example.com')
+    )
     assert third.status_code == 429
     body = third.json()
     assert body['error']['type'] == 'RateLimitExceededError'

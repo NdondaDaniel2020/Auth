@@ -28,7 +28,7 @@ def _run(coro: Any) -> Any:
 
 
 def test_user_defaults_mfa_disabled(tmp_path) -> None:
-    database_url = f"sqlite+aiosqlite:///{tmp_path / 'mfa-defaults.db'}"
+    database_url = f'sqlite+aiosqlite:///{tmp_path / "mfa-defaults.db"}'
 
     async def scenario() -> None:
         engine = create_async_engine(database_url)
@@ -56,7 +56,7 @@ def test_user_defaults_mfa_disabled(tmp_path) -> None:
 
 
 def test_mfa_method_can_be_created_and_associated(tmp_path) -> None:
-    database_url = f"sqlite+aiosqlite:///{tmp_path / 'mfa-method.db'}"
+    database_url = f'sqlite+aiosqlite:///{tmp_path / "mfa-method.db"}'
 
     async def scenario() -> None:
         engine = create_async_engine(database_url)
@@ -120,14 +120,20 @@ def test_mfa_method_can_be_created_and_associated(tmp_path) -> None:
 def test_register_and_login_still_work(api_client) -> None:
     response = api_client.post(
         '/auth/register',
-        json={'email': 'mfa-regression@example.com', 'password': 'T3st!Passw0rd'},
+        json={
+            'email': 'mfa-regression@example.com',
+            'password': 'T3st!Passw0rd',
+        },
     )
     assert response.status_code == 201
     assert response.json()['mfa_enabled'] is False
 
     login = api_client.post(
         '/auth/login',
-        json={'email': 'mfa-regression@example.com', 'password': 'T3st!Passw0rd'},
+        json={
+            'email': 'mfa-regression@example.com',
+            'password': 'T3st!Passw0rd',
+        },
     )
     assert login.status_code == 200
     assert login.json()['access_token']

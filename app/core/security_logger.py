@@ -36,7 +36,9 @@ def get_security_logger() -> logging.Logger:
     set, INFO otherwise) so the same knob controls every logger.
     """
     settings = get_settings()
-    level = logging.DEBUG if getattr(settings, 'DEBUG', False) else logging.INFO
+    level = (
+        logging.DEBUG if getattr(settings, 'DEBUG', False) else logging.INFO
+    )
 
     logger = logging.getLogger(SECURITY_LOGGER_NAME)
     logger.setLevel(level)
