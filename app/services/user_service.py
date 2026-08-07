@@ -76,8 +76,11 @@ async def authenticate_user(
     repository = UserRepository(db)
     user = await repository.get_by_email(email)
 
-    if user is None or not user.is_active or not verify_password(
-        password, user.hashed_password
+    if (
+        user is None
+        or not user.is_active
+        or user.hashed_password is None
+        or not verify_password(password, user.hashed_password)
     ):
         reason = (
             'account_inactive'

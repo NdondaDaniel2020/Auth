@@ -53,6 +53,9 @@ Formato padrão de resposta de erro, aplicado centralmente por
 | `TOO_MANY_ATTEMPTS` | Limite de tentativas de login excedido (header `Retry-After`). | 429 | `TooManyLoginAttemptsError` |
 | `RATE_LIMIT_EXCEEDED` | Limite de requisições excedido em rota sensível (header `Retry-After`). | 429 | `RateLimitExceededError` |
 | `EMAIL_ALREADY_EXISTS` | E-mail já registado. | 409 | `EmailAlreadyExistsError` |
+| `GOOGLE_LOGIN_DISABLED` | Login via Google desativado nas configurações. | 403 | `GoogleLoginDisabledError` |
+| `INVALID_GOOGLE_TOKEN` | `code`/`id_token`/`state` inválido, expirado, sem e-mail verificado ou chave desconhecida. | 400 | `InvalidGoogleTokenError` |
+| `GOOGLE_AUTH_ERROR` | Falha de comunicação/HTTP com a API do Google. | 502 | `GoogleAuthError` |
 | `NOT_FOUND` | Recurso não encontrado. | 404 | `NotFoundError` |
 | `USER_NOT_FOUND` | Utilizador não encontrado pelo `id`. | 404 | `UserNotFoundError` |
 | `ROLE_NOT_FOUND` | Role não encontrada pelos `id`s informados. | 404 | `RoleNotFoundError` |

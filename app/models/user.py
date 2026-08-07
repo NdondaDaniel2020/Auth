@@ -56,7 +56,15 @@ class User(Base):
         index=True,
         nullable=False,
     )
-    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    hashed_password: Mapped[str | None] = mapped_column(
+        String(255), nullable=True
+    )
+    oauth_provider: Mapped[str | None] = mapped_column(
+        String(32), nullable=True, default=None
+    )
+    google_id: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, default=None
+    )
     full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(
         Boolean,

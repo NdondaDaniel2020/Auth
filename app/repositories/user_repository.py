@@ -29,12 +29,22 @@ class UserRepository(BaseRepository[User]):
         return result.scalar_one_or_none()
 
     async def create(
-        self, *, email: str, hashed_password: str, full_name: str | None = None
+        self,
+        *,
+        email: str,
+        hashed_password: str | None = None,
+        full_name: str | None = None,
+        oauth_provider: str | None = None,
+        google_id: str | None = None,
+        is_verified: bool = False,
     ) -> User:
         user = User(
             email=email.lower(),
             hashed_password=hashed_password,
             full_name=full_name,
+            oauth_provider=oauth_provider,
+            google_id=google_id,
+            is_verified=is_verified,
         )
         self.session.add(user)
         await self.session.flush()

@@ -37,6 +37,8 @@ Nível por evento: sucesso → `INFO`; falha/bloqueio → `WARNING`.
 | `PASSWORD_RESET_REQUESTED` | Link de redefinição de senha gerado (usuário existente)         | `INFO`   |
 | `PASSWORD_RESET_COMPLETED` | Senha redefinida com sucesso                                    | `INFO`   |
 | `EMAIL_VERIFIED`           | E-mail confirmado com token de verificação                      | `INFO`   |
+| `GOOGLE_LOGIN_SUCCESS`     | Login via Google OAuth bem-sucedido (novo ou existente)         | `INFO`   |
+| `GOOGLE_LOGIN_FAILED`      | Falha no login Google (`reason`: disabled/invalid_token/upstream_error) | `WARNING` |
 
 ## Restrições
 
@@ -50,6 +52,8 @@ token, um UUID, não o token JWT em si).
 - `app/services/user_service.py` — `authenticate_user` (sucesso, falha, bloqueio).
 - `app/services/auth_service.py` — `logout`, `request_password_reset`,
   `reset_password`, `verify_email`.
+- `app/services/google_auth_service.py` — `google_login` (sucesso/falha no login
+  via Google OAuth).
 - Rotas passam o IP de origem (`request.client.host`) via `client_ip`.
 
 ## Fora de escopo
