@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import selectinload
 
 from app.models.role import Role
@@ -58,3 +58,9 @@ class UserRepository(BaseRepository[User]):
             select(func.count()).select_from(User)
         )
         return int(result.scalar_one())
+
+    async def set_active_status(self, user_id: str, is_active: bool) -> None:
+        """Update only the ``is_active`` flag (soft activate/deactivate)."""
+        await self.session.execute(
+            update(User).where(User.id == user_id).values(is_active=is_active)
+        )

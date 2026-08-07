@@ -3,6 +3,7 @@ from __future__ import annotations
 from app.core.exceptions import (
     EmailAlreadyExistsError,
     InvalidCredentialsError,
+    SelfDeactivationError,
     TooManyLoginAttemptsError,
     UserNotFoundError,
 )
@@ -14,6 +15,7 @@ from app.core.rate_limiter import (
 )
 from app.core.security import hash_password, verify_password
 from app.models.user import User
+from app.repositories.refresh_token_repository import RefreshTokenRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.pagination import PaginatedResponse
 from app.schemas.user import UserCreate, UserRead, UserUpdate
@@ -125,3 +127,46 @@ async def update_profile(db, user: User, data: UserUpdate) -> UserRead:
     if updates:
         user = await UserRepository(db).update(user, updates)
     return UserRead.model_validate(user)
+
+
+async def _set_active_status(
+    db,
+    *,
+    user_id: str,
+    is_active: bool,
+    actor: User | None = None,
+) -> UserRead:
+    """Set ``is_active`` for a user (admin scope), persisting the change.
+
+    Raises ``UserNotFoundError`` for unknown ids. Deactivating revokes every
+    active refresh token so existing sessions end immediately; the account
+    stays in the database (soft delete). An actor cannot deactivate their own
+    account (``SelfDeactivationError``).
+    """
+    repository = UserRepository(db)
+    user = await repository.get_by_id(user_id)
+    if user is None:
+        raise UserNotFoundError()
+
+    if not is_active and actor is not None and user.id == actor.id:
+        raise SelfDeactivationError()
+
+    await repository.set_active_status(user_id, is_active)
+    if not is_active:
+        await RefreshTokenRepository(db).revoke_all_for_user(user_id)
+
+    await db.refresh(user)
+    await db.commit()
+    return UserRead.model_validate(user)
+
+
+async def deactivate_user(db, *, user_id: str, actor: User) -> UserRead:
+    """Deactivate a user account (admin scope)."""
+    return await _set_active_status(
+        db, user_id=user_id, is_active=False, actor=actor
+    )
+
+
+async def activate_user(db, *, user_id: str) -> UserRead:
+    """Reactivate a user account (admin scope)."""
+    return await _set_active_status(db, user_id=user_id, is_active=True)
