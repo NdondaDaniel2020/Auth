@@ -8,6 +8,7 @@ from urllib.parse import parse_qs, urlparse
 from sqlalchemy import select
 
 from app.models.password_reset_token import PasswordResetToken
+from app.models.user import User
 from app.utils.tokens import hash_token
 from tests.conftest import run_in_isolated_db
 
@@ -64,6 +65,65 @@ def test_request_reset_for_unknown_email_is_generic(
     )
     assert response.status_code == 200
     assert captured == {}
+
+
+def test_request_reset_persists_token_for_existing_email(
+    api_client, monkeypatch, isolated_db_path
+) -> None:
+    captured = _capture_reset_email(monkeypatch)
+
+    api_client.post(
+        '/auth/register',
+        json={'email': 'persist@example.com', 'password': 'T3st!Passw0rd'},
+    )
+    response = api_client.post(
+        '/auth/password-reset/request',
+        json={'email': 'persist@example.com'},
+    )
+    assert response.status_code == 200
+
+    token = _token_from_link(captured['link'])
+
+    async def _check(factory):
+        async with factory() as session:
+            record = (
+                await session.execute(
+                    select(PasswordResetToken).where(
+                        PasswordResetToken.token_hash == hash_token(token)
+                    )
+                )
+            ).scalar_one_or_none()
+            assert record is not None
+            assert record.used is False
+
+            user = (
+                await session.execute(
+                    select(User).where(User.email == 'persist@example.com')
+                )
+            ).scalar_one()
+            assert record.user_id == user.id
+
+    run_in_isolated_db(isolated_db_path, _check)
+
+
+def test_request_reset_creates_no_token_for_unknown_email(
+    api_client, monkeypatch, isolated_db_path
+) -> None:
+    captured = _capture_reset_email(monkeypatch)
+
+    response = api_client.post(
+        '/auth/password-reset/request',
+        json={'email': 'ghost@example.com'},
+    )
+    assert response.status_code == 200
+    assert captured == {}
+
+    async def _check(factory):
+        async with factory() as session:
+            records = (await session.execute(select(PasswordResetToken))).all()
+            assert records == []
+
+    run_in_isolated_db(isolated_db_path, _check)
 
 
 def test_reset_password_with_valid_token(api_client, monkeypatch) -> None:
@@ -172,6 +232,34 @@ def test_reset_password_with_invalid_token_rejected(api_client) -> None:
     assert response.status_code == 400
     assert response.json()['error']['type'] == 'InvalidOrExpiredTokenError'
     assert response.json()['error']['code'] == 'INVALID_OR_EXPIRED_TOKEN'
+
+
+def test_reset_password_with_weak_new_password_rejected(
+    api_client, monkeypatch
+) -> None:
+    captured = _capture_reset_email(monkeypatch)
+
+    api_client.post(
+        '/auth/register',
+        json={'email': 'weakreset@example.com', 'password': 'T3st!Passw0rd'},
+    )
+    api_client.post(
+        '/auth/password-reset/request',
+        json={'email': 'weakreset@example.com'},
+    )
+    token = _token_from_link(captured['link'])
+
+    response = api_client.post(
+        '/auth/password-reset/confirm',
+        json={'token': token, 'new_password': 'short'},
+    )
+    assert response.status_code == 422
+
+    login = api_client.post(
+        '/auth/login',
+        json={'email': 'weakreset@example.com', 'password': 'T3st!Passw0rd'},
+    )
+    assert login.status_code == 200
 
 
 def test_reset_password_token_is_single_use(api_client, monkeypatch) -> None:

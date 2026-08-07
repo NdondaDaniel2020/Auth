@@ -60,6 +60,37 @@ def test_register_duplicate_email_rejected(api_client) -> None:
     assert body['error']['type'] == 'EmailAlreadyExistsError'
 
 
+def test_register_duplicate_email_creates_no_second_record(
+    api_client, isolated_db_path
+) -> None:
+    payload = {'email': 'dup@example.com', 'password': 'T3st!Passw0rd'}
+    assert api_client.post('/auth/register', json=payload).status_code == 201
+    assert api_client.post('/auth/register', json=payload).status_code == 409
+
+    async def _check(factory):
+        async with factory() as session:
+            users = (await session.execute(select(User))).scalars().all()
+            assert len(users) == 1
+            assert users[0].email == 'dup@example.com'
+
+    run_in_isolated_db(isolated_db_path, _check)
+
+
+def test_register_missing_required_fields_rejected(api_client) -> None:
+    no_email = api_client.post(
+        '/auth/register', json={'password': 'T3st!Passw0rd'}
+    )
+    assert no_email.status_code == 422
+
+    no_password = api_client.post(
+        '/auth/register', json={'email': 'nofield@example.com'}
+    )
+    assert no_password.status_code == 422
+
+    empty = api_client.post('/auth/register', json={})
+    assert empty.status_code == 422
+
+
 def test_register_weak_password_rejected(api_client) -> None:
     response = api_client.post(
         '/auth/register',
