@@ -279,3 +279,46 @@ Este modo é conveniente em desenvolvimento mas **não é recomendado em produç
 | Desenvolvimento local | `RUN_SEED_ON_STARTUP=true` no `.env` |
 | CI/CD (staging/produção) | `uv run python -m app.db.init_db` após `alembic upgrade head` |
 | Reset de base local | `alembic downgrade base && alembic upgrade head && python -m app.db.init_db` |
+
+## Fluxo de autenticação
+
+Os endpoints de autenticação estão agrupados em `app/api/routers/auth.py` sob o prefixo `/api/auth`.
+
+| Método | Rota | Descrição |
+|---|---|---|
+| `POST` | `/api/auth/register` | Regista um novo utilizador (devuelve os dados públicos; a senha é guardada como hash e nunca é devolvida). |
+| `POST` | `/api/auth/login` | Autentica com e-mail/senha e devolve `access_token` + `refresh_token`. |
+| `POST` | `/api/auth/refresh` | Rota o refresh token e devolve um novo par de tokens. |
+| `POST` | `/api/auth/logout` | Revoga o refresh token (idempotente, HTTP 204). |
+| `POST` | `/api/auth/password-reset/request` | Envia e-mail de recuperação de senha (resposta genérica). |
+| `POST` | `/api/auth/password-reset/confirm` | Redefine a senha com o token recebido por e-mail. |
+| `POST` | `/api/auth/verify-email` | Confirma o e-mail com o token de verificação. |
+| `POST` | `/api/auth/verify-email/resend` | Reenvia o token de verificação. |
+
+### Regras relevantes
+
+- **Registo**: e-mails duplicados são rejeitados com HTTP 409
+  (`EmailAlreadyExistsError`). A senha é armazenada apenas como hash
+  (`argon2`).
+- **Login**: credenciais inválidas devolvem HTTP 401 com mensagem genérica.
+  Tentativas falhas consecutivas bloqueiam temporariamente o identificador
+  (HTTP 429) — ver `LOGIN_MAX_ATTEMPTS`,
+  `LOGIN_ATTEMPT_WINDOW_MINUTES` e `LOGIN_BLOCK_DURATION_MINUTES`.
+- **Refresh**: cada refresh token é de utilização única (rotação). O reuso de
+  um token já rotacionado revoga todas as sessões do utilizador.
+- **Recuperação de senha**: tokens temporários de alta entropia, com expiração
+  curta (`PASSWORD_RESET_TOKEN_EXPIRE_MINUTES`) e de utilização única. Após a
+  redefinição, todos os refresh tokens do utilizador são revogados.
+- **Verificação de e-mail**: o registo cria um token de verificação e envia o
+  e-mail. `is_verified` não bloqueia o login (apenas fica registado).
+
+### Envio de e-mails
+
+Se `SMTP_HOST` não estiver configurado, os e-mails são apenas registados nos
+logs (modo de desenvolvimento). Para envio real, configure as variáveis
+`SMTP_*`. Os templates estão em `app/templates/emails/`.
+
+### Política de tokens
+
+TTLs, rotação, revogação e estrutura de claims dos tokens estão documentados
+em [docs/token-policy.md](docs/token-policy.md).
