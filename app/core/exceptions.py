@@ -42,6 +42,16 @@ class NotFoundError(AppError):
         )
 
 
+class UserNotFoundError(NotFoundError):
+    def __init__(
+        self,
+        message: str = 'User not found',
+        payload: dict[str, Any] | None = None,
+    ):
+        super().__init__(message=message, payload=payload)
+        self.code = 'USER_NOT_FOUND'
+
+
 class PermissionDeniedError(AppError):
     def __init__(
         self,

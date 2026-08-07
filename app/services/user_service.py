@@ -4,6 +4,7 @@ from app.core.exceptions import (
     EmailAlreadyExistsError,
     InvalidCredentialsError,
     TooManyLoginAttemptsError,
+    UserNotFoundError,
 )
 from app.core.rate_limiter import (
     build_login_key,
@@ -98,3 +99,15 @@ async def list_users(
         page=page,
         page_size=page_size,
     )
+
+
+async def get_user(db, *, user_id: str) -> UserRead:
+    """Fetch a single user by ``id`` (admin scope).
+
+    Raises ``UserNotFoundError`` (HTTP 404) when no user matches. The result
+    is serialized through ``UserRead``, which never exposes ``hashed_password``.
+    """
+    user = await UserRepository(db).get_by_id(user_id)
+    if user is None:
+        raise UserNotFoundError()
+    return UserRead.model_validate(user)
