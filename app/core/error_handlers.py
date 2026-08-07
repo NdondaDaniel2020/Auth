@@ -19,6 +19,7 @@ def _error_payload(
     message: str,
     status_code: int,
     details: Any | None = None,
+    code: str | None = None,
 ) -> dict[str, Any]:
     payload: dict[str, Any] = {
         'error': {
@@ -29,6 +30,9 @@ def _error_payload(
         'path': str(request.url.path),
         'method': request.method,
     }
+
+    if code is not None:
+        payload['error']['code'] = code
 
     if details is not None:
         payload['error']['details'] = details
@@ -63,6 +67,7 @@ async def handle_app_error(request: Request, exc: AppError) -> JSONResponse:
         message=exc.message,
         status_code=exc.status_code,
         details=exc.payload or None,
+        code=exc.code,
     )
     return JSONResponse(
         status_code=exc.status_code, content=content, headers=exc.headers
