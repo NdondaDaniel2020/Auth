@@ -28,6 +28,19 @@ class UserCreate(BaseModel):
         return value.lower()
 
 
+class UserUpdate(BaseModel):
+    """Fields the authenticated user may change on their own profile.
+
+    Deliberately excludes sensitive fields (``email``, ``hashed_password``,
+    ``is_active``, ``is_verified``, ``is_superuser``, roles). ``extra='forbid'``
+    makes the API reject payloads that attempt to smuggle them in.
+    """
+
+    model_config = ConfigDict(extra='forbid')
+
+    full_name: str | None = Field(default=None, max_length=255)
+
+
 class UserRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
