@@ -16,22 +16,30 @@ class AppError(Exception):
         status_code: int = 400,
         payload: dict[str, Any] | None = None,
         headers: dict[str, str] | None = None,
+        code: str | None = None,
     ):
         super().__init__(message)
         self.message = message
         self.status_code = status_code
         self.payload = payload or {}
         self.headers = headers or {}
+        self.code = code or self.__class__.__name__
 
     def to_dict(self) -> dict[str, Any]:
-        return {'message': self.message, **self.payload}
+        return {
+            'message': self.message,
+            'code': self.code,
+            **self.payload,
+        }
 
 
 class NotFoundError(AppError):
     def __init__(
         self, message: str = 'Not found', payload: dict[str, Any] | None = None
     ):
-        super().__init__(message=message, status_code=404, payload=payload)
+        super().__init__(
+            message=message, status_code=404, payload=payload, code='NOT_FOUND'
+        )
 
 
 class PermissionDeniedError(AppError):
@@ -39,8 +47,14 @@ class PermissionDeniedError(AppError):
         self,
         message: str = 'Permission denied',
         payload: dict[str, Any] | None = None,
+        code: str = 'PERMISSION_DENIED',
     ):
-        super().__init__(message=message, status_code=403, payload=payload)
+        super().__init__(
+            message=message,
+            status_code=403,
+            payload=payload,
+            code=code,
+        )
 
 
 class BusinessRuleError(AppError):
@@ -50,7 +64,12 @@ class BusinessRuleError(AppError):
         payload: dict[str, Any] | None = None,
     ):
         # 400 Bad Request for business errors; change to 409 if preferred
-        super().__init__(message=message, status_code=400, payload=payload)
+        super().__init__(
+            message=message,
+            status_code=400,
+            payload=payload,
+            code='BUSINESS_RULE_ERROR',
+        )
 
 
 class DomainValidationError(AppError):
@@ -59,7 +78,12 @@ class DomainValidationError(AppError):
         message: str = 'Validation error',
         payload: dict[str, Any] | None = None,
     ):
-        super().__init__(message=message, status_code=422, payload=payload)
+        super().__init__(
+            message=message,
+            status_code=422,
+            payload=payload,
+            code='VALIDATION_ERROR',
+        )
 
 
 class EmailAlreadyExistsError(AppError):
@@ -68,7 +92,12 @@ class EmailAlreadyExistsError(AppError):
         message: str = 'Email already registered',
         payload: dict[str, Any] | None = None,
     ):
-        super().__init__(message=message, status_code=409, payload=payload)
+        super().__init__(
+            message=message,
+            status_code=409,
+            payload=payload,
+            code='EMAIL_ALREADY_EXISTS',
+        )
 
 
 class InvalidCredentialsError(AppError):
@@ -77,7 +106,12 @@ class InvalidCredentialsError(AppError):
         message: str = 'Invalid email or password',
         payload: dict[str, Any] | None = None,
     ):
-        super().__init__(message=message, status_code=401, payload=payload)
+        super().__init__(
+            message=message,
+            status_code=401,
+            payload=payload,
+            code='INVALID_CREDENTIALS',
+        )
 
 
 class NotAuthenticatedError(AppError):
@@ -91,7 +125,38 @@ class NotAuthenticatedError(AppError):
             status_code=401,
             payload=payload,
             headers={'WWW-Authenticate': 'Bearer'},
+            code='NOT_AUTHENTICATED',
         )
+
+
+class TokenInvalidError(NotAuthenticatedError):
+    def __init__(
+        self,
+        message: str = 'Invalid access token',
+        payload: dict[str, Any] | None = None,
+    ):
+        super().__init__(message=message, payload=payload)
+        self.code = 'TOKEN_INVALID'
+
+
+class TokenExpiredError(NotAuthenticatedError):
+    def __init__(
+        self,
+        message: str = 'Access token expired',
+        payload: dict[str, Any] | None = None,
+    ):
+        super().__init__(message=message, payload=payload)
+        self.code = 'TOKEN_EXPIRED'
+
+
+class AccountInactiveError(NotAuthenticatedError):
+    def __init__(
+        self,
+        message: str = 'Account is inactive',
+        payload: dict[str, Any] | None = None,
+    ):
+        super().__init__(message=message, payload=payload)
+        self.code = 'ACCOUNT_INACTIVE'
 
 
 class InvalidRefreshTokenError(AppError):
@@ -100,7 +165,12 @@ class InvalidRefreshTokenError(AppError):
         message: str = 'Invalid refresh token',
         payload: dict[str, Any] | None = None,
     ):
-        super().__init__(message=message, status_code=401, payload=payload)
+        super().__init__(
+            message=message,
+            status_code=401,
+            payload=payload,
+            code='INVALID_REFRESH_TOKEN',
+        )
 
 
 class InvalidOrExpiredTokenError(AppError):
@@ -109,7 +179,12 @@ class InvalidOrExpiredTokenError(AppError):
         message: str = 'Invalid or expired token',
         payload: dict[str, Any] | None = None,
     ):
-        super().__init__(message=message, status_code=400, payload=payload)
+        super().__init__(
+            message=message,
+            status_code=400,
+            payload=payload,
+            code='INVALID_OR_EXPIRED_TOKEN',
+        )
 
 
 class TokenAlreadyUsedError(AppError):
@@ -118,7 +193,12 @@ class TokenAlreadyUsedError(AppError):
         message: str = 'Token already used',
         payload: dict[str, Any] | None = None,
     ):
-        super().__init__(message=message, status_code=400, payload=payload)
+        super().__init__(
+            message=message,
+            status_code=400,
+            payload=payload,
+            code='TOKEN_ALREADY_USED',
+        )
 
 
 class TooManyLoginAttemptsError(AppError):
@@ -136,4 +216,5 @@ class TooManyLoginAttemptsError(AppError):
             status_code=429,
             payload=payload,
             headers=headers,
+            code='TOO_MANY_ATTEMPTS',
         )
