@@ -4,7 +4,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
-from app.core.config import get_settings
+from app.schemas.validators import validate_password_strength
 
 
 class UserCreate(BaseModel):
@@ -15,12 +15,7 @@ class UserCreate(BaseModel):
     @field_validator('password')
     @classmethod
     def validate_password_strength(cls, value: str) -> str:
-        min_length = get_settings().PASSWORD_MIN_LENGTH
-        if len(value) < min_length:
-            raise ValueError(
-                f'Password must be at least {min_length} characters long'
-            )
-        return value
+        return validate_password_strength(value)
 
     @field_validator('email')
     @classmethod

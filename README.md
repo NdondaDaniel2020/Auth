@@ -97,6 +97,7 @@ Variáveis principais:
 - `ALGORITHM`: algoritmo de assinatura JWT.
 - `JWT_ACCESS_MINUTES` e `JWT_REFRESH_DAYS`: tempos de expiração dos tokens.
 - `RATE_LIMIT_DEFAULT`, `RATE_LIMIT_REGISTER`, `RATE_LIMIT_PASSWORD_RESET`, `RATE_LIMIT_EMAIL_RESEND`: limites de requisição por rota sensível (formato `"N/timeunit"`).
+- `PASSWORD_MIN_LENGTH`, `PASSWORD_MAX_LENGTH`, `PASSWORD_REQUIRE_UPPERCASE`, `PASSWORD_REQUIRE_LOWERCASE`, `PASSWORD_REQUIRE_DIGIT`, `PASSWORD_REQUIRE_SPECIAL`, `PASSWORD_REJECT_COMMON`: política de senha forte (detalhes em [docs/password-policy.md](docs/password-policy.md)).
 
 Comportamento por ambiente:
 
