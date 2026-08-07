@@ -177,6 +177,12 @@ class BaseAppSettings(BaseSettings):
         default='https://accounts.google.com',
         alias='GOOGLE_ISSUER',
     )
+    GOOGLE_STATE_TTL_MINUTES: int = Field(
+        default=10, alias='GOOGLE_STATE_TTL_MINUTES'
+    )
+    GOOGLE_CERTS_CACHE_TTL_SECONDS: int = Field(
+        default=300, alias='GOOGLE_CERTS_CACHE_TTL_SECONDS'
+    )
 
     @property
     def REFRESH_SECRET_KEY_ACTIVE(self) -> str:

@@ -3,7 +3,8 @@ from __future__ import annotations
 import json
 import logging
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
+from functools import lru_cache
 from typing import Any
 from urllib.parse import urlencode
 from uuid import uuid4
@@ -18,15 +19,21 @@ from app.core.exceptions import (
     GoogleLoginDisabledError,
     InvalidGoogleTokenError,
 )
+from app.core.security import create_signed_token, decode_token
 from app.core.security_logger import log_security_event
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth import Token
+from app.schemas.google import GoogleLoginRequest
 from app.services import auth_service
 
 logger = logging.getLogger(__name__)
 
-GOOGLE_STATE_TTL_MINUTES = 10
+
+def ensure_google_login_enabled() -> None:
+    """Raise ``GoogleLoginDisabledError`` when Google login is turned off."""
+    if not get_settings().GOOGLE_LOGIN_ENABLED:
+        raise GoogleLoginDisabledError()
 
 
 def create_google_state() -> str:
@@ -37,29 +44,23 @@ def create_google_state() -> str:
     code, preventing login-CSRF/replay against the callback.
     """
     settings = get_settings()
-    now = datetime.now(UTC)
-    payload = {
-        'type': 'google_state',
-        'nonce': str(uuid4()),
-        'iat': now,
-        'exp': now + timedelta(minutes=GOOGLE_STATE_TTL_MINUTES),
-    }
-    return pyjwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    return create_signed_token(
+        {'nonce': str(uuid4())},
+        token_type='google_state',
+        expires_delta=timedelta(minutes=settings.GOOGLE_STATE_TTL_MINUTES),
+    )
 
 
 def verify_google_state(state: str) -> None:
     """Validate the signed ``state`` produced by ``create_google_state``."""
-    settings = get_settings()
     try:
-        payload = pyjwt.decode(
-            state, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
-        )
+        payload = decode_token(state, expected_type='google_state')
     except pyjwt.InvalidTokenError:
         raise InvalidGoogleTokenError(
             message='Invalid or expired OAuth state'
         ) from None
 
-    if payload.get('type') != 'google_state' or not payload.get('nonce'):
+    if not payload.get('nonce'):
         raise InvalidGoogleTokenError(message='Invalid or expired OAuth state')
 
 
@@ -83,10 +84,10 @@ class GoogleIdentityProvider:
 
     ``exchange_code_for_id_token`` swaps the authorization code for an ID
     Token; ``verify_id_token`` validates the signature, issuer, audience and
-    claims. Signing keys (JWKS) are fetched from Google and cached briefly.
+    claims. Signing keys (JWKS) are fetched from Google and cached briefly on
+    the instance (the app shares a single provider, so the cache is effective
+    across requests).
     """
-
-    CERTS_CACHE_TTL_SECONDS = 300
 
     def __init__(self, client: httpx.AsyncClient | None = None) -> None:
         self._client = client if client is not None else httpx.AsyncClient()
@@ -120,7 +121,12 @@ class GoogleIdentityProvider:
                 message='Invalid or expired authorization code'
             )
 
-        id_token = response.json().get('id_token')
+        try:
+            body = response.json()
+        except ValueError:
+            raise GoogleAuthError() from None
+
+        id_token = body.get('id_token')
         if not id_token:
             raise InvalidGoogleTokenError(
                 message='Google did not return an id_token'
@@ -131,7 +137,12 @@ class GoogleIdentityProvider:
         """Verify the ID Token signature/claims and return its payload."""
         settings = get_settings()
 
-        header = pyjwt.get_unverified_header(id_token)
+        try:
+            header = pyjwt.get_unverified_header(id_token)
+        except pyjwt.InvalidTokenError:
+            raise InvalidGoogleTokenError(
+                message='Invalid or expired id_token'
+            ) from None
         if header.get('alg') != 'RS256':
             raise InvalidGoogleTokenError(message='Unsupported token algorithm')
 
@@ -167,14 +178,15 @@ class GoogleIdentityProvider:
 
     async def _fetch_certs(self) -> dict[str, Any]:
         now = time.monotonic()
+        settings = get_settings()
         if (
             self._certs is not None
             and self._certs_fetched_at is not None
-            and now - self._certs_fetched_at < self.CERTS_CACHE_TTL_SECONDS
+            and now - self._certs_fetched_at
+            < settings.GOOGLE_CERTS_CACHE_TTL_SECONDS
         ):
             return self._certs
 
-        settings = get_settings()
         try:
             response = await self._client.get(
                 settings.GOOGLE_CERTS_URL, timeout=10.0
@@ -185,9 +197,24 @@ class GoogleIdentityProvider:
         if response.status_code != 200:
             raise GoogleAuthError()
 
-        self._certs = response.json()
+        try:
+            self._certs = response.json()
+        except ValueError:
+            raise GoogleAuthError() from None
+
         self._certs_fetched_at = now
         return self._certs
+
+
+@lru_cache(maxsize=1)
+def _get_default_provider() -> GoogleIdentityProvider:
+    """Return the process-wide identity provider.
+
+    A single instance is reused by every request: the underlying HTTP client
+    keeps its connection pool and the JWKS cache stays effective across
+    logins instead of being re-fetched per request.
+    """
+    return GoogleIdentityProvider()
 
 
 def _signing_key_for_header(
@@ -202,13 +229,18 @@ def _signing_key_for_header(
                     json.dumps(key)
                 )
             except pyjwt.PyJWTError:
-                logger.warning('Could not build signing key from JWK', exc_info=True)
+                logger.warning(
+                    'Could not build signing key from JWK', exc_info=True
+                )
                 return None
     return None
 
 
 def _is_email_verified(payload: dict[str, Any]) -> bool:
-    return str(payload.get('email_verified')).lower() == 'true'
+    value = payload.get('email_verified')
+    if isinstance(value, bool):
+        return value
+    return isinstance(value, str) and value.lower() == 'true'
 
 
 def _link_oauth_identity(user: User, claims: dict[str, Any]) -> None:
@@ -224,21 +256,17 @@ def _link_oauth_identity(user: User, claims: dict[str, Any]) -> None:
 async def google_login(
     db: AsyncSession,
     *,
-    code: str | None = None,
-    id_token: str | None = None,
-    state: str | None = None,
+    data: GoogleLoginRequest,
     client_ip: str | None = None,
-    provider: GoogleIdentityProvider | None = None,
 ) -> Token:
     """Authenticate a user through Google OAuth and issue app tokens.
 
-    New e-mails are auto-registered as verified users without a local
-    password; existing e-mails are linked to the Google identity. The caller
-    must provide exactly one of ``code``/``id_token`` (enforced by the
-    ``GoogleLoginRequest`` schema).
+    ``data`` carries exactly one credential (``code`` or ``id_token``),
+    enforced by ``GoogleLoginRequest``. New e-mails are auto-registered as
+    verified users without a local password; existing e-mails are linked to
+    the Google identity.
     """
-    settings = get_settings()
-    if not settings.GOOGLE_LOGIN_ENABLED:
+    if not get_settings().GOOGLE_LOGIN_ENABLED:
         log_security_event(
             'GOOGLE_LOGIN_FAILED',
             ip=client_ip,
@@ -247,32 +275,27 @@ async def google_login(
         )
         raise GoogleLoginDisabledError()
 
-    owns_provider = provider is None
-    provider = provider if provider is not None else GoogleIdentityProvider()
+    provider = _get_default_provider()
     try:
-        if id_token is None:
-            verify_google_state(state)
-            id_token = await provider.exchange_code_for_id_token(code)
+        if data.id_token is None:
+            verify_google_state(data.state)
+            id_token = await provider.exchange_code_for_id_token(data.code)
+        else:
+            id_token = data.id_token
         claims = await provider.verify_id_token(id_token)
-    except InvalidGoogleTokenError as exc:
+    except (InvalidGoogleTokenError, GoogleAuthError) as exc:
+        reason = (
+            'invalid_token'
+            if isinstance(exc, InvalidGoogleTokenError)
+            else 'upstream_error'
+        )
         log_security_event(
             'GOOGLE_LOGIN_FAILED',
             ip=client_ip,
-            metadata={'reason': 'invalid_token', 'error': exc.message},
+            metadata={'reason': reason, 'error': exc.message},
             level=logging.WARNING,
         )
         raise
-    except GoogleAuthError as exc:
-        log_security_event(
-            'GOOGLE_LOGIN_FAILED',
-            ip=client_ip,
-            metadata={'reason': 'upstream_error', 'error': exc.message},
-            level=logging.WARNING,
-        )
-        raise
-    finally:
-        if owns_provider:
-            await provider.aclose()
 
     email = claims['email'].lower()
     repository = UserRepository(db)

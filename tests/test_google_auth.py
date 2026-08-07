@@ -106,6 +106,10 @@ def _enable_google(monkeypatch, **overrides) -> None:
         'GOOGLE_REDIRECT_URI': (
             'http://localhost:8001/api/auth/google/callback'
         ),
+        'GOOGLE_AUTH_URL': 'https://accounts.google.com/o/oauth2/v2/auth',
+        'GOOGLE_TOKEN_URL': 'https://oauth2.googleapis.com/token',
+        'GOOGLE_CERTS_URL': 'https://www.googleapis.com/oauth2/v3/certs',
+        'GOOGLE_ISSUER': 'https://accounts.google.com',
     }
     values.update(overrides)
     for key, value in values.items():
@@ -114,8 +118,8 @@ def _enable_google(monkeypatch, **overrides) -> None:
 
 def _patch_provider(monkeypatch, provider: FakeGoogleProvider) -> None:
     monkeypatch.setattr(
-        'app.services.google_auth_service.GoogleIdentityProvider',
-        lambda client=None: provider,
+        'app.services.google_auth_service._get_default_provider',
+        lambda: provider,
     )
 
 
@@ -444,11 +448,12 @@ def _provider_with_certs(public_key) -> tuple:
     from app.services.google_auth_service import GoogleIdentityProvider
 
     provider = GoogleIdentityProvider()
+    if public_key is not None:
 
-    async def _fake_fetch_certs() -> dict:
-        return _make_jwks(public_key)
+        async def _fake_fetch_certs() -> dict:
+            return _make_jwks(public_key)
 
-    provider._fetch_certs = _fake_fetch_certs
+        provider._fetch_certs = _fake_fetch_certs
     return provider
 
 
@@ -505,6 +510,47 @@ async def test_verify_id_token_rejects_unknown_signing_key(monkeypatch) -> None:
         await provider.verify_id_token(token)
 
     await provider.aclose()
+
+
+@pytest.mark.parametrize(
+    'malformed',
+    ['not-a-jwt', 'header.payload', 'aaa.bbb.ccc.ddd'],
+)
+async def test_verify_id_token_rejects_malformed_token(monkeypatch, malformed):
+    """Regression: a malformed token must map to 400, never to a 500."""
+    settings = get_settings()
+    monkeypatch.setattr(settings, 'GOOGLE_CLIENT_ID', 'test-client-id')
+
+    provider = _provider_with_certs(None)
+    with pytest.raises(InvalidGoogleTokenError):
+        await provider.verify_id_token(malformed)
+
+    await provider.aclose()
+
+
+async def test_fetch_certs_is_cached_across_calls(monkeypatch) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, 'GOOGLE_CERTS_CACHE_TTL_SECONDS', 300)
+
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return httpx.Response(200, json={'keys': []})
+
+    transport = httpx.MockTransport(handler)
+    from app.services.google_auth_service import GoogleIdentityProvider
+
+    async with httpx.AsyncClient(transport=transport) as client:
+        provider = GoogleIdentityProvider(client=client)
+
+        first = await provider._fetch_certs()
+        second = await provider._fetch_certs()
+
+    assert first == {'keys': []}
+    assert second is first
+    assert calls == 1
 
 
 async def test_exchange_code_posts_credentials_to_token_endpoint(
