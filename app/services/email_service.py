@@ -3,14 +3,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from string import Template
-from typing import cast
 
-from fastapi_mail import (
-    ConnectionConfig,
-    FastMail,
-    MessageSchema,
-    MessageType,
-)
 from pydantic import NameEmail, SecretStr
 
 from app.core.config import get_settings
