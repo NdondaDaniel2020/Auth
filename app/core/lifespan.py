@@ -5,9 +5,14 @@ from fastapi import FastAPI
 from app.core.config import get_settings
 from app.db.init_db import init_db
 from app.db.session import get_engine
-from app.models import role  # noqa: F401
-from app.models import user  # noqa: F401
-from app.models import permission  # noqa: F401
+from app.models import (
+    email_verification_token,  # noqa: F401
+    password_reset_token,  # noqa: F401
+    permission,  # noqa: F401
+    refresh_token,  # noqa: F401
+    role,  # noqa: F401
+    user,  # noqa: F401
+)
 
 
 @asynccontextmanager

@@ -1,5 +1,4 @@
 import asyncio
-import os
 import sys
 from logging.config import fileConfig
 from pathlib import Path
@@ -26,9 +25,12 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here for 'autogenerate' support.
 # Import model modules so they can register themselves on Base.metadata.
+import app.models.email_verification_token  # noqa: F401
+import app.models.password_reset_token  # noqa: F401
+import app.models.permission  # noqa: F401
+import app.models.refresh_token  # noqa: F401
 import app.models.role  # noqa: F401
 import app.models.user  # noqa: F401
-import app.models.permission  # noqa: F401
 from app.db.base import Base
 
 target_metadata = Base.metadata
