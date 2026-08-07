@@ -161,6 +161,7 @@ def test_reset_password_with_expired_token_rejected(
     )
     assert response.status_code == 400
     assert response.json()['error']['type'] == 'InvalidOrExpiredTokenError'
+    assert response.json()['error']['code'] == 'INVALID_OR_EXPIRED_TOKEN'
 
 
 def test_reset_password_with_invalid_token_rejected(api_client) -> None:
@@ -170,6 +171,7 @@ def test_reset_password_with_invalid_token_rejected(api_client) -> None:
     )
     assert response.status_code == 400
     assert response.json()['error']['type'] == 'InvalidOrExpiredTokenError'
+    assert response.json()['error']['code'] == 'INVALID_OR_EXPIRED_TOKEN'
 
 
 def test_reset_password_token_is_single_use(api_client, monkeypatch) -> None:
@@ -197,3 +199,4 @@ def test_reset_password_token_is_single_use(api_client, monkeypatch) -> None:
     )
     assert second.status_code == 400
     assert second.json()['error']['type'] == 'TokenAlreadyUsedError'
+    assert second.json()['error']['code'] == 'TOKEN_ALREADY_USED'

@@ -62,6 +62,7 @@ def test_refresh_token_is_single_use(api_client) -> None:
     )
     assert reuse.status_code == 401
     assert reuse.json()['error']['type'] == 'InvalidRefreshTokenError'
+    assert reuse.json()['error']['code'] == 'INVALID_REFRESH_TOKEN'
 
 
 def test_refresh_with_access_token_rejected(api_client) -> None:
@@ -73,6 +74,7 @@ def test_refresh_with_access_token_rejected(api_client) -> None:
     )
     assert response.status_code == 401
     assert response.json()['error']['type'] == 'InvalidRefreshTokenError'
+    assert response.json()['error']['code'] == 'INVALID_REFRESH_TOKEN'
 
 
 def test_refresh_with_malformed_token_rejected(api_client) -> None:
@@ -104,3 +106,4 @@ def test_refresh_with_unknown_jti_rejected(api_client) -> None:
     )
     assert response.status_code == 401
     assert response.json()['error']['type'] == 'InvalidRefreshTokenError'
+    assert response.json()['error']['code'] == 'INVALID_REFRESH_TOKEN'

@@ -95,13 +95,14 @@ def test_no_token_returns_401(authz_client) -> None:
     response = authz_client.get('/me')
     assert response.status_code == 401
     assert response.json()['error']['type'] == 'NotAuthenticatedError'
+    assert response.json()['error']['code'] == 'NOT_AUTHENTICATED'
     assert response.headers.get('WWW-Authenticate') == 'Bearer'
 
 
 def test_invalid_token_returns_401(authz_client) -> None:
     response = authz_client.get('/me', headers=_auth_headers('not-a-jwt'))
     assert response.status_code == 401
-    assert response.json()['error']['type'] == 'NotAuthenticatedError'
+    assert response.json()['error']['code'] == 'TOKEN_INVALID'
 
 
 def test_expired_token_returns_401(authz_client, isolated_db_path) -> None:
@@ -111,7 +112,7 @@ def test_expired_token_returns_401(authz_client, isolated_db_path) -> None:
     )
     response = authz_client.get('/me', headers=_auth_headers(token))
     assert response.status_code == 401
-    assert response.json()['error']['type'] == 'NotAuthenticatedError'
+    assert response.json()['error']['code'] == 'TOKEN_EXPIRED'
 
 
 def test_valid_token_returns_user(authz_client, isolated_db_path) -> None:
@@ -133,6 +134,7 @@ def test_inactive_user_rejected(authz_client, isolated_db_path) -> None:
 
     response = authz_client.get('/me', headers=_auth_headers(token))
     assert response.status_code == 401
+    assert response.json()['error']['code'] == 'ACCOUNT_INACTIVE'
 
 
 def test_unknown_user_rejected(authz_client) -> None:
@@ -141,6 +143,7 @@ def test_unknown_user_rejected(authz_client) -> None:
     })
     response = authz_client.get('/me', headers=_auth_headers(token))
     assert response.status_code == 401
+    assert response.json()['error']['code'] == 'ACCOUNT_INACTIVE'
 
 
 def test_require_role_allowed(authz_client, isolated_db_path) -> None:
@@ -163,6 +166,7 @@ def test_require_role_denied(authz_client, isolated_db_path) -> None:
     response = authz_client.get('/admin-only', headers=_auth_headers(token))
     assert response.status_code == 403
     assert response.json()['error']['type'] == 'PermissionDeniedError'
+    assert response.json()['error']['code'] == 'INSUFFICIENT_ROLE'
 
 
 def test_check_permission_allowed(authz_client, isolated_db_path) -> None:
@@ -188,9 +192,11 @@ def test_check_permission_denied(authz_client, isolated_db_path) -> None:
     response = authz_client.get('/users-read', headers=_auth_headers(token))
     assert response.status_code == 403
     assert response.json()['error']['type'] == 'PermissionDeniedError'
+    assert response.json()['error']['code'] == 'INSUFFICIENT_PERMISSION'
 
 
 def test_role_check_requires_authentication(authz_client) -> None:
     response = authz_client.get('/admin-only')
     assert response.status_code == 401
     assert response.json()['error']['type'] == 'NotAuthenticatedError'
+    assert response.json()['error']['code'] == 'NOT_AUTHENTICATED'

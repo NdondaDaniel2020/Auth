@@ -86,6 +86,7 @@ def test_verify_email_token_is_single_use(api_client, monkeypatch) -> None:
     second = api_client.post('/auth/verify-email', json={'token': token})
     assert second.status_code == 400
     assert second.json()['error']['type'] == 'TokenAlreadyUsedError'
+    assert second.json()['error']['code'] == 'TOKEN_ALREADY_USED'
 
 
 def test_verify_email_with_invalid_token_rejected(api_client) -> None:
@@ -94,6 +95,7 @@ def test_verify_email_with_invalid_token_rejected(api_client) -> None:
     )
     assert response.status_code == 400
     assert response.json()['error']['type'] == 'InvalidOrExpiredTokenError'
+    assert response.json()['error']['code'] == 'INVALID_OR_EXPIRED_TOKEN'
 
 
 def test_resend_verification_for_unverified_user(
