@@ -7,7 +7,12 @@ from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 
 from app.api.dependencies.database import SessionDep
-from app.core.exceptions import NotAuthenticatedError
+from app.core.exceptions import (
+    AccountInactiveError,
+    NotAuthenticatedError,
+    TokenExpiredError,
+    TokenInvalidError,
+)
 from app.core.security import decode_access_token
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
@@ -28,24 +33,28 @@ async def get_current_user(
 ) -> User:
     """Resolve the authenticated user from the JWT access token.
 
-    Raises ``NotAuthenticatedError`` (HTTP 401) when the token is missing,
-    malformed, expired or does not correspond to an active user.
+    Maps each failure scenario to a stable error ``code`` (HTTP 401):
+    missing token → ``NOT_AUTHENTICATED``, malformed token →
+    ``TOKEN_INVALID``, expired token → ``TOKEN_EXPIRED``, inactive/unknown
+    account → ``ACCOUNT_INACTIVE``.
     """
     if token is None:
         raise NotAuthenticatedError()
 
     try:
         payload = decode_access_token(token)
+    except pyjwt.ExpiredSignatureError:
+        raise TokenExpiredError() from None
     except pyjwt.InvalidTokenError:
-        raise NotAuthenticatedError() from None
+        raise TokenInvalidError() from None
 
     user_id = payload.get('sub')
     if not user_id:
-        raise NotAuthenticatedError()
+        raise TokenInvalidError()
 
     user = await UserRepository(db).get_by_id(user_id)
     if user is None or not user.is_active:
-        raise NotAuthenticatedError()
+        raise AccountInactiveError()
 
     return user
 
