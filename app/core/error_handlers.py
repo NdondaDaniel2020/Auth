@@ -94,6 +94,24 @@ async def handle_http_exception(
     return JSONResponse(status_code=exc.status_code, content=content)
 
 
+def _normalize_validation_details(errors: list[Any]) -> list[dict[str, str]]:
+    """Flatten pydantic errors into ``{"field": ..., "message": ...}`` items."""
+    location_parts = {'body', 'query', 'path', 'header', 'cookie'}
+
+    normalized: list[dict[str, str]] = []
+    for error in errors:
+        loc = error.get('loc', [])
+        field = '.'.join(
+            str(part) for part in loc if part not in location_parts
+        )
+        message = error.get('msg', '')
+        message = message.removeprefix('Value error, ')
+        normalized.append(
+            {'field': field or 'request', 'message': message}
+        )
+    return normalized
+
+
 async def handle_validation_error(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
@@ -105,7 +123,7 @@ async def handle_validation_error(
         exc_type='RequestValidationError',
         message='Validation error',
         status_code=422,
-        details=_json_safe(exc.errors()),
+        details=_normalize_validation_details(exc.errors()),
     )
     return JSONResponse(status_code=422, content=content)
 
