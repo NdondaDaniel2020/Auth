@@ -103,7 +103,7 @@ async def activate_user_account(
     user_id: uuid.UUID,
 ) -> UserRead:
     """Reactivate a previously deactivated user account (admin only)."""
-    return await activate_user(db, user_id=str(user_id))
+    return await activate_user(db, user_id=str(user_id), actor=admin_user)
 
 
 @router.put('/{user_id}/roles', response_model=UserRead)
