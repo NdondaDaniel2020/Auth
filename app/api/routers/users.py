@@ -11,8 +11,8 @@ from app.api.dependencies.pagination import PaginationParamsDep
 from app.api.dependencies.permissions import require_role
 from app.models.user import User
 from app.schemas.pagination import PaginatedResponse
-from app.schemas.user import UserPublic, UserRead
-from app.services.user_service import get_user, list_users
+from app.schemas.user import UserPublic, UserRead, UserUpdate
+from app.services.user_service import get_user, list_users, update_profile
 
 router = APIRouter(prefix='/users', tags=['users'])
 
@@ -25,6 +25,21 @@ async def read_current_user(user: CurrentUserDep) -> User:
     accepted. Only public fields are exposed (never ``hashed_password``).
     """
     return UserPublic.model_validate(user)
+
+
+@router.patch('/me', response_model=UserRead)
+async def update_current_user(
+    user: CurrentUserDep,
+    data: UserUpdate,
+    db: SessionDep,
+) -> UserRead:
+    """Partially update the authenticated user's own profile.
+
+    Only fields defined in ``UserUpdate`` are accepted (currently
+    ``full_name``); unknown keys, including sensitive fields such as
+    ``is_active`` or ``hashed_password``, are rejected with HTTP 422.
+    """
+    return await update_profile(db, user, data)
 
 
 @router.get('', response_model=PaginatedResponse[UserRead])

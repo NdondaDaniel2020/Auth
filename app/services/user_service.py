@@ -16,7 +16,7 @@ from app.core.security import hash_password, verify_password
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
 from app.schemas.pagination import PaginatedResponse
-from app.schemas.user import UserCreate, UserRead
+from app.schemas.user import UserCreate, UserRead, UserUpdate
 
 
 async def register_user(db, data: UserCreate) -> User:
@@ -110,4 +110,18 @@ async def get_user(db, *, user_id: str) -> UserRead:
     user = await UserRepository(db).get_by_id(user_id)
     if user is None:
         raise UserNotFoundError()
+    return UserRead.model_validate(user)
+
+
+async def update_profile(db, user: User, data: UserUpdate) -> UserRead:
+    """Apply a partial update to the authenticated user's own profile.
+
+    Only fields present in the payload (``model_fields_set``) are applied, so
+    omitted optional fields are untouched. Sensitive fields cannot be supplied
+    because ``UserUpdate`` forbids unknown keys. ``updated_at`` is bumped by
+    the model's ``onupdate`` trigger.
+    """
+    updates = data.model_dump(exclude_unset=True)
+    if updates:
+        user = await UserRepository(db).update(user, updates)
     return UserRead.model_validate(user)
