@@ -1,3 +1,4 @@
+from .audit_log import AuditLog
 from .email_verification_token import EmailVerificationToken
 from .password_reset_token import PasswordResetToken
 from .permission import Permission, role_permissions
@@ -6,6 +7,7 @@ from .role import Role
 from .user import User, user_roles
 
 __all__ = [
+    'AuditLog',
     'EmailVerificationToken',
     'PasswordResetToken',
     'Permission',

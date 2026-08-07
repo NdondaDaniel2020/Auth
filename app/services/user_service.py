@@ -21,6 +21,7 @@ from app.repositories.refresh_token_repository import RefreshTokenRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.pagination import PaginatedResponse
 from app.schemas.user import UserCreate, UserRead, UserUpdate
+from app.services.audit_service import record_admin_action
 
 
 async def register_user(db, data: UserCreate) -> User:
@@ -150,13 +151,32 @@ async def _set_active_status(
     if user is None:
         raise UserNotFoundError()
 
+    action = 'USER_DEACTIVATED' if not is_active else 'USER_ACTIVATED'
+
     if not is_active and actor is not None and user.id == actor.id:
+        await record_admin_action(
+            db,
+            actor_user_id=actor.id,
+            action=action,
+            resource_type='user',
+            resource_id=user_id,
+            result='denied',
+            details={'reason': 'self deactivation'},
+        )
+        await db.commit()
         raise SelfDeactivationError()
 
     await repository.set_active_status(user_id, is_active)
     if not is_active:
         await RefreshTokenRepository(db).revoke_all_for_user(user_id)
 
+    await record_admin_action(
+        db,
+        actor_user_id=actor.id,
+        action=action,
+        resource_type='user',
+        resource_id=user_id,
+    )
     await db.refresh(user)
     await db.commit()
     return UserRead.model_validate(user)
@@ -169,9 +189,11 @@ async def deactivate_user(db, *, user_id: str, actor: User) -> UserRead:
     )
 
 
-async def activate_user(db, *, user_id: str) -> UserRead:
+async def activate_user(db, *, user_id: str, actor: User) -> UserRead:
     """Reactivate a user account (admin scope)."""
-    return await _set_active_status(db, user_id=user_id, is_active=True)
+    return await _set_active_status(
+        db, user_id=user_id, is_active=True, actor=actor
+    )
 
 
 async def update_user_roles(
@@ -205,8 +227,26 @@ async def update_user_roles(
         and 'admin' in {role.name for role in user.roles}
         and 'admin' not in new_role_names
     ):
+        await record_admin_action(
+            db,
+            actor_user_id=actor.id,
+            action='USER_ROLES_UPDATED',
+            resource_type='user',
+            resource_id=user_id,
+            result='denied',
+            details={'reason': 'self admin role removal'},
+        )
+        await db.commit()
         raise SelfRoleRemovalError()
 
     await repository.set_roles(user, roles)
+    await record_admin_action(
+        db,
+        actor_user_id=actor.id,
+        action='USER_ROLES_UPDATED',
+        resource_type='user',
+        resource_id=user_id,
+        details={'role_ids': unique_ids},
+    )
     await db.commit()
     return UserRead.model_validate(user)
