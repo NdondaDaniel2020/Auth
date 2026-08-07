@@ -53,6 +53,7 @@ def test_login_wrong_password_rejected(api_client) -> None:
     )
     assert response.status_code == 401
     assert response.json()['error']['type'] == 'InvalidCredentialsError'
+    assert response.json()['error']['code'] == 'INVALID_CREDENTIALS'
 
 
 def test_login_form_success_returns_valid_tokens(api_client) -> None:
@@ -82,6 +83,7 @@ def test_login_form_wrong_password_rejected(api_client) -> None:
     )
     assert response.status_code == 401
     assert response.json()['error']['type'] == 'InvalidCredentialsError'
+    assert response.json()['error']['code'] == 'INVALID_CREDENTIALS'
 
 
 def test_login_form_unknown_email_rejected(api_client) -> None:
@@ -91,6 +93,7 @@ def test_login_form_unknown_email_rejected(api_client) -> None:
     )
     assert response.status_code == 401
     assert response.json()['error']['type'] == 'InvalidCredentialsError'
+    assert response.json()['error']['code'] == 'INVALID_CREDENTIALS'
 
 
 def test_login_unknown_email_rejected(api_client) -> None:
@@ -100,6 +103,7 @@ def test_login_unknown_email_rejected(api_client) -> None:
     )
     assert response.status_code == 401
     assert response.json()['error']['type'] == 'InvalidCredentialsError'
+    assert response.json()['error']['code'] == 'INVALID_CREDENTIALS'
 
 
 def test_login_inactive_user_rejected(api_client, isolated_db_path) -> None:
@@ -139,6 +143,7 @@ def test_login_blocks_after_repeated_failures(api_client) -> None:
     )
     assert blocked.status_code == 429
     assert blocked.json()['error']['type'] == 'TooManyLoginAttemptsError'
+    assert blocked.json()['error']['code'] == 'TOO_MANY_ATTEMPTS'
     assert blocked.headers.get('Retry-After')
 
 
