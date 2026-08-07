@@ -20,10 +20,10 @@ from app.core.rate_limiter import (
 from app.core.security import hash_password, verify_password
 from app.core.security_logger import log_security_event
 from app.models.user import User
-from app.repositories.refresh_token_repository import RefreshTokenRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.pagination import PaginatedResponse
 from app.schemas.user import UserCreate, UserRead, UserUpdate
+from app.services import auth_service
 from app.services.audit_service import record_admin_action
 
 
@@ -193,7 +193,7 @@ async def _set_active_status(
 
     await repository.set_active_status(user_id, is_active)
     if not is_active:
-        await RefreshTokenRepository(db).revoke_all_for_user(user_id)
+        await auth_service.revoke_all_user_sessions(db, user_id)
 
     await record_admin_action(
         db,
@@ -234,7 +234,8 @@ async def update_user_roles(
     cannot remove the ``admin`` role from their own account
     (``SelfRoleRemovalError``). Because ``get_current_user`` always reloads
     the user's roles from the database, the change takes effect on the very
-    next authenticated request.
+    next authenticated request. If the target user loses a critical role
+    (``admin``), all their sessions are revoked (see ``docs/token-policy.md``).
     """
     repository = UserRepository(db)
     user = await repository.get_by_id(user_id)
@@ -246,10 +247,11 @@ async def update_user_roles(
     if len(roles) != len(unique_ids):
         raise RoleNotFoundError()
 
+    previous_role_names = {role.name for role in user.roles}
     new_role_names = {role.name for role in roles}
     if (
         actor.id == user.id
-        and 'admin' in {role.name for role in user.roles}
+        and 'admin' in previous_role_names
         and 'admin' not in new_role_names
     ):
         await record_admin_action(
@@ -273,5 +275,7 @@ async def update_user_roles(
         resource_id=user_id,
         details={'role_ids': unique_ids},
     )
+    if 'admin' in previous_role_names and 'admin' not in new_role_names:
+        await auth_service.revoke_all_user_sessions(db, user_id)
     await db.commit()
     return UserRead.model_validate(user)
