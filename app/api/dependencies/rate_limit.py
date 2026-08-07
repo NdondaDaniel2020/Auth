@@ -11,7 +11,7 @@ Identifiers are keyed by the client IP; authenticated endpoints can extend
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 
 from fastapi import Request
 
@@ -30,7 +30,7 @@ def build_rate_limit_key(scope: str, request: Request) -> str:
     return f'{scope}:{get_client_ip(request)}'
 
 
-def rate_limit(scope: str) -> Callable[[Request], None]:
+def rate_limit(scope: str) -> Callable[[Request], Awaitable[None]]:
     """Build a dependency enforcing the request limit configured for ``scope``.
 
     Usage: ``dependencies=[Depends(rate_limit('RATE_LIMIT_REGISTER'))]``.

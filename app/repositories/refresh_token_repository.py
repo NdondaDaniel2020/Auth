@@ -18,7 +18,7 @@ class RefreshTokenRepository(BaseRepository[RefreshToken]):
         )
         return result.scalar_one_or_none()
 
-    async def create(
+    async def create(  # type: ignore[override]
         self,
         *,
         jti: str,

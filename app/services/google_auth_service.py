@@ -278,6 +278,8 @@ async def google_login(
     provider = _get_default_provider()
     try:
         if data.id_token is None:
+            assert data.state is not None
+            assert data.code is not None
             verify_google_state(data.state)
             id_token = await provider.exchange_code_for_id_token(data.code)
         else:

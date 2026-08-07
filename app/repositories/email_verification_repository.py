@@ -13,7 +13,7 @@ class EmailVerificationTokenRepository(BaseRepository[EmailVerificationToken]):
     def __init__(self, session):
         super().__init__(session, EmailVerificationToken)
 
-    async def create(
+    async def create(  # type: ignore[override]
         self,
         *,
         user_id: str,
