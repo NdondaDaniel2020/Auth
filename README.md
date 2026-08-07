@@ -92,7 +92,7 @@ Variáveis principais:
 - `DEBUG`: ativa ou desativa modo de depuração.
 - `DATABASE_URL`: URL do banco de dados.
 - `DB_ENGINE`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`: permitem montar a URL dinamicamente para SQLite e PostgreSQL sem alterar o código.
-- `CORS_ORIGINS`: origens permitidas pelo CORS.
+- `CORS_ALLOWED_ORIGINS`: origens permitidas pelo CORS (lista separada por vírgulas).
 - `SECRET_KEY`: chave usada para recursos de autenticação e segurança.
 - `ALGORITHM`: algoritmo de assinatura JWT.
 - `JWT_ACCESS_MINUTES` e `JWT_REFRESH_DAYS`: tempos de expiração dos tokens.
@@ -101,7 +101,27 @@ Comportamento por ambiente:
 
 - `development`: usa defaults seguros para desenvolvimento e lê o arquivo `.env`.
 - `test`: usa defaults próprios para testes e também pode ler `.env`.
-- `production`: exige que `DATABASE_URL`, `CORS_ORIGINS` e `SECRET_KEY` sejam informados por variáveis de ambiente.
+- `production`: exige que `DATABASE_URL`, `CORS_ALLOWED_ORIGINS` e `SECRET_KEY` sejam informados por variáveis de ambiente.
+
+### CORS por ambiente
+
+O CORS é controlado por `CORS_ALLOWED_ORIGINS` (origens separadas por vírgulas). Opcionalmente, `CORS_ALLOW_CREDENTIALS`, `CORS_ALLOWED_METHODS` e `CORS_ALLOWED_HEADERS` ajustam credenciais, métodos e headers permitidos.
+
+Exemplo para desenvolvimento:
+
+```env
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+CORS_ALLOW_CREDENTIALS=true
+```
+
+Exemplo para produção (apenas os domínios reais da aplicação):
+
+```env
+CORS_ALLOWED_ORIGINS=https://app.meudominio.com
+CORS_ALLOW_CREDENTIALS=true
+```
+
+> **Segurança:** em produção, `CORS_ALLOWED_ORIGINS` nunca deve ser `*` quando `CORS_ALLOW_CREDENTIALS=true` — a combinação é rejeitada na inicialização.
 
 ## Alternar entre SQLite e PostgreSQL
 

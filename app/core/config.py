@@ -5,7 +5,7 @@ from functools import lru_cache
 from typing import Literal
 from urllib.parse import quote_plus
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
@@ -36,7 +36,22 @@ class BaseAppSettings(BaseSettings):
         default='sqlite+aiosqlite:///./.data/app.db',
         alias='DATABASE_URL',
     )
-    CORS_ORIGINS: str = Field(default='*', alias='CORS_ORIGINS')
+    CORS_ALLOWED_ORIGINS: str = Field(
+        default='http://localhost:3000,http://localhost:5173',
+        alias='CORS_ALLOWED_ORIGINS',
+    )
+    CORS_ALLOW_CREDENTIALS: bool = Field(
+        default=True,
+        alias='CORS_ALLOW_CREDENTIALS',
+    )
+    CORS_ALLOWED_METHODS: str = Field(
+        default='GET,POST,PUT,PATCH,DELETE,OPTIONS,HEAD',
+        alias='CORS_ALLOWED_METHODS',
+    )
+    CORS_ALLOWED_HEADERS: str = Field(
+        default='Authorization,Content-Type,Origin,Accept',
+        alias='CORS_ALLOWED_HEADERS',
+    )
     SECRET_KEY: str = Field(
         default='dev-only-secret-change-me',
         alias='SECRET_KEY',
@@ -111,14 +126,30 @@ class BaseAppSettings(BaseSettings):
     ADMIN_PASSWORD: str = Field(default='admin123', alias='ADMIN_PASSWORD')
 
     @property
-    def CORS_ORIGINS_LIST(self) -> list[str]:
-        if self.CORS_ORIGINS.strip() == '*':
+    def CORS_ALLOWED_ORIGINS_LIST(self) -> list[str]:
+        if self.CORS_ALLOWED_ORIGINS.strip() == '*':
             return ['*']
 
         return [
             origin.strip()
-            for origin in self.CORS_ORIGINS.split(',')
+            for origin in self.CORS_ALLOWED_ORIGINS.split(',')
             if origin.strip()
+        ]
+
+    @property
+    def CORS_ALLOWED_METHODS_LIST(self) -> list[str]:
+        return [
+            method.strip().upper()
+            for method in self.CORS_ALLOWED_METHODS.split(',')
+            if method.strip()
+        ]
+
+    @property
+    def CORS_ALLOWED_HEADERS_LIST(self) -> list[str]:
+        return [
+            header.strip()
+            for header in self.CORS_ALLOWED_HEADERS.split(',')
+            if header.strip()
         ]
 
     def build_database_url(self) -> str:
@@ -177,7 +208,6 @@ class DevelopmentSettings(BaseAppSettings):
         default='sqlite+aiosqlite:///./.data/app.db',
         alias='DATABASE_URL',
     )
-    CORS_ORIGINS: str = Field(default='*', alias='CORS_ORIGINS')
     SECRET_KEY: str = Field(
         default='dev-only-secret-change-me',
         alias='SECRET_KEY',
@@ -194,7 +224,11 @@ class TestSettings(BaseAppSettings):
         default='sqlite+aiosqlite:///./.data/test.db',
         alias='DATABASE_URL',
     )
-    CORS_ORIGINS: str = Field(default='*', alias='CORS_ORIGINS')
+    CORS_ALLOWED_ORIGINS: str = Field(default='*', alias='CORS_ALLOWED_ORIGINS')
+    CORS_ALLOW_CREDENTIALS: bool = Field(
+        default=False,
+        alias='CORS_ALLOW_CREDENTIALS',
+    )
     SECRET_KEY: str = Field(
         default='test-only-secret-change-me',
         alias='SECRET_KEY',
@@ -205,8 +239,17 @@ class ProductionSettings(BaseAppSettings):
     model_config = SettingsConfigDict(env_file=None, extra='ignore')
 
     DATABASE_URL: str = Field(min_length=1, alias='DATABASE_URL')
-    CORS_ORIGINS: str = Field(min_length=1, alias='CORS_ORIGINS')
+    CORS_ALLOWED_ORIGINS: str = Field(min_length=1, alias='CORS_ALLOWED_ORIGINS')
     SECRET_KEY: str = Field(min_length=1, alias='SECRET_KEY')
+
+    @model_validator(mode='after')
+    def _reject_wildcard_with_credentials(self) -> ProductionSettings:
+        if '*' in self.CORS_ALLOWED_ORIGINS_LIST and self.CORS_ALLOW_CREDENTIALS:
+            raise ValueError(
+                "CORS_ALLOWED_ORIGINS cannot be '*' when "
+                'CORS_ALLOW_CREDENTIALS is enabled'
+            )
+        return self
 
 
 @lru_cache(maxsize=1)
