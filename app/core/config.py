@@ -77,6 +77,30 @@ class BaseAppSettings(BaseSettings):
         default=8,
         alias='PASSWORD_MIN_LENGTH',
     )
+    PASSWORD_MAX_LENGTH: int = Field(
+        default=128,
+        alias='PASSWORD_MAX_LENGTH',
+    )
+    PASSWORD_REQUIRE_UPPERCASE: bool = Field(
+        default=True,
+        alias='PASSWORD_REQUIRE_UPPERCASE',
+    )
+    PASSWORD_REQUIRE_LOWERCASE: bool = Field(
+        default=True,
+        alias='PASSWORD_REQUIRE_LOWERCASE',
+    )
+    PASSWORD_REQUIRE_DIGIT: bool = Field(
+        default=True,
+        alias='PASSWORD_REQUIRE_DIGIT',
+    )
+    PASSWORD_REQUIRE_SPECIAL: bool = Field(
+        default=True,
+        alias='PASSWORD_REQUIRE_SPECIAL',
+    )
+    PASSWORD_REJECT_COMMON: bool = Field(
+        default=True,
+        alias='PASSWORD_REJECT_COMMON',
+    )
     LOGIN_MAX_ATTEMPTS: int = Field(
         default=5,
         alias='LOGIN_MAX_ATTEMPTS',

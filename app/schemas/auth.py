@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, EmailStr, field_validator
 
-from app.core.config import get_settings
+from app.schemas.validators import validate_password_strength
 
 
 class LoginRequest(BaseModel):
@@ -31,12 +31,7 @@ class PasswordResetConfirm(BaseModel):
     @field_validator('new_password')
     @classmethod
     def validate_password_strength(cls, value: str) -> str:
-        min_length = get_settings().PASSWORD_MIN_LENGTH
-        if len(value) < min_length:
-            raise ValueError(
-                f'Password must be at least {min_length} characters long'
-            )
-        return value
+        return validate_password_strength(value)
 
 
 class EmailVerificationConfirm(BaseModel):

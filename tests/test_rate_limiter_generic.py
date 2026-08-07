@@ -15,7 +15,7 @@ class _FakeRateLimitSettings:
 
 
 def _register_payload(email: str) -> dict[str, str]:
-    return {'email': email, 'password': 'password123'}
+    return {'email': email, 'password': 'T3st!Passw0rd'}
 
 
 def test_parse_rate_limit() -> None:
