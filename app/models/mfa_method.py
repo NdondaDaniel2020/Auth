@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, String, func
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, String, func, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -49,7 +49,7 @@ class MfaMethod(Base):
         Boolean,
         nullable=False,
         default=False,
-        server_default=func.false(),
+        server_default=false(),
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

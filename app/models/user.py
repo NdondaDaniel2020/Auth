@@ -12,6 +12,8 @@ from sqlalchemy import (
     String,
     Table,
     func,
+    true,
+    false,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -70,19 +72,19 @@ class User(Base):
         Boolean,
         nullable=False,
         default=True,
-        server_default=func.true(),
+        server_default=true(),
     )
     is_superuser: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
         default=False,
-        server_default=func.false(),
+        server_default=false(),
     )
     is_verified: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
         default=False,
-        server_default=func.false(),
+        server_default=false(),
     )
     mfa_enabled: Mapped[bool] = mapped_column(
         Boolean,
