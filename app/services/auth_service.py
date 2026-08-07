@@ -56,6 +56,17 @@ async def create_token_pair(db: AsyncSession, user: User) -> Token:
     return Token(access_token=access_token, refresh_token=refresh_token)
 
 
+async def revoke_all_user_sessions(db: AsyncSession, user_id: str) -> None:
+    """Revoke every active refresh token of a user (total revocation).
+
+    Single source of truth for invalidating all of a user's sessions. Used by
+    password reset, user deactivation, token-reuse containment and sensitive
+    role changes. Contrast with ``logout``, which revokes a single token
+    (selective revocation).
+    """
+    await RefreshTokenRepository(db).revoke_all_for_user(user_id)
+
+
 async def refresh_tokens(db: AsyncSession, refresh_token: str) -> Token:
     """Rotate a refresh token and issue a fresh pair.
 
@@ -80,7 +91,7 @@ async def refresh_tokens(db: AsyncSession, refresh_token: str) -> Token:
         raise InvalidRefreshTokenError()
 
     if record.revoked:
-        await refresh_repository.revoke_all_for_user(record.user_id)
+        await revoke_all_user_sessions(db, record.user_id)
         await db.commit()
         raise InvalidRefreshTokenError()
 
@@ -196,8 +207,7 @@ async def reset_password(
     user.hashed_password = hash_password(new_password)
     await reset_repository.mark_used(record, used_at=now)
 
-    refresh_repository = RefreshTokenRepository(db)
-    await refresh_repository.revoke_all_for_user(user.id)
+    await revoke_all_user_sessions(db, user.id)
 
     await db.commit()
 
