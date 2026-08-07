@@ -240,9 +240,4 @@ def get_settings() -> BaseAppSettings:
         except Exception:
             logger.debug('Could not set attribute %r on settings', key, exc_info=True)
 
-    try:
-        settings.CORS_ORIGINS_LIST = settings.CORS_ORIGINS_LIST
-    except Exception:
-        logger.warning('Could not materialize CORS_ORIGINS_LIST', exc_info=True)
-
     return settings
