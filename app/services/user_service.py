@@ -3,7 +3,9 @@ from __future__ import annotations
 from app.core.exceptions import (
     EmailAlreadyExistsError,
     InvalidCredentialsError,
+    RoleNotFoundError,
     SelfDeactivationError,
+    SelfRoleRemovalError,
     TooManyLoginAttemptsError,
     UserNotFoundError,
 )
@@ -170,3 +172,41 @@ async def deactivate_user(db, *, user_id: str, actor: User) -> UserRead:
 async def activate_user(db, *, user_id: str) -> UserRead:
     """Reactivate a user account (admin scope)."""
     return await _set_active_status(db, user_id=user_id, is_active=True)
+
+
+async def update_user_roles(
+    db,
+    *,
+    user_id: str,
+    role_ids: list[str],
+    actor: User,
+) -> UserRead:
+    """Replace the user's roles with ``role_ids`` (admin scope).
+
+    Validates that the user and every role exist (404 otherwise). An actor
+    cannot remove the ``admin`` role from their own account
+    (``SelfRoleRemovalError``). Because ``get_current_user`` always reloads
+    the user's roles from the database, the change takes effect on the very
+    next authenticated request.
+    """
+    repository = UserRepository(db)
+    user = await repository.get_by_id(user_id)
+    if user is None:
+        raise UserNotFoundError()
+
+    unique_ids = list(dict.fromkeys(role_ids))
+    roles = await repository.get_roles_by_ids(unique_ids)
+    if len(roles) != len(unique_ids):
+        raise RoleNotFoundError()
+
+    new_role_names = {role.name for role in roles}
+    if (
+        actor.id == user.id
+        and 'admin' in {role.name for role in user.roles}
+        and 'admin' not in new_role_names
+    ):
+        raise SelfRoleRemovalError()
+
+    await repository.set_roles(user, roles)
+    await db.commit()
+    return UserRead.model_validate(user)

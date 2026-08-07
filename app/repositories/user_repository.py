@@ -64,3 +64,18 @@ class UserRepository(BaseRepository[User]):
         await self.session.execute(
             update(User).where(User.id == user_id).values(is_active=is_active)
         )
+
+    async def get_roles_by_ids(self, role_ids: list[str]) -> list[Role]:
+        """Return the roles matching ``role_ids`` (used to validate existence)."""
+        if not role_ids:
+            return []
+        result = await self.session.execute(
+            select(Role).where(Role.id.in_(role_ids))
+        )
+        return list(result.scalars().all())
+
+    async def set_roles(self, user: User, roles: list[Role]) -> User:
+        """Replace the user's role set (association table diff is ORM-managed)."""
+        user.roles = roles
+        await self.session.flush()
+        return user

@@ -41,6 +41,21 @@ class UserUpdate(BaseModel):
     full_name: str | None = Field(default=None, max_length=255)
 
 
+class UserRoleUpdate(BaseModel):
+    """Final set of roles for a user (replace-all semantics).
+
+    ``PUT /users/{user_id}/roles`` replaces the user's roles with exactly
+    ``role_ids``. Replace-all is intentional: the desired end state is
+    explicit, and the same operation covers both assignment and removal.
+    """
+
+    model_config = ConfigDict(extra='forbid')
+
+    role_ids: list[str] = Field(
+        ..., description='Role ids that make up the final set'
+    )
+
+
 class UserRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

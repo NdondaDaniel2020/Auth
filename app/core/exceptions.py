@@ -52,6 +52,16 @@ class UserNotFoundError(NotFoundError):
         self.code = 'USER_NOT_FOUND'
 
 
+class RoleNotFoundError(NotFoundError):
+    def __init__(
+        self,
+        message: str = 'Role not found',
+        payload: dict[str, Any] | None = None,
+    ):
+        super().__init__(message=message, payload=payload)
+        self.code = 'ROLE_NOT_FOUND'
+
+
 class PermissionDeniedError(AppError):
     def __init__(
         self,
@@ -104,6 +114,16 @@ class SelfDeactivationError(BusinessRuleError):
     ):
         super().__init__(message=message, payload=payload)
         self.code = 'SELF_DEACTIVATION_NOT_ALLOWED'
+
+
+class SelfRoleRemovalError(BusinessRuleError):
+    def __init__(
+        self,
+        message: str = 'You cannot remove your own admin role',
+        payload: dict[str, Any] | None = None,
+    ):
+        super().__init__(message=message, payload=payload)
+        self.code = 'SELF_ROLE_REMOVAL_NOT_ALLOWED'
 
 
 class EmailAlreadyExistsError(AppError):
