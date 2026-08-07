@@ -3,6 +3,7 @@
 Uses an explicit ``now`` parameter to simulate the passage of time without
 sleeping.
 """
+
 from __future__ import annotations
 
 from app.core.rate_limiter import (

@@ -26,9 +26,20 @@ if TYPE_CHECKING:
 user_roles = Table(
     'user_roles',
     Base.metadata,
-    Column('user_id', String(36), ForeignKey('users.id', ondelete='CASCADE'), primary_key=True),
-    Column('role_id', String(36), ForeignKey('roles.id', ondelete='CASCADE'), primary_key=True),
+    Column(
+        'user_id',
+        String(36),
+        ForeignKey('users.id', ondelete='CASCADE'),
+        primary_key=True,
+    ),
+    Column(
+        'role_id',
+        String(36),
+        ForeignKey('roles.id', ondelete='CASCADE'),
+        primary_key=True,
+    ),
 )
+
 
 class User(Base):
     __tablename__ = 'users'
@@ -77,22 +88,24 @@ class User(Base):
     )
 
     roles: Mapped[list[Role]] = relationship(
-        "Role",
+        'Role',
         secondary=user_roles,
-        back_populates="users",
+        back_populates='users',
     )
     refresh_tokens: Mapped[list[RefreshToken]] = relationship(
-        "RefreshToken",
-        back_populates="user",
-        cascade="all, delete-orphan",
+        'RefreshToken',
+        back_populates='user',
+        cascade='all, delete-orphan',
     )
     password_reset_tokens: Mapped[list[PasswordResetToken]] = relationship(
-        "PasswordResetToken",
-        back_populates="user",
-        cascade="all, delete-orphan",
+        'PasswordResetToken',
+        back_populates='user',
+        cascade='all, delete-orphan',
     )
-    email_verification_tokens: Mapped[list[EmailVerificationToken]] = relationship(
-        "EmailVerificationToken",
-        back_populates="user",
-        cascade="all, delete-orphan",
+    email_verification_tokens: Mapped[list[EmailVerificationToken]] = (
+        relationship(
+            'EmailVerificationToken',
+            back_populates='user',
+            cascade='all, delete-orphan',
+        )
     )

@@ -5,6 +5,7 @@ Covers issues:
 - #17 login com JWT (token generation/signature)
 - #18 refresh token (creation and type-segregated decoding)
 """
+
 from __future__ import annotations
 
 from datetime import timedelta

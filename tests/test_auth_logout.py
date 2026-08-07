@@ -1,12 +1,16 @@
 """Endpoint tests for POST /auth/logout — #19 logout com revogação."""
+
 from __future__ import annotations
 
 
 def _login(api_client, email: str = 'logout@example.com'):
-    assert api_client.post(
-        '/auth/register',
-        json={'email': email, 'password': 'password123'},
-    ).status_code == 201
+    assert (
+        api_client.post(
+            '/auth/register',
+            json={'email': email, 'password': 'password123'},
+        ).status_code
+        == 201
+    )
     response = api_client.post(
         '/auth/login',
         json={'email': email, 'password': 'password123'},
@@ -18,7 +22,9 @@ def _login(api_client, email: str = 'logout@example.com'):
 def test_logout_revokes_refresh_token(api_client) -> None:
     tokens = _login(api_client)
 
-    logout = api_client.post('/auth/logout', json={'refresh_token': tokens['refresh_token']})
+    logout = api_client.post(
+        '/auth/logout', json={'refresh_token': tokens['refresh_token']}
+    )
     assert logout.status_code == 204
 
     reuse = api_client.post(
@@ -32,14 +38,20 @@ def test_logout_revokes_refresh_token(api_client) -> None:
 def test_logout_is_idempotent(api_client) -> None:
     tokens = _login(api_client)
 
-    first = api_client.post('/auth/logout', json={'refresh_token': tokens['refresh_token']})
-    second = api_client.post('/auth/logout', json={'refresh_token': tokens['refresh_token']})
+    first = api_client.post(
+        '/auth/logout', json={'refresh_token': tokens['refresh_token']}
+    )
+    second = api_client.post(
+        '/auth/logout', json={'refresh_token': tokens['refresh_token']}
+    )
     assert first.status_code == 204
     assert second.status_code == 204
 
 
 def test_logout_with_malformed_token_rejected(api_client) -> None:
-    response = api_client.post('/auth/logout', json={'refresh_token': 'garbage-token'})
+    response = api_client.post(
+        '/auth/logout', json={'refresh_token': 'garbage-token'}
+    )
     assert response.status_code == 401
 
 

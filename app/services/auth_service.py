@@ -42,7 +42,9 @@ async def create_token_pair(db: AsyncSession, user: User) -> Token:
     jti = str(uuid4())
     expires_at = utcnow() + timedelta(days=settings.JWT_REFRESH_DAYS)
     refresh_repository = RefreshTokenRepository(db)
-    await refresh_repository.create(jti=jti, user_id=user.id, expires_at=expires_at)
+    await refresh_repository.create(
+        jti=jti, user_id=user.id, expires_at=expires_at
+    )
 
     refresh_token = create_refresh_token(
         {'sub': user.id, 'jti': jti},
@@ -132,17 +134,25 @@ async def request_password_reset(db: AsyncSession, email: str) -> None:
         return
 
     token = generate_opaque_token()
-    expires_at = utcnow() + timedelta(minutes=settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES)
+    expires_at = utcnow() + timedelta(
+        minutes=settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES
+    )
 
     reset_repository = PasswordResetTokenRepository(db)
-    await reset_repository.create(user_id=user.id, token=token, expires_at=expires_at)
+    await reset_repository.create(
+        user_id=user.id, token=token, expires_at=expires_at
+    )
     await db.commit()
 
-    reset_link = f'{settings.APP_BASE_URL}/auth/password-reset/confirm?token={token}'
+    reset_link = (
+        f'{settings.APP_BASE_URL}/auth/password-reset/confirm?token={token}'
+    )
     await email_service.send_password_reset_email(user.email, reset_link)
 
 
-async def reset_password(db: AsyncSession, token: str, new_password: str) -> None:
+async def reset_password(
+    db: AsyncSession, token: str, new_password: str
+) -> None:
     """Validate a reset token and replace the user's password.
 
     The token can only be used once and expires after a short window. All
@@ -201,7 +211,9 @@ async def verify_email(db: AsyncSession, token: str) -> None:
     await db.commit()
 
 
-async def send_verification_email_for_user(db: AsyncSession, user: User) -> None:
+async def send_verification_email_for_user(
+    db: AsyncSession, user: User
+) -> None:
     """Create a verification token and e-mail it to the user (if unverified)."""
     settings = get_settings()
 
@@ -209,10 +221,14 @@ async def send_verification_email_for_user(db: AsyncSession, user: User) -> None
         return
 
     token = generate_opaque_token()
-    expires_at = utcnow() + timedelta(minutes=settings.EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES)
+    expires_at = utcnow() + timedelta(
+        minutes=settings.EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES
+    )
 
     verification_repository = EmailVerificationTokenRepository(db)
-    await verification_repository.create(user_id=user.id, token=token, expires_at=expires_at)
+    await verification_repository.create(
+        user_id=user.id, token=token, expires_at=expires_at
+    )
     await db.commit()
 
     verify_link = f'{settings.APP_BASE_URL}/auth/verify-email?token={token}'

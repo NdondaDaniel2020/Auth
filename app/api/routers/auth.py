@@ -72,24 +72,36 @@ async def logout(data: RefreshRequest, db: SessionDep) -> Response:
 
 
 @router.post('/password-reset/request')
-async def request_password_reset(data: PasswordResetRequest, db: SessionDep) -> dict[str, str]:
+async def request_password_reset(
+    data: PasswordResetRequest, db: SessionDep
+) -> dict[str, str]:
     await auth_service.request_password_reset(db, data.email)
-    return {'message': 'If the e-mail is registered, a password reset link has been sent.'}
+    return {
+        'message': 'If the e-mail is registered, a password reset link has been sent.'
+    }
 
 
 @router.post('/password-reset/confirm')
-async def confirm_password_reset(data: PasswordResetConfirm, db: SessionDep) -> dict[str, str]:
+async def confirm_password_reset(
+    data: PasswordResetConfirm, db: SessionDep
+) -> dict[str, str]:
     await auth_service.reset_password(db, data.token, data.new_password)
     return {'message': 'Password has been reset successfully.'}
 
 
 @router.post('/verify-email')
-async def verify_email(data: EmailVerificationConfirm, db: SessionDep) -> dict[str, str]:
+async def verify_email(
+    data: EmailVerificationConfirm, db: SessionDep
+) -> dict[str, str]:
     await auth_service.verify_email(db, data.token)
     return {'message': 'E-mail verified successfully.'}
 
 
 @router.post('/verify-email/resend')
-async def resend_verification(data: ResendVerificationRequest, db: SessionDep) -> dict[str, str]:
+async def resend_verification(
+    data: ResendVerificationRequest, db: SessionDep
+) -> dict[str, str]:
     await auth_service.resend_verification_email(db, data.email)
-    return {'message': 'If the e-mail is registered and unverified, a new link has been sent.'}
+    return {
+        'message': 'If the e-mail is registered and unverified, a new link has been sent.'
+    }

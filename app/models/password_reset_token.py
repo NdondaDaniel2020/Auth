@@ -23,7 +23,9 @@ class PasswordResetToken(Base):
 
     __tablename__ = 'password_reset_tokens'
     __table_args__ = (
-        Index('ix_password_reset_tokens_token_hash', 'token_hash', unique=True),
+        Index(
+            'ix_password_reset_tokens_token_hash', 'token_hash', unique=True
+        ),
         Index('ix_password_reset_tokens_user_id', 'user_id'),
     )
 
@@ -61,7 +63,9 @@ class PasswordResetToken(Base):
         server_default=func.now(),
     )
 
-    user: Mapped[User] = relationship(back_populates="password_reset_tokens")
+    user: Mapped[User] = relationship(back_populates='password_reset_tokens')
 
     def __repr__(self) -> str:  # pragma: no cover
-        return f"<PasswordResetToken user_id={self.user_id!r} used={self.used}>"
+        return (
+            f'<PasswordResetToken user_id={self.user_id!r} used={self.used}>'
+        )

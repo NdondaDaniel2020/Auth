@@ -1,4 +1,5 @@
 """Endpoint tests for e-mail verification — #22 verificação de e-mail."""
+
 from __future__ import annotations
 
 from urllib.parse import parse_qs, urlparse
@@ -53,7 +54,9 @@ def test_user_starts_unverified(api_client, isolated_db_path) -> None:
     run_in_isolated_db(isolated_db_path, _check)
 
 
-def test_verify_email_success(api_client, monkeypatch, isolated_db_path) -> None:
+def test_verify_email_success(
+    api_client, monkeypatch, isolated_db_path
+) -> None:
     captured = _capture_verification_email(monkeypatch)
     _register(api_client)
     token = _token_from_link(captured['link'])
@@ -74,19 +77,28 @@ def test_verify_email_token_is_single_use(api_client, monkeypatch) -> None:
     _register(api_client)
     token = _token_from_link(captured['link'])
 
-    assert api_client.post('/auth/verify-email', json={'token': token}).status_code == 200
+    assert (
+        api_client.post(
+            '/auth/verify-email', json={'token': token}
+        ).status_code
+        == 200
+    )
     second = api_client.post('/auth/verify-email', json={'token': token})
     assert second.status_code == 400
     assert second.json()['error']['type'] == 'TokenAlreadyUsedError'
 
 
 def test_verify_email_with_invalid_token_rejected(api_client) -> None:
-    response = api_client.post('/auth/verify-email', json={'token': 'garbage-token'})
+    response = api_client.post(
+        '/auth/verify-email', json={'token': 'garbage-token'}
+    )
     assert response.status_code == 400
     assert response.json()['error']['type'] == 'InvalidOrExpiredTokenError'
 
 
-def test_resend_verification_for_unverified_user(api_client, monkeypatch) -> None:
+def test_resend_verification_for_unverified_user(
+    api_client, monkeypatch
+) -> None:
     captured = _capture_verification_email(monkeypatch)
     _register(api_client)
     captured.clear()
@@ -99,11 +111,18 @@ def test_resend_verification_for_unverified_user(api_client, monkeypatch) -> Non
     assert captured['email'] == 'verify@example.com'
 
 
-def test_resend_verification_skips_verified_user(api_client, monkeypatch) -> None:
+def test_resend_verification_skips_verified_user(
+    api_client, monkeypatch
+) -> None:
     captured = _capture_verification_email(monkeypatch)
     _register(api_client)
     token = _token_from_link(captured['link'])
-    assert api_client.post('/auth/verify-email', json={'token': token}).status_code == 200
+    assert (
+        api_client.post(
+            '/auth/verify-email', json={'token': token}
+        ).status_code
+        == 200
+    )
     captured.clear()
 
     response = api_client.post(
@@ -114,7 +133,9 @@ def test_resend_verification_skips_verified_user(api_client, monkeypatch) -> Non
     assert captured == {}
 
 
-def test_resend_verification_for_unknown_email_is_generic(api_client, monkeypatch) -> None:
+def test_resend_verification_for_unknown_email_is_generic(
+    api_client, monkeypatch
+) -> None:
     captured = _capture_verification_email(monkeypatch)
 
     response = api_client.post(

@@ -22,7 +22,11 @@ class EmailVerificationToken(Base):
 
     __tablename__ = 'email_verification_tokens'
     __table_args__ = (
-        Index('ix_email_verification_tokens_token_hash', 'token_hash', unique=True),
+        Index(
+            'ix_email_verification_tokens_token_hash',
+            'token_hash',
+            unique=True,
+        ),
         Index('ix_email_verification_tokens_user_id', 'user_id'),
     )
 
@@ -60,7 +64,9 @@ class EmailVerificationToken(Base):
         server_default=func.now(),
     )
 
-    user: Mapped[User] = relationship(back_populates="email_verification_tokens")
+    user: Mapped[User] = relationship(
+        back_populates='email_verification_tokens'
+    )
 
     def __repr__(self) -> str:  # pragma: no cover
-        return f"<EmailVerificationToken user_id={self.user_id!r} used={self.used}>"
+        return f'<EmailVerificationToken user_id={self.user_id!r} used={self.used}>'

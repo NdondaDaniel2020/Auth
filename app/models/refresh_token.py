@@ -56,7 +56,7 @@ class RefreshToken(Base):
         server_default=func.now(),
     )
 
-    user: Mapped[User] = relationship(back_populates="refresh_tokens")
+    user: Mapped[User] = relationship(back_populates='refresh_tokens')
 
     def __repr__(self) -> str:  # pragma: no cover
-        return f"<RefreshToken jti={self.jti!r} revoked={self.revoked}>"
+        return f'<RefreshToken jti={self.jti!r} revoked={self.revoked}>'

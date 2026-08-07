@@ -47,21 +47,32 @@ class _LoginRateLimiter:
             settings = get_settings()
             self._prune(key, now)
             attempts = self._state.get(key)
-            if attempts is not None and len(attempts) >= settings.LOGIN_MAX_ATTEMPTS:
-                self._blocked_until[key] = now + settings.LOGIN_BLOCK_DURATION_MINUTES * 60.0
-                return max(1, int(settings.LOGIN_BLOCK_DURATION_MINUTES * 60.0))
+            if (
+                attempts is not None
+                and len(attempts) >= settings.LOGIN_MAX_ATTEMPTS
+            ):
+                self._blocked_until[key] = (
+                    now + settings.LOGIN_BLOCK_DURATION_MINUTES * 60.0
+                )
+                return max(
+                    1, int(settings.LOGIN_BLOCK_DURATION_MINUTES * 60.0)
+                )
 
             self._blocked_until.pop(key, None)
             return None
 
-    def register_failed_attempt(self, key: str, now: float | None = None) -> None:
+    def register_failed_attempt(
+        self, key: str, now: float | None = None
+    ) -> None:
         now = time.monotonic() if now is None else now
         with self._lock:
             attempts = self._state.setdefault(key, deque())
             attempts.append(now)
             settings = get_settings()
             if len(attempts) >= settings.LOGIN_MAX_ATTEMPTS:
-                self._blocked_until[key] = now + settings.LOGIN_BLOCK_DURATION_MINUTES * 60.0
+                self._blocked_until[key] = (
+                    now + settings.LOGIN_BLOCK_DURATION_MINUTES * 60.0
+                )
 
     def reset_attempts(self, key: str) -> None:
         with self._lock:
@@ -80,7 +91,7 @@ rate_limiter = _LoginRateLimiter()
 def build_login_key(email: str, client_ip: str | None = None) -> str:
     identifier = email.strip().lower()
     if client_ip:
-        return f"{client_ip}|{identifier}"
+        return f'{client_ip}|{identifier}'
     return identifier
 
 

@@ -37,7 +37,9 @@ class EmailVerificationTokenRepository(BaseRepository[EmailVerificationToken]):
         )
         return result.scalar_one_or_none()
 
-    async def mark_used(self, record: EmailVerificationToken, *, used_at: datetime) -> None:
+    async def mark_used(
+        self, record: EmailVerificationToken, *, used_at: datetime
+    ) -> None:
         await self.session.execute(
             update(EmailVerificationToken)
             .where(EmailVerificationToken.id == record.id)

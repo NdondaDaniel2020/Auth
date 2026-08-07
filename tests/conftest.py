@@ -58,7 +58,7 @@ def app() -> FastAPI:
         from app.main import app as application
 
         return application
-    except (AttributeError, ImportError):
+    except AttributeError, ImportError:
         fallback_app = FastAPI()
 
         @fallback_app.get('/health')

@@ -1,4 +1,5 @@
 """Endpoint tests for POST /auth/register — #15 registro de usuário."""
+
 from __future__ import annotations
 
 from sqlalchemy import select
@@ -11,7 +12,11 @@ from tests.conftest import run_in_isolated_db
 def test_register_success(api_client, isolated_db_path) -> None:
     response = api_client.post(
         '/auth/register',
-        json={'email': 'new@example.com', 'password': 'password123', 'full_name': 'New User'},
+        json={
+            'email': 'new@example.com',
+            'password': 'password123',
+            'full_name': 'New User',
+        },
     )
     assert response.status_code == 201
 
@@ -26,7 +31,9 @@ def test_register_success(api_client, isolated_db_path) -> None:
     assert 'hashed_password' not in body
 
 
-def test_register_stores_password_hash_only(api_client, isolated_db_path) -> None:
+def test_register_stores_password_hash_only(
+    api_client, isolated_db_path
+) -> None:
     api_client.post(
         '/auth/register',
         json={'email': 'hash@example.com', 'password': 'password123'},
