@@ -101,6 +101,8 @@ def test_me_does_not_expose_sensitive_fields(client, isolated_db_path) -> None:
         'full_name',
         'is_active',
         'is_verified',
+        'mfa_enabled',
+        'mfa_type',
         'created_at',
     }
 
