@@ -14,7 +14,8 @@ from app.core.rate_limiter import (
 from app.core.security import hash_password, verify_password
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
-from app.schemas.user import UserCreate
+from app.schemas.pagination import PaginatedResponse
+from app.schemas.user import UserCreate, UserRead
 
 
 async def register_user(db, data: UserCreate) -> User:
@@ -70,3 +71,30 @@ async def authenticate_user(
 
     reset_login_attempts(login_key)
     return user
+
+
+async def list_users(
+    db,
+    *,
+    page: int = 1,
+    page_size: int = 20,
+) -> PaginatedResponse[UserRead]:
+    """List users with pagination.
+
+    Orchestrates the repository calls (count + page) and assembles the
+    paginated envelope, serializing rows through ``UserRead`` so no sensitive
+    field (e.g. ``hashed_password``) ever reaches the response.
+    """
+    repository = UserRepository(db)
+    total = await repository.count_users()
+    users = await repository.list_users(
+        offset=(page - 1) * page_size,
+        limit=page_size,
+    )
+    items = [UserRead.model_validate(user) for user in users]
+    return PaginatedResponse[UserRead](
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+    )

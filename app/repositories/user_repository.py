@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from app.models.role import Role
@@ -39,3 +39,22 @@ class UserRepository(BaseRepository[User]):
         self.session.add(user)
         await self.session.flush()
         return user
+
+    async def list_users(
+        self, *, offset: int = 0, limit: int = 20
+    ) -> list[User]:
+        """Return a page of users ordered by creation date (oldest first).
+
+        Explicit ordering keeps pagination deterministic between requests.
+        """
+        result = await self.session.execute(
+            select(User).order_by(User.created_at).offset(offset).limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def count_users(self) -> int:
+        """Return the total number of users, for pagination metadata."""
+        result = await self.session.execute(
+            select(func.count()).select_from(User)
+        )
+        return int(result.scalar_one())
