@@ -82,6 +82,8 @@ class BaseAppSettings(BaseSettings):
         default=1440,
         alias='EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES',
     )
+    PAGE_SIZE_DEFAULT: int = Field(default=20, alias='PAGE_SIZE_DEFAULT')
+    PAGE_SIZE_MAX: int = Field(default=100, alias='PAGE_SIZE_MAX')
     APP_BASE_URL: str = Field(
         default='http://localhost:8001',
         alias='APP_BASE_URL',
