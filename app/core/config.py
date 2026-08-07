@@ -150,6 +150,34 @@ class BaseAppSettings(BaseSettings):
     SMTP_FROM: str = Field(default='', alias='SMTP_FROM')
     SMTP_TLS: bool = Field(default=True, alias='SMTP_TLS')
 
+    # Google OAuth 2.0 / OpenID Connect
+    GOOGLE_LOGIN_ENABLED: bool = Field(
+        default=False, alias='GOOGLE_LOGIN_ENABLED'
+    )
+    GOOGLE_CLIENT_ID: str = Field(default='', alias='GOOGLE_CLIENT_ID')
+    GOOGLE_CLIENT_SECRET: str = Field(
+        default='', alias='GOOGLE_CLIENT_SECRET'
+    )
+    GOOGLE_REDIRECT_URI: str = Field(
+        default='', alias='GOOGLE_REDIRECT_URI'
+    )
+    GOOGLE_AUTH_URL: str = Field(
+        default='https://accounts.google.com/o/oauth2/v2/auth',
+        alias='GOOGLE_AUTH_URL',
+    )
+    GOOGLE_TOKEN_URL: str = Field(
+        default='https://oauth2.googleapis.com/token',
+        alias='GOOGLE_TOKEN_URL',
+    )
+    GOOGLE_CERTS_URL: str = Field(
+        default='https://www.googleapis.com/oauth2/v3/certs',
+        alias='GOOGLE_CERTS_URL',
+    )
+    GOOGLE_ISSUER: str = Field(
+        default='https://accounts.google.com',
+        alias='GOOGLE_ISSUER',
+    )
+
     @property
     def REFRESH_SECRET_KEY_ACTIVE(self) -> str:
         return self.REFRESH_SECRET_KEY or self.SECRET_KEY

@@ -277,3 +277,45 @@ class RateLimitExceededError(AppError):
             headers=headers,
             code='RATE_LIMIT_EXCEEDED',
         )
+
+
+class GoogleLoginDisabledError(AppError):
+    def __init__(
+        self,
+        message: str = 'Google login is not enabled',
+        payload: dict[str, Any] | None = None,
+    ):
+        super().__init__(
+            message=message,
+            status_code=403,
+            payload=payload,
+            code='GOOGLE_LOGIN_DISABLED',
+        )
+
+
+class InvalidGoogleTokenError(AppError):
+    def __init__(
+        self,
+        message: str = 'Invalid Google token',
+        payload: dict[str, Any] | None = None,
+    ):
+        super().__init__(
+            message=message,
+            status_code=400,
+            payload=payload,
+            code='INVALID_GOOGLE_TOKEN',
+        )
+
+
+class GoogleAuthError(AppError):
+    def __init__(
+        self,
+        message: str = 'Google authentication service error',
+        payload: dict[str, Any] | None = None,
+    ):
+        super().__init__(
+            message=message,
+            status_code=502,
+            payload=payload,
+            code='GOOGLE_AUTH_ERROR',
+        )

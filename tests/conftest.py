@@ -199,3 +199,34 @@ def full_client(
 
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest.fixture
+def google_client(
+    isolated_session_factory: async_sessionmaker[AsyncSession],
+) -> Iterator[TestClient]:
+    """FastAPI TestClient with the auth + google-auth routers and an isolated DB.
+
+    External calls to Google are not made: ``google_auth_service`` is
+    monkeypatched per-test (see ``tests/test_google_auth.py``).
+    """
+    from fastapi import FastAPI
+
+    from app.api.routers.auth import router as auth_router
+    from app.api.routers.google_auth import router as google_router
+    from app.core.error_handlers import register_exception_handlers
+    from app.db.session import get_db
+
+    app = FastAPI()
+    register_exception_handlers(app)
+    app.include_router(auth_router)
+    app.include_router(google_router)
+
+    async def _override_get_db() -> AsyncIterator[AsyncSession]:
+        async with isolated_session_factory() as session:
+            yield session
+
+    app.dependency_overrides[get_db] = _override_get_db
+
+    with TestClient(app) as test_client:
+        yield test_client
