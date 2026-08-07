@@ -31,6 +31,23 @@ def _error_payload(
     return payload
 
 
+def _json_safe(value: Any) -> Any:
+    """Recursively convert non-JSON-serializable values (e.g. exceptions)."""
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    if isinstance(value, Exception):
+        return str(value)
+    try:
+        import json
+
+        json.dumps(value)
+        return value
+    except TypeError:
+        return str(value)
+
+
 async def handle_app_error(request: Request, exc: AppError) -> JSONResponse:
     logger.info("AppError: %s %s %s", exc.status_code, request.method, request.url.path)
     content = _error_payload(
@@ -40,7 +57,7 @@ async def handle_app_error(request: Request, exc: AppError) -> JSONResponse:
         status_code=exc.status_code,
         details=exc.payload or None,
     )
-    return JSONResponse(status_code=exc.status_code, content=content)
+    return JSONResponse(status_code=exc.status_code, content=content, headers=exc.headers)
 
 
 async def handle_http_exception(request: Request, exc: HTTPException) -> JSONResponse:
@@ -63,7 +80,7 @@ async def handle_validation_error(request: Request, exc: RequestValidationError)
         exc_type="RequestValidationError",
         message="Validation error",
         status_code=422,
-        details=exc.errors(),
+        details=_json_safe(exc.errors()),
     )
     return JSONResponse(status_code=422, content=content)
 
