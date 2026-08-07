@@ -96,6 +96,16 @@ class DomainValidationError(AppError):
         )
 
 
+class SelfDeactivationError(BusinessRuleError):
+    def __init__(
+        self,
+        message: str = 'You cannot deactivate your own account',
+        payload: dict[str, Any] | None = None,
+    ):
+        super().__init__(message=message, payload=payload)
+        self.code = 'SELF_DEACTIVATION_NOT_ALLOWED'
+
+
 class EmailAlreadyExistsError(AppError):
     def __init__(
         self,
