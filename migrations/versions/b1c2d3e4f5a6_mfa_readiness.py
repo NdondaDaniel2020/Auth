@@ -20,7 +20,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    op.add_column('users', sa.Column('mfa_enabled', sa.Boolean(), server_default=sa.text('(false())'), nullable=False))
+    op.add_column('users', sa.Column('mfa_enabled', sa.Boolean(), server_default='false', nullable=False))
     op.add_column('users', sa.Column('mfa_type', sa.String(length=16), nullable=True))
 
     op.create_table('mfa_methods',
@@ -29,7 +29,7 @@ def upgrade() -> None:
     sa.Column('type', sa.String(length=16), nullable=False),
     sa.Column('secret', sa.String(length=512), nullable=True),
     sa.Column('metadata', sa.JSON(), nullable=True),
-    sa.Column('is_active', sa.Boolean(), server_default=sa.text('(false())'), nullable=False),
+    sa.Column('is_active', sa.Boolean(), server_default='false', nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
