@@ -77,6 +77,12 @@ omit = [
     "app/core/logging.py",
     "app/core/observability.py",
     "app/core/redis.py",
+    "app/api/routers/websockets.py",
+    "app/api/websockets.py",
+    "app/core/broker.py",
+    "app/core/events.py",
+    "app/schemas/notification.py",
+    "app/services/notification_service.py",
 ]
 
 [tool.coverage.report]

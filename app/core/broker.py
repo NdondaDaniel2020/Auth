@@ -17,7 +17,10 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     import aio_pika
-    from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
+    from aiokafka import (  # type: ignore[import-untyped]
+        AIOKafkaConsumer,
+        AIOKafkaProducer,
+    )
 
 from app.core.events import Event
 
@@ -26,19 +29,21 @@ logger = logging.getLogger(__name__)
 
 class BrokerType(str, Enum):
     """Supported message broker types."""
-    RABBITMQ = "rabbitmq"
-    KAFKA = "kafka"
+
+    RABBITMQ = 'rabbitmq'
+    KAFKA = 'kafka'
 
 
 @dataclass
 class BrokerConfig:
     """Configuration for message broker connection."""
+
     type: BrokerType
     url: str
-    exchange: str = "auth_events"  # RabbitMQ exchange / Kafka topic prefix
+    exchange: str = 'auth_events'  # RabbitMQ exchange / Kafka topic prefix
     durable: bool = True
     # RabbitMQ specific
-    exchange_type: str = "topic"
+    exchange_type: str = 'topic'
     # Kafka specific
     bootstrap_servers: str | None = None
     consumer_group: str | None = None
@@ -94,7 +99,7 @@ class RabbitMQPublisher(BrokerPublisher):
             ExchangeType(self.config.exchange_type),
             durable=self.config.durable,
         )
-        logger.info("RabbitMQ connected: %s", self.config.url)
+        logger.info('RabbitMQ connected: %s', self.config.url)
 
     async def disconnect(self) -> None:
         if self._connection:
@@ -102,30 +107,30 @@ class RabbitMQPublisher(BrokerPublisher):
             self._connection = None
             self._channel = None
             self._exchange = None
-            logger.info("RabbitMQ disconnected")
+            logger.info('RabbitMQ disconnected')
 
     async def publish(self, event: Event) -> None:
         if not self._exchange:
-            raise RuntimeError("RabbitMQ not connected")
+            raise RuntimeError('RabbitMQ not connected')
 
         import aio_pika
 
         message = aio_pika.Message(
             body=json.dumps(event.to_dict()).encode(),
-            content_type="application/json",
+            content_type='application/json',
             delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
             message_id=event.event_id,
             timestamp=event.timestamp,
             headers={
-                "event_type": event.type,
-                "correlation_id": event.correlation_id or "",
-                "causation_id": event.causation_id or "",
+                'event_type': event.type,
+                'correlation_id': event.correlation_id or '',
+                'causation_id': event.causation_id or '',
             },
         )
 
         # Route by event type (e.g., "user.created", "auth.login")
         await self._exchange.publish(message, routing_key=event.type)
-        logger.debug("Published event %s to RabbitMQ", event.type)
+        logger.debug('Published event %s to RabbitMQ', event.type)
 
     async def publish_batch(self, events: list[Event]) -> None:
         for event in events:
@@ -147,59 +152,67 @@ class KafkaPublisher(BrokerPublisher):
             value_serializer=lambda v: json.dumps(v).encode(),
             key_serializer=lambda k: k.encode() if k else None,
             enable_idempotence=True,
-            acks="all",
+            acks='all',
         )
         await self._producer.start()
-        logger.info("Kafka connected: %s", self.config.bootstrap_servers or self.config.url)
+        logger.info(
+            'Kafka connected: %s',
+            self.config.bootstrap_servers or self.config.url,
+        )
 
     async def disconnect(self) -> None:
         if self._producer:
             await self._producer.stop()
             self._producer = None
-            logger.info("Kafka disconnected")
+            logger.info('Kafka disconnected')
 
     async def publish(self, event: Event) -> None:
         if not self._producer:
-            raise RuntimeError("Kafka not connected")
+            raise RuntimeError('Kafka not connected')
 
-        topic = f"{self.config.exchange}.{event.type}"
+        topic = f'{self.config.exchange}.{event.type}'
         await self._producer.send_and_wait(
             topic,
             value=event.to_dict(),
             key=event.event_id.encode(),
             headers=[
-                ("event_type", event.type.encode()),
-                ("event_id", event.event_id.encode()),
-                ("correlation_id", (event.correlation_id or "").encode()),
-                ("causation_id", (event.causation_id or "").encode()),
+                ('event_type', event.type.encode()),
+                ('event_id', event.event_id.encode()),
+                ('correlation_id', (event.correlation_id or '').encode()),
+                ('causation_id', (event.causation_id or '').encode()),
             ],
             timestamp=int(event.timestamp.timestamp() * 1000),
         )
-        logger.debug("Published event %s to Kafka topic %s", event.type, topic)
+        logger.debug('Published event %s to Kafka topic %s', event.type, topic)
 
     async def publish_batch(self, events: list[Event]) -> None:
         if not self._producer:
-            raise RuntimeError("Kafka not connected")
+            raise RuntimeError('Kafka not connected')
 
         # Batch send for efficiency
         tasks = []
         for event in events:
-            topic = f"{self.config.exchange}.{event.type}"
-            tasks.append(self._producer.send(
-                topic,
-                value=event.to_dict(),
-                key=event.event_id.encode(),
-                headers=[
-                    ("event_type", event.type.encode()),
-                    ("event_id", event.event_id.encode()),
-                    ("correlation_id", (event.correlation_id or "").encode()),
-                    ("causation_id", (event.causation_id or "").encode()),
-                ],
-                timestamp=int(event.timestamp.timestamp() * 1000),
-            ))
+            topic = f'{self.config.exchange}.{event.type}'
+            tasks.append(
+                self._producer.send(
+                    topic,
+                    value=event.to_dict(),
+                    key=event.event_id.encode(),
+                    headers=[
+                        ('event_type', event.type.encode()),
+                        ('event_id', event.event_id.encode()),
+                        (
+                            'correlation_id',
+                            (event.correlation_id or '').encode(),
+                        ),
+                        ('causation_id', (event.causation_id or '').encode()),
+                    ],
+                    timestamp=int(event.timestamp.timestamp() * 1000),
+                )
+            )
         await asyncio.gather(*tasks)
         await self._producer.flush()
-        logger.debug("Published batch of %d events to Kafka", len(events))
+        logger.debug('Published batch of %d events to Kafka', len(events))
 
 
 import asyncio
@@ -220,7 +233,9 @@ class BrokerConsumer(ABC):
 class RabbitMQConsumer(BrokerConsumer):
     """RabbitMQ consumer using aio-pika."""
 
-    def __init__(self, config: BrokerConfig, queue_name: str, routing_keys: list[str]) -> None:
+    def __init__(
+        self, config: BrokerConfig, queue_name: str, routing_keys: list[str]
+    ) -> None:
         self.config = config
         self.queue_name = queue_name
         self.routing_keys = routing_keys
@@ -228,7 +243,9 @@ class RabbitMQConsumer(BrokerConsumer):
         self._channel: aio_pika.abc.AbstractChannel | None = None
         self._queue: aio_pika.abc.AbstractQueue | None = None
 
-    async def start(self, handler: Callable[[dict[str, Any]], Awaitable[None]]) -> None:
+    async def start(
+        self, handler: Callable[[dict[str, Any]], Awaitable[None]]
+    ) -> None:
         import aio_pika
         from aio_pika import ExchangeType
 
@@ -264,13 +281,17 @@ class RabbitMQConsumer(BrokerConsumer):
 class KafkaConsumer(BrokerConsumer):
     """Kafka consumer using aiokafka."""
 
-    def __init__(self, config: BrokerConfig, topics: list[str], group_id: str) -> None:
+    def __init__(
+        self, config: BrokerConfig, topics: list[str], group_id: str
+    ) -> None:
         self.config = config
         self.topics = topics
         self.group_id = group_id
         self._consumer: AIOKafkaConsumer | None = None
 
-    async def start(self, handler: Callable[[dict[str, Any]], Awaitable[None]]) -> None:
+    async def start(
+        self, handler: Callable[[dict[str, Any]], Awaitable[None]]
+    ) -> None:
         from aiokafka import AIOKafkaConsumer
 
         self._consumer = AIOKafkaConsumer(
@@ -279,7 +300,7 @@ class KafkaConsumer(BrokerConsumer):
             group_id=self.group_id,
             value_deserializer=lambda v: json.loads(v.decode()),
             key_deserializer=lambda k: k.decode() if k else None,
-            auto_offset_reset="earliest",
+            auto_offset_reset='earliest',
             enable_auto_commit=True,
         )
         await self._consumer.start()
@@ -300,7 +321,7 @@ def create_publisher(config: BrokerConfig) -> BrokerPublisher:
     elif config.type == BrokerType.KAFKA:
         return KafkaPublisher(config)
     else:
-        raise ValueError(f"Unsupported broker type: {config.type}")
+        raise ValueError(f'Unsupported broker type: {config.type}')
 
 
 def create_consumer(
@@ -313,14 +334,16 @@ def create_consumer(
     """Factory function to create consumer based on broker type."""
     if config.type == BrokerType.RABBITMQ:
         if not queue_name or not routing_keys:
-            raise ValueError("RabbitMQ consumer requires queue_name and routing_keys")
+            raise ValueError(
+                'RabbitMQ consumer requires queue_name and routing_keys'
+            )
         return RabbitMQConsumer(config, queue_name, routing_keys)
     elif config.type == BrokerType.KAFKA:
         if not topics or not group_id:
-            raise ValueError("Kafka consumer requires topics and group_id")
+            raise ValueError('Kafka consumer requires topics and group_id')
         return KafkaConsumer(config, topics, group_id)
     else:
-        raise ValueError(f"Unsupported broker type: {config.type}")
+        raise ValueError(f'Unsupported broker type: {config.type}')
 
 
 @asynccontextmanager
@@ -343,27 +366,35 @@ def get_broker_config_from_settings() -> BrokerConfig | None:
 
     settings = get_settings()
 
-    broker_url = getattr(settings, "MESSAGE_BROKER_URL", "")
+    broker_url = getattr(settings, 'MESSAGE_BROKER_URL', '')
     if not broker_url:
         return None
 
-    broker_type_str = getattr(settings, "MESSAGE_BROKER_TYPE", "rabbitmq")
+    broker_type_str = getattr(settings, 'MESSAGE_BROKER_TYPE', 'rabbitmq')
     try:
         broker_type = BrokerType(broker_type_str)
     except ValueError:
-        logger.warning("Unknown broker type: %s, defaulting to rabbitmq", broker_type_str)
+        logger.warning(
+            'Unknown broker type: %s, defaulting to rabbitmq', broker_type_str
+        )
         broker_type = BrokerType.RABBITMQ
 
     return BrokerConfig(
         type=broker_type,
         url=broker_url,
-        exchange=getattr(settings, "MESSAGE_BROKER_EXCHANGE", "auth_events"),
+        exchange=getattr(settings, 'MESSAGE_BROKER_EXCHANGE', 'auth_events'),
         durable=True,
-        exchange_type=getattr(settings, "MESSAGE_BROKER_EXCHANGE_TYPE", "topic"),
-        bootstrap_servers=getattr(settings, "MESSAGE_BROKER_BOOTSTRAP_SERVERS", None),
-        consumer_group=getattr(settings, "MESSAGE_BROKER_CONSUMER_GROUP", "auth-api"),
-        ssl=getattr(settings, "MESSAGE_BROKER_SSL", False),
-        ssl_ca_file=getattr(settings, "MESSAGE_BROKER_SSL_CA_FILE", None),
-        ssl_cert_file=getattr(settings, "MESSAGE_BROKER_SSL_CERT_FILE", None),
-        ssl_key_file=getattr(settings, "MESSAGE_BROKER_SSL_KEY_FILE", None),
+        exchange_type=getattr(
+            settings, 'MESSAGE_BROKER_EXCHANGE_TYPE', 'topic'
+        ),
+        bootstrap_servers=getattr(
+            settings, 'MESSAGE_BROKER_BOOTSTRAP_SERVERS', None
+        ),
+        consumer_group=getattr(
+            settings, 'MESSAGE_BROKER_CONSUMER_GROUP', 'auth-api'
+        ),
+        ssl=getattr(settings, 'MESSAGE_BROKER_SSL', False),
+        ssl_ca_file=getattr(settings, 'MESSAGE_BROKER_SSL_CA_FILE', None),
+        ssl_cert_file=getattr(settings, 'MESSAGE_BROKER_SSL_CERT_FILE', None),
+        ssl_key_file=getattr(settings, 'MESSAGE_BROKER_SSL_KEY_FILE', None),
     )

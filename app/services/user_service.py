@@ -53,15 +53,17 @@ async def register_user(db, data: UserCreate) -> User:
 
     # Publish user.created event
     bus = get_event_bus()
-    await bus.publish(Event(
-        type=UserEvents.CREATED,
-        payload={
-            "user_id": user.id,
-            "email": user.email,
-            "full_name": user.full_name,
-            "is_verified": user.is_verified,
-        },
-    ))
+    await bus.publish(
+        Event(
+            type=UserEvents.CREATED,
+            payload={
+                'user_id': user.id,
+                'email': user.email,
+                'full_name': user.full_name,
+                'is_verified': user.is_verified,
+            },
+        )
+    )
 
     return user
 
@@ -180,17 +182,19 @@ async def update_profile(db, user: User, data: UserUpdate) -> UserRead:
 
         # Publish user.updated event
         bus = get_event_bus()
-        await bus.publish(Event(
-            type=UserEvents.UPDATED,
-            payload={
-                "user_id": user.id,
-                "email": user.email,
-                "changed_fields": list(updates.keys()),
-                "old_values": old_values,
-                "new_values": new_values,
-                "actor_id": user.id,
-            },
-        ))
+        await bus.publish(
+            Event(
+                type=UserEvents.UPDATED,
+                payload={
+                    'user_id': user.id,
+                    'email': user.email,
+                    'changed_fields': list(updates.keys()),
+                    'old_values': old_values,
+                    'new_values': new_values,
+                    'actor_id': user.id,
+                },
+            )
+        )
 
     return UserRead.model_validate(user)
 
@@ -245,14 +249,16 @@ async def _set_active_status(
 
     # Publish user.activated / user.deactivated event
     bus = get_event_bus()
-    await bus.publish(Event(
-        type=UserEvents.ACTIVATED if is_active else UserEvents.DEACTIVATED,
-        payload={
-            "user_id": user.id,
-            "email": user.email,
-            "actor_id": actor.id if actor is not None else None,
-        },
-    ))
+    await bus.publish(
+        Event(
+            type=UserEvents.ACTIVATED if is_active else UserEvents.DEACTIVATED,
+            payload={
+                'user_id': user.id,
+                'email': user.email,
+                'actor_id': actor.id if actor is not None else None,
+            },
+        )
+    )
 
     return UserRead.model_validate(user)
 
@@ -331,15 +337,17 @@ async def update_user_roles(
 
     # Publish user.roles_changed event
     bus = get_event_bus()
-    await bus.publish(Event(
-        type=UserEvents.ROLES_CHANGED,
-        payload={
-            "user_id": user.id,
-            "email": user.email,
-            "old_roles": list(previous_role_names),
-            "new_roles": list(new_role_names),
-            "actor_id": actor.id,
-        },
-    ))
+    await bus.publish(
+        Event(
+            type=UserEvents.ROLES_CHANGED,
+            payload={
+                'user_id': user.id,
+                'email': user.email,
+                'old_roles': list(previous_role_names),
+                'new_roles': list(new_role_names),
+                'actor_id': actor.id,
+            },
+        )
+    )
 
     return UserRead.model_validate(user)
