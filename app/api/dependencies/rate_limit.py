@@ -17,7 +17,12 @@ from fastapi import Request
 
 from app.core.config import get_settings
 from app.core.exceptions import RateLimitExceededError
-from app.core.rate_limiter import parse_rate_limit, request_rate_limiter
+from app.core.rate_limiter import (
+    parse_rate_limit,
+    redis_check_and_consume,
+    request_rate_limiter,
+)
+from app.core.redis import get_redis_client
 
 
 def get_client_ip(request: Request) -> str:
@@ -42,9 +47,17 @@ def rate_limit(scope: str) -> Callable[[Request], Awaitable[None]]:
             getattr(settings, scope, settings.RATE_LIMIT_DEFAULT)
         )
         key = build_rate_limit_key(scope, request)
-        retry_after = request_rate_limiter.check_and_consume(
-            key, limit, window_seconds
-        )
+
+        # Use Redis if configured, otherwise fall back to in-memory
+        if get_redis_client():
+            retry_after = await redis_check_and_consume(
+                key, limit, int(window_seconds)
+            )
+        else:
+            retry_after = request_rate_limiter.check_and_consume(
+                key, limit, window_seconds
+            )
+
         if retry_after is not None:
             raise RateLimitExceededError(retry_after=retry_after)
 

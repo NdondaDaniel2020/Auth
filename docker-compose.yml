@@ -2,7 +2,7 @@ version: '3.9'
 
 services:
   db:
-    image: postgres:15
+    image: postgres:16
     container_name: auth_db
     restart: unless-stopped
     environment:
@@ -26,13 +26,87 @@ services:
       timeout: 5s
       retries: 5
 
+  app:
+    build: .
+    container_name: auth_app
+    restart: unless-stopped
+    environment:
+      # Non-sensitive config (can also be set via .env)
+      ENVIRONMENT: production
+      APP_NAME: "Auth API"
+      APP_VERSION: "0.1.0"
+      DEBUG: "false"
+      CORS_ALLOWED_ORIGINS: "https://example.com"
+      CORS_ALLOW_CREDENTIALS: "true"
+      ALGORITHM: "HS256"
+      JWT_ACCESS_MINUTES: "15"
+      JWT_REFRESH_DAYS: "7"
+      PASSWORD_HASH_SCHEME: "argon2"
+      LOGIN_MAX_ATTEMPTS: "5"
+      LOGIN_ATTEMPT_WINDOW_MINUTES: "15"
+      LOGIN_BLOCK_DURATION_MINUTES: "30"
+      RATE_LIMIT_DEFAULT: "60/minute"
+      RATE_LIMIT_REGISTER: "10/minute"
+      RATE_LIMIT_PASSWORD_RESET: "5/minute"
+      RATE_LIMIT_EMAIL_RESEND: "3/minute"
+      PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: "30"
+      EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES: "1440"
+      PAGE_SIZE_DEFAULT: "20"
+      PAGE_SIZE_MAX: "100"
+      APP_BASE_URL: "https://api.example.com"
+      # DB connection (non-sensitive parts)
+      DB_ENGINE: "postgresql"
+      DB_HOST: "db"
+      DB_PORT: "5432"
+      DB_NAME_FILE: /run/secrets/db_name
+      # SMTP (non-sensitive)
+      SMTP_HOST: "smtp.example.com"
+      SMTP_PORT: "587"
+      SMTP_USER: "noreply@example.com"
+      SMTP_FROM: "noreply@example.com"
+      SMTP_TLS: "true"
+      # Google OAuth (non-sensitive)
+      GOOGLE_LOGIN_ENABLED: "false"
+      GOOGLE_CLIENT_ID_FILE: /run/secrets/google_client_id
+      GOOGLE_REDIRECT_URI: "https://api.example.com/api/auth/google/callback"
+    secrets:
+      # App secrets
+      - app_secret_key
+      - app_refresh_secret_key
+      # DB credentials
+      - db_user
+      - db_password
+      # SMTP
+      - smtp_password
+      # Google OAuth
+      - google_client_secret
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
 secrets:
+  # Database
   db_user:
     file: ./secrets/db_user.txt
   db_password:
     file: ./secrets/db_password.txt
   db_name:
     file: ./secrets/db_name.txt
+  # App
+  app_secret_key:
+    file: ./secrets/app_secret_key.txt
+  app_refresh_secret_key:
+    file: ./secrets/app_refresh_secret_key.txt
+  # SMTP
+  smtp_password:
+    file: ./secrets/smtp_password.txt
+  # Google OAuth
+  google_client_id:
+    file: ./secrets/google_client_id.txt
+  google_client_secret:
+    file: ./secrets/google_client_secret.txt
 
 volumes:
   auth_db_data:

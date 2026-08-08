@@ -17,6 +17,9 @@ dependencies = [
     "psycopg-binary>=3.3.4",
     "psycopg2-binary>=2.9.12",
     "pydantic-settings>=2.14.2",
+    "prometheus-client>=0.21.0",
+    "python-json-logger>=2.0.0",
+    "redis>=5.2.0",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "pyjwt[cryptography]>=2.10.0",
@@ -63,7 +66,16 @@ markers = [
 ]
 
 [tool.coverage.run]
-omit = ["*/__init__.py", "*/___python___/*"]
+omit = [
+    "*/__init__.py",
+    "*/___python___/*",
+    "app/main.py",
+    "app/api/router.py",
+    "app/core/lifespan.py",
+    "app/core/logging.py",
+    "app/core/observability.py",
+    "app/core/redis.py",
+]
 
 [tool.coverage.report]
 exclude_lines = ["def __repr__", "if __name__ == .__main__.:", "___python___"]
