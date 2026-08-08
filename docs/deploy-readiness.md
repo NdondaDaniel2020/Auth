@@ -1,5 +1,7 @@
 # Deploy Readiness Checklist
 
+> **Full deploy strategy**: See [`docs/deploy-strategy.md`](deploy-strategy.md) for complete procedures, runbooks, and architecture.
+
 ## Infrastructure
 - [ ] PostgreSQL 16+ provisioned (managed or self-hosted)
 - [ ] Redis (if using rate limiter / caching)
