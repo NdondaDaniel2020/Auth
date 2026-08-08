@@ -96,7 +96,7 @@ async def _clear_database_session_cache() -> AsyncIterator[None]:
         try:
             engine = get_engine()
             await engine.dispose()
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
 
     get_engine.cache_clear()

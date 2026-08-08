@@ -11,9 +11,9 @@ from sqlalchemy import (
     ForeignKey,
     String,
     Table,
+    false,
     func,
     true,
-    false,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
