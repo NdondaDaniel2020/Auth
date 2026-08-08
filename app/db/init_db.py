@@ -6,6 +6,7 @@ from collections.abc import Iterable
 
 from passlib.context import CryptContext
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import selectinload
 
@@ -111,6 +112,9 @@ async def seed_roles_and_permissions(
     session_factory = get_session_factory()
 
     async with session_factory() as session:
+        conn = await session.connection()
+        dialect_name = conn.dialect.name
+
         # 1. Seed roles — get or create by name
         role_map: dict[str, str] = {}  # name -> id
 
@@ -139,11 +143,18 @@ async def seed_roles_and_permissions(
                     continue
                 # Use INSERT OR IGNORE (SQLite) / ON CONFLICT DO NOTHING to
                 # keep this idempotent without querying the association table.
-                stmt = (
-                    sqlite_insert(role_permissions)
-                    .values(role_id=role_id, permission_id=perm.id)
-                    .on_conflict_do_nothing()
-                )
+                if dialect_name == 'postgresql':
+                    stmt = (
+                        pg_insert(role_permissions)
+                        .values(role_id=role_id, permission_id=perm.id)
+                        .on_conflict_do_nothing()
+                    )
+                else:
+                    stmt = (
+                        sqlite_insert(role_permissions)
+                        .values(role_id=role_id, permission_id=perm.id)
+                        .on_conflict_do_nothing()
+                    )
                 await session.execute(stmt)
 
         await session.commit()
@@ -155,6 +166,9 @@ async def seed_roles_and_permissions(
 
     # 3. Seed admin user in a fresh session (roles already committed above)
     async with session_factory() as session:
+        conn = await session.connection()
+        dialect_name = conn.dialect.name
+
         admin_role_id_result = await session.execute(
             select(Role.id).where(Role.name == 'admin')
         )
@@ -181,11 +195,18 @@ async def seed_roles_and_permissions(
             await session.flush()
 
         # Insert into user_roles with ON CONFLICT DO NOTHING (idempotent)
-        stmt = (
-            sqlite_insert(user_roles)
-            .values(user_id=admin_user.id, role_id=admin_role_id)
-            .on_conflict_do_nothing()
-        )
+        if dialect_name == 'postgresql':
+            stmt = (
+                pg_insert(user_roles)
+                .values(user_id=admin_user.id, role_id=admin_role_id)
+                .on_conflict_do_nothing()
+            )
+        else:
+            stmt = (
+                sqlite_insert(user_roles)
+                .values(user_id=admin_user.id, role_id=admin_role_id)
+                .on_conflict_do_nothing()
+            )
         await session.execute(stmt)
         await session.commit()
         logger.info('Admin user seeded: %s', admin_email)
