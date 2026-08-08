@@ -200,6 +200,18 @@ class BaseAppSettings(BaseSettings):
         default=10, alias='REDIS_MAX_CONNECTIONS'
     )
 
+    # Message Broker (RabbitMQ / Kafka)
+    MESSAGE_BROKER_URL: str = Field(default='', alias='MESSAGE_BROKER_URL')
+    MESSAGE_BROKER_TYPE: str = Field(default='rabbitmq', alias='MESSAGE_BROKER_TYPE')
+    MESSAGE_BROKER_EXCHANGE: str = Field(default='auth_events', alias='MESSAGE_BROKER_EXCHANGE')
+    MESSAGE_BROKER_EXCHANGE_TYPE: str = Field(default='topic', alias='MESSAGE_BROKER_EXCHANGE_TYPE')
+    MESSAGE_BROKER_BOOTSTRAP_SERVERS: str = Field(default='', alias='MESSAGE_BROKER_BOOTSTRAP_SERVERS')
+    MESSAGE_BROKER_CONSUMER_GROUP: str = Field(default='auth-api', alias='MESSAGE_BROKER_CONSUMER_GROUP')
+    MESSAGE_BROKER_SSL: bool = Field(default=False, alias='MESSAGE_BROKER_SSL')
+    MESSAGE_BROKER_SSL_CA_FILE: str = Field(default='', alias='MESSAGE_BROKER_SSL_CA_FILE')
+    MESSAGE_BROKER_SSL_CERT_FILE: str = Field(default='', alias='MESSAGE_BROKER_SSL_CERT_FILE')
+    MESSAGE_BROKER_SSL_KEY_FILE: str = Field(default='', alias='MESSAGE_BROKER_SSL_KEY_FILE')
+
     @model_validator(mode='before')
     @classmethod
     def _load_secrets_from_files(cls, data: Any) -> Any:

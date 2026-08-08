@@ -1,0 +1,316 @@
+"""Notification message contracts (Pydantic models).
+
+Defines the schema for all notification messages sent via the event bus.
+These contracts are versioned and can be evolved over time.
+"""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any, Literal
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
+
+
+class NotificationChannel(str, Enum):
+    """Delivery channel for notification."""
+    EMAIL = "email"
+    PUSH = "push"
+    IN_APP = "in_app"
+    SMS = "sms"
+
+
+class NotificationPriority(str, Enum):
+    """Priority level for notification delivery."""
+    LOW = "low"
+    NORMAL = "normal"
+    HIGH = "high"
+    URGENT = "urgent"
+
+
+class BaseNotification(BaseModel):
+    """Base notification envelope."""
+    model_config = ConfigDict(
+        extra="forbid",
+        use_enum_values=True,
+        json_encoders={datetime: lambda v: v.isoformat(), UUID: str},
+    )
+
+    notification_id: str = Field(..., description="Unique notification identifier")
+    channel: NotificationChannel
+    priority: NotificationPriority = NotificationPriority.NORMAL
+    recipient_id: str = Field(..., description="Internal user ID or external identifier")
+    correlation_id: str | None = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    expires_at: datetime | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class EmailNotification(BaseNotification):
+    """Email notification payload."""
+    channel: Literal[NotificationChannel.EMAIL] = NotificationChannel.EMAIL
+
+    to_email: EmailStr
+    from_email: EmailStr | None = None
+    from_name: str | None = None
+    subject: str
+    html_body: str | None = None
+    text_body: str | None = None
+    template_id: str | None = None
+    template_data: dict[str, Any] = Field(default_factory=dict)
+    reply_to: EmailStr | None = None
+    headers: dict[str, str] = Field(default_factory=dict)
+
+
+class PushNotification(BaseNotification):
+    """Push notification payload (FCM/APNs)."""
+    channel: Literal[NotificationChannel.PUSH] = NotificationChannel.PUSH
+
+    device_tokens: list[str] = Field(..., min_length=1)
+    title: str
+    body: str
+    icon: str | None = None
+    image: str | None = None
+    click_action: str | None = None
+    data: dict[str, Any] = Field(default_factory=dict)
+    badge: int | None = None
+    sound: str | None = None
+
+
+class InAppNotification(BaseNotification):
+    """In-app notification payload (stored in DB, shown in UI)."""
+    channel: Literal[NotificationChannel.IN_APP] = NotificationChannel.IN_APP
+
+    title: str
+    message: str
+    action_url: str | None = None
+    action_label: str | None = None
+    icon: str | None = None
+    category: str | None = None
+    read: bool = False
+
+
+class SMSNotification(BaseNotification):
+    """SMS notification payload."""
+    channel: Literal[NotificationChannel.SMS] = NotificationChannel.SMS
+
+    to_phone: str = Field(..., pattern=r"^\+?[1-9]\d{1,14}$")
+    body: str
+    from_number: str | None = None
+
+
+# --- Event payloads that trigger notifications ---
+
+class UserCreatedPayload(BaseModel):
+    """Payload for user.created event."""
+    model_config = ConfigDict(extra="forbid")
+
+    user_id: str
+    email: EmailStr
+    full_name: str | None = None
+    is_verified: bool = False
+    temporary_password: str | None = None  # Only for admin-created users
+
+
+class UserUpdatedPayload(BaseModel):
+    """Payload for user.updated event."""
+    model_config = ConfigDict(extra="forbid")
+
+    user_id: str
+    email: EmailStr
+    changed_fields: list[str] = Field(..., description="List of field names that changed")
+    old_values: dict[str, Any] = Field(default_factory=dict)
+    new_values: dict[str, Any] = Field(default_factory=dict)
+    actor_id: str | None = Field(None, description="ID of user who made the change")
+
+
+class UserDeactivatedPayload(BaseModel):
+    """Payload for user.deactivated event."""
+    model_config = ConfigDict(extra="forbid")
+
+    user_id: str
+    email: EmailStr
+    actor_id: str | None = None
+    reason: str | None = None
+
+
+class UserRolesChangedPayload(BaseModel):
+    """Payload for user.roles_changed event."""
+    model_config = ConfigDict(extra="forbid")
+
+    user_id: str
+    email: EmailStr
+    old_roles: list[str]
+    new_roles: list[str]
+    actor_id: str | None = None
+
+
+class PasswordChangedPayload(BaseModel):
+    """Payload for user.password_changed event."""
+    model_config = ConfigDict(extra="forbid")
+
+    user_id: str
+    email: EmailStr
+    changed_by_self: bool = True
+    actor_id: str | None = None
+    reason: str | None = None  # e.g., "reset", "admin_reset", "security"
+
+
+class EmailVerifiedPayload(BaseModel):
+    """Payload for user.email_verified event."""
+    model_config = ConfigDict(extra="forbid")
+
+    user_id: str
+    email: EmailStr
+
+
+class PasswordResetRequestedPayload(BaseModel):
+    """Payload for auth.password_reset_requested event."""
+    model_config = ConfigDict(extra="forbid")
+
+    user_id: str
+    email: EmailStr
+    reset_token: str
+    expires_at: datetime
+    client_ip: str | None = None
+
+
+class PasswordResetCompletedPayload(BaseModel):
+    """Payload for auth.password_reset_completed event."""
+    model_config = ConfigDict(extra="forbid")
+
+    user_id: str
+    email: EmailStr
+    client_ip: str | None = None
+
+
+# --- Notification factory functions ---
+
+def create_welcome_email(user: UserCreatedPayload) -> EmailNotification:
+    """Create welcome email for new user."""
+    return EmailNotification(
+        notification_id=f"welcome-{user.user_id}",
+        priority=NotificationPriority.NORMAL,
+        recipient_id=user.user_id,
+        to_email=user.email,
+        subject="Welcome to Auth API",
+        template_id="welcome",
+        template_data={
+            "full_name": user.full_name or user.email.split("@")[0],
+            "is_verified": user.is_verified,
+            "temporary_password": user.temporary_password,
+        },
+    )
+
+
+def create_profile_updated_email(user: UserUpdatedPayload) -> EmailNotification:
+    """Create profile updated notification email."""
+    return EmailNotification(
+        notification_id=f"profile-updated-{user.user_id}",
+        priority=NotificationPriority.NORMAL,
+        recipient_id=user.user_id,
+        to_email=user.email,
+        subject="Your profile was updated",
+        template_id="profile_updated",
+        template_data={
+            "changed_fields": user.changed_fields,
+            "old_values": user.old_values,
+            "new_values": user.new_values,
+            "actor_id": user.actor_id,
+        },
+    )
+
+
+def create_deactivation_email(user: UserDeactivatedPayload) -> EmailNotification:
+    """Create account deactivation email."""
+    return EmailNotification(
+        notification_id=f"deactivated-{user.user_id}",
+        priority=NotificationPriority.HIGH,
+        recipient_id=user.user_id,
+        to_email=user.email,
+        subject="Your account has been deactivated",
+        template_id="deactivated",
+        template_data={
+            "reason": user.reason,
+            "actor_id": user.actor_id,
+        },
+    )
+
+
+def create_roles_changed_email(user: UserRolesChangedPayload) -> EmailNotification:
+    """Create roles changed notification email."""
+    return EmailNotification(
+        notification_id=f"roles-changed-{user.user_id}",
+        priority=NotificationPriority.NORMAL,
+        recipient_id=user.user_id,
+        to_email=user.email,
+        subject="Your account roles have been updated",
+        template_id="roles_changed",
+        template_data={
+            "old_roles": user.old_roles,
+            "new_roles": user.new_roles,
+            "actor_id": user.actor_id,
+        },
+    )
+
+
+def create_password_changed_email(user: PasswordChangedPayload) -> EmailNotification:
+    """Create password changed notification email."""
+    return EmailNotification(
+        notification_id=f"password-changed-{user.user_id}",
+        priority=NotificationPriority.HIGH,
+        recipient_id=user.user_id,
+        to_email=user.email,
+        subject="Your password was changed",
+        template_id="password_changed",
+        template_data={
+            "changed_by_self": user.changed_by_self,
+            "actor_id": user.actor_id,
+            "reason": user.reason,
+        },
+    )
+
+
+def create_password_reset_email(reset: PasswordResetRequestedPayload) -> EmailNotification:
+    """Create password reset email with reset link."""
+    reset_link = f"https://example.com/reset-password?token={reset.reset_token}"
+    return EmailNotification(
+        notification_id=f"password-reset-{reset.user_id}",
+        priority=NotificationPriority.HIGH,
+        recipient_id=reset.user_id,
+        to_email=reset.email,
+        subject="Reset your password",
+        template_id="password_reset",
+        template_data={
+            "reset_link": reset_link,
+            "expires_at": reset.expires_at.isoformat(),
+            "client_ip": reset.client_ip,
+        },
+    )
+
+
+def create_password_reset_completed_email(reset: PasswordResetCompletedPayload) -> EmailNotification:
+    """Create password reset completed confirmation email."""
+    return EmailNotification(
+        notification_id=f"password-reset-completed-{reset.user_id}",
+        priority=NotificationPriority.NORMAL,
+        recipient_id=reset.user_id,
+        to_email=reset.email,
+        subject="Your password has been reset",
+        template_id="password_reset_completed",
+        template_data={
+            "client_ip": reset.client_ip,
+        },
+    )
+
+
+# --- Union type for all notification payloads ---
+
+NotificationPayload = (
+    EmailNotification
+    | PushNotification
+    | InAppNotification
+    | SMSNotification
+)
