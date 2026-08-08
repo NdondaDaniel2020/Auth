@@ -15,6 +15,7 @@ services:
       DB_HOST: "db"
       DB_PORT: "5432"
       DB_NAME_FILE: /run/secrets/db_name
+      REDIS_URL: "redis://redis:6379/0"
       SMTP_HOST: "mailhog"
       SMTP_PORT: "1025"
       SMTP_USER: ""
@@ -34,6 +35,8 @@ services:
         condition: service_healthy
       mailhog:
         condition: service_started
+      redis:
+        condition: service_healthy
     volumes:
       - ./app:/app/app:ro
       - ./migrations:/app/migrations:ro
@@ -55,6 +58,17 @@ services:
       - auth_db_data_local:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$(cat /run/secrets/db_user) -d $$(cat /run/secrets/db_name) -h localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: auth_redis_local
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5

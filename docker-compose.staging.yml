@@ -14,6 +14,7 @@ services:
       DB_HOST: "db"
       DB_PORT: "5432"
       DB_NAME_FILE: /run/secrets/db_name
+      REDIS_URL: "redis://redis:6379/0"
       SMTP_HOST: "${SMTP_HOST}"
       SMTP_PORT: "${SMTP_PORT:-587}"
       SMTP_USER: "${SMTP_USER}"
@@ -34,6 +35,8 @@ services:
       - "8000:8000"
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     deploy:
       resources:
@@ -68,6 +71,21 @@ services:
         limits:
           cpus: '0.5'
           memory: 256M
+
+  redis:
+    image: redis:7-alpine
+    container_name: auth_redis_staging
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 64M
 
 secrets:
   app_secret_key:

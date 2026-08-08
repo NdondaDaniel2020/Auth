@@ -5,6 +5,7 @@ import time
 from collections import deque
 
 from app.core.config import get_settings
+from app.core.redis import RedisError, get_redis_client, rate_limit_check
 
 
 class _LoginRateLimiter:
@@ -117,7 +118,7 @@ class _RequestRateLimiter:
 
     In-memory state is per-process: with multiple app instances each keeps
     its own counters. A Redis-based backend should replace this for
-    multi-instance deployments (see README).
+    multi-instance deployments.
     """
 
     def __init__(self) -> None:
@@ -165,6 +166,27 @@ class _RequestRateLimiter:
 
 
 request_rate_limiter = _RequestRateLimiter()
+
+
+# Redis-backed rate limiter functions (used when Redis is configured)
+async def redis_check_and_consume(
+    key: str,
+    limit: int,
+    window_seconds: int,
+) -> int | None:
+    """Redis-backed rate limit check. Falls back to in-memory if Redis unavailable."""
+    return await rate_limit_check(key, limit, window_seconds)
+
+
+async def redis_reset(key: str) -> None:
+    """Reset a Redis rate limit key."""
+    client = get_redis_client()
+    if client:
+        try:
+            await client.delete(key)
+        except RedisError:
+            pass  # Best effort
+
 
 _TIME_UNITS = {
     'second': 1.0,

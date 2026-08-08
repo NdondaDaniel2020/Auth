@@ -194,6 +194,10 @@ class BaseAppSettings(BaseSettings):
         default=300, alias='GOOGLE_CERTS_CACHE_TTL_SECONDS'
     )
 
+    # Redis
+    REDIS_URL: str = Field(default='', alias='REDIS_URL')
+    REDIS_MAX_CONNECTIONS: int = Field(default=10, alias='REDIS_MAX_CONNECTIONS')
+
     @model_validator(mode='before')
     @classmethod
     def _load_secrets_from_files(cls, data: Any) -> Any:
