@@ -1,0 +1,102 @@
+version: '3.9'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: auth_app_local
+    environment:
+      ENVIRONMENT: development
+      DEBUG: "true"
+      CORS_ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:5173"
+      APP_BASE_URL: "http://localhost:8000"
+      DB_ENGINE: "postgresql"
+      DB_HOST: "db"
+      DB_PORT: "5432"
+      DB_NAME_FILE: /run/secrets/db_name
+      REDIS_URL: "redis://redis:6379/0"
+      SMTP_HOST: "mailhog"
+      SMTP_PORT: "1025"
+      SMTP_USER: ""
+      SMTP_FROM: "dev@localhost"
+      SMTP_TLS: "false"
+      GOOGLE_LOGIN_ENABLED: "false"
+    secrets:
+      - app_secret_key
+      - app_refresh_secret_key
+      - db_user
+      - db_password
+      - db_name
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      mailhog:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app:ro
+      - ./migrations:/app/migrations:ro
+
+  db:
+    image: postgres:16
+    container_name: auth_db_local
+    environment:
+      POSTGRES_USER_FILE: /run/secrets/db_user
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      POSTGRES_DB_FILE: /run/secrets/db_name
+    secrets:
+      - db_user
+      - db_password
+      - db_name
+    ports:
+      - "5432:5432"
+    volumes:
+      - auth_db_data_local:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$(cat /run/secrets/db_user) -d $$(cat /run/secrets/db_name) -h localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: auth_redis_local
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: auth_mailhog_local
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "1025"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+secrets:
+  app_secret_key:
+    file: ./secrets/app_secret_key.txt
+  app_refresh_secret_key:
+    file: ./secrets/app_refresh_secret_key.txt
+  db_user:
+    file: ./secrets/db_user.txt
+  db_password:
+    file: ./secrets/db_password.txt
+  db_name:
+    file: ./secrets/db_name.txt
+
+volumes:
+  auth_db_data_local:
+    driver: local

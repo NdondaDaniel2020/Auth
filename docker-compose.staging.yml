@@ -1,0 +1,110 @@
+version: '3.9'
+
+services:
+  app:
+    image: ghcr.io/${GITHUB_REPOSITORY:-ndondaniel2020/auth}:staging
+    container_name: auth_app_staging
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: staging
+      DEBUG: "false"
+      CORS_ALLOWED_ORIGINS: "https://staging.example.com"
+      APP_BASE_URL: "https://staging-api.example.com"
+      DB_ENGINE: "postgresql"
+      DB_HOST: "db"
+      DB_PORT: "5432"
+      DB_NAME_FILE: /run/secrets/db_name
+      REDIS_URL: "redis://redis:6379/0"
+      SMTP_HOST: "${SMTP_HOST}"
+      SMTP_PORT: "${SMTP_PORT:-587}"
+      SMTP_USER: "${SMTP_USER}"
+      SMTP_FROM: "${SMTP_FROM}"
+      SMTP_TLS: "true"
+      GOOGLE_LOGIN_ENABLED: "${GOOGLE_LOGIN_ENABLED:-false}"
+      GOOGLE_REDIRECT_URI: "https://staging-api.example.com/api/auth/google/callback"
+    secrets:
+      - app_secret_key
+      - app_refresh_secret_key
+      - db_user
+      - db_password
+      - db_name
+      - smtp_password
+      - google_client_id
+      - google_client_secret
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  db:
+    image: postgres:16
+    container_name: auth_db_staging
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER_FILE: /run/secrets/db_user
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      POSTGRES_DB_FILE: /run/secrets/db_name
+    secrets:
+      - db_user
+      - db_password
+      - db_name
+    volumes:
+      - auth_db_data_staging:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$(cat /run/secrets/db_user) -d $$(cat /run/secrets/db_name) -h localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+  redis:
+    image: redis:7-alpine
+    container_name: auth_redis_staging
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 64M
+
+secrets:
+  app_secret_key:
+    external: true
+  app_refresh_secret_key:
+    external: true
+  db_user:
+    external: true
+  db_password:
+    external: true
+  db_name:
+    external: true
+  smtp_password:
+    external: true
+  google_client_id:
+    external: true
+  google_client_secret:
+    external: true
+
+volumes:
+  auth_db_data_staging:
+    driver: local
