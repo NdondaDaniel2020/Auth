@@ -196,7 +196,9 @@ class BaseAppSettings(BaseSettings):
 
     # Redis
     REDIS_URL: str = Field(default='', alias='REDIS_URL')
-    REDIS_MAX_CONNECTIONS: int = Field(default=10, alias='REDIS_MAX_CONNECTIONS')
+    REDIS_MAX_CONNECTIONS: int = Field(
+        default=10, alias='REDIS_MAX_CONNECTIONS'
+    )
 
     @model_validator(mode='before')
     @classmethod

@@ -30,21 +30,21 @@ async def init_redis() -> Redis | None:
 
     redis_url = settings.REDIS_URL
     if not redis_url:
-        logger.info("REDIS_URL not set; Redis features disabled")
+        logger.info('REDIS_URL not set; Redis features disabled')
         return None
 
     try:
         _redis_client = redis.from_url(
             redis_url,
-            encoding="utf-8",
+            encoding='utf-8',
             decode_responses=True,
             max_connections=settings.REDIS_MAX_CONNECTIONS,
         )
         await _redis_client.ping()
-        logger.info("Redis connected: %s", redis_url)
+        logger.info('Redis connected: %s', redis_url)
         return _redis_client
     except RedisError as e:
-        logger.warning("Redis connection failed: %s", e)
+        logger.warning('Redis connection failed: %s', e)
         _redis_client = None
         return None
 
@@ -69,6 +69,7 @@ async def redis_lifespan():
 
 # --- Cache helpers ---
 
+
 async def cache_get(key: str) -> Any | None:
     """Get value from cache."""
     client = get_redis_client()
@@ -78,7 +79,7 @@ async def cache_get(key: str) -> Any | None:
         data = await client.get(key)
         return json.loads(data) if data else None
     except RedisError as e:
-        logger.warning("Cache get failed for %s: %s", key, e)
+        logger.warning('Cache get failed for %s: %s', key, e)
         return None
 
 
@@ -91,7 +92,7 @@ async def cache_set(key: str, value: Any, ttl: int = 300) -> bool:
         await client.setex(key, ttl, json.dumps(value))
         return True
     except RedisError as e:
-        logger.warning("Cache set failed for %s: %s", key, e)
+        logger.warning('Cache set failed for %s: %s', key, e)
         return False
 
 
@@ -104,7 +105,7 @@ async def cache_delete(key: str) -> bool:
         await client.delete(key)
         return True
     except RedisError as e:
-        logger.warning("Cache delete failed for %s: %s", key, e)
+        logger.warning('Cache delete failed for %s: %s', key, e)
         return False
 
 
@@ -121,13 +122,16 @@ async def cache_delete_pattern(pattern: str) -> int:
             return await client.delete(*keys)
         return 0
     except RedisError as e:
-        logger.warning("Cache delete pattern failed for %s: %s", pattern, e)
+        logger.warning('Cache delete pattern failed for %s: %s', pattern, e)
         return 0
 
 
 # --- Rate limiter helpers (Redis-backed) ---
 
-async def rate_limit_check(key: str, limit: int, window_seconds: int) -> int | None:
+
+async def rate_limit_check(
+    key: str, limit: int, window_seconds: int
+) -> int | None:
     """
     Check and consume a rate limit slot.
     Returns retry_after seconds if limit exceeded, else None.
@@ -145,31 +149,33 @@ async def rate_limit_check(key: str, limit: int, window_seconds: int) -> int | N
             return max(ttl, 1)
         return None
     except RedisError as e:
-        logger.warning("Rate limit check failed for %s: %s", key, e)
+        logger.warning('Rate limit check failed for %s: %s', key, e)
         return None  # Fail open
 
 
 # --- Session storage (for future WebSocket / multi-device) ---
 
-SESSION_PREFIX = "session:"
+SESSION_PREFIX = 'session:'
 SESSION_TTL = 86400 * 30  # 30 days
 
 
-async def session_store(session_id: str, data: dict[str, Any], ttl: int = SESSION_TTL) -> bool:
+async def session_store(
+    session_id: str, data: dict[str, Any], ttl: int = SESSION_TTL
+) -> bool:
     """Store session data."""
-    return await cache_set(f"{SESSION_PREFIX}{session_id}", data, ttl)
+    return await cache_set(f'{SESSION_PREFIX}{session_id}', data, ttl)
 
 
 async def session_get(session_id: str) -> dict[str, Any] | None:
     """Retrieve session data."""
-    return await cache_get(f"{SESSION_PREFIX}{session_id}")
+    return await cache_get(f'{SESSION_PREFIX}{session_id}')
 
 
 async def session_delete(session_id: str) -> bool:
     """Delete session."""
-    return await cache_delete(f"{SESSION_PREFIX}{session_id}")
+    return await cache_delete(f'{SESSION_PREFIX}{session_id}')
 
 
 async def session_delete_user_sessions(user_id: str) -> int:
     """Delete all sessions for a user."""
-    return await cache_delete_pattern(f"{SESSION_PREFIX}*user_id:{user_id}*")
+    return await cache_delete_pattern(f'{SESSION_PREFIX}*user_id:{user_id}*')
