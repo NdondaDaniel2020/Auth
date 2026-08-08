@@ -86,6 +86,23 @@ def _clear_rate_limiter() -> Iterator[None]:
     request_rate_limiter.clear()
 
 
+@pytest_asyncio.fixture(autouse=True)
+async def _clear_database_session_cache() -> AsyncIterator[None]:
+    from app.db.session import get_engine, get_session_factory
+
+    yield
+
+    if get_engine.cache_info().currsize > 0:
+        try:
+            engine = get_engine()
+            await engine.dispose()
+        except Exception:
+            pass
+
+    get_engine.cache_clear()
+    get_session_factory.cache_clear()
+
+
 @pytest_asyncio.fixture
 async def isolated_session_factory(
     tmp_path: pytest.TempPathFactory,
