@@ -1,14 +1,28 @@
 from __future__ import annotations
 
 import logging
+import os
 from functools import lru_cache
-from typing import Literal
+from typing import Any, Literal
 from urllib.parse import quote_plus
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
+
+
+def _read_secret_file(env_var: str) -> str | None:
+    """Read secret from file if corresponding _FILE env var is set."""
+    file_env = f"{env_var}_FILE"
+    file_path = os.getenv(file_env)
+    if file_path:
+        try:
+            with open(file_path) as f:
+                return f.read().strip()
+        except OSError as e:
+            logger.warning("Could not read secret file %s: %s", file_path, e)
+    return None
 
 
 class EnvironmentSettings(BaseSettings):
@@ -179,6 +193,29 @@ class BaseAppSettings(BaseSettings):
     GOOGLE_CERTS_CACHE_TTL_SECONDS: int = Field(
         default=300, alias='GOOGLE_CERTS_CACHE_TTL_SECONDS'
     )
+
+    @model_validator(mode='before')
+    @classmethod
+    def _load_secrets_from_files(cls, data: Any) -> Any:
+        """Load secret values from files specified via *_FILE environment variables."""
+        if not isinstance(data, dict):
+            return data
+
+        secret_fields = [
+            'SECRET_KEY',
+            'REFRESH_SECRET_KEY',
+            'DB_PASSWORD',
+            'SMTP_PASSWORD',
+            'GOOGLE_CLIENT_SECRET',
+            'ADMIN_PASSWORD',
+            'DB_NAME',
+            'GOOGLE_CLIENT_ID',
+        ]
+        for field in secret_fields:
+            file_value = _read_secret_file(field)
+            if file_value and not data.get(field):
+                data[field] = file_value
+        return data
 
     @property
     def REFRESH_SECRET_KEY_ACTIVE(self) -> str:
