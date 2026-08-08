@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.core.broker import broker_lifespan, get_broker_config_from_settings
 from app.core.config import get_settings
 from app.core.observability import setup_logging
 from app.core.redis import close_redis, init_redis
@@ -37,6 +38,9 @@ async def lifespan(app: FastAPI):
     await init_redis()
     await init_db()
 
-    yield
+    # Start broker if configured
+    broker_config = get_broker_config_from_settings()
+    async with broker_lifespan(broker_config):
+        yield
     await close_redis()
     await engine.dispose()
