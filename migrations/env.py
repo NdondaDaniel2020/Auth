@@ -78,6 +78,13 @@ def run_migrations_online() -> None:
     config.set_main_option("sqlalchemy.url", url)
 
     parsed_url = make_url(url)
+    if parsed_url.drivername.startswith("sqlite"):
+        db_path = parsed_url.database
+        if db_path and db_path != ":memory:":
+            import os
+            from pathlib import Path
+            os.makedirs(Path(db_path).parent, exist_ok=True)
+
     is_async_driver = parsed_url.drivername.endswith("+asyncpg") or parsed_url.drivername.startswith(
         "sqlite+aiosqlite"
     )
