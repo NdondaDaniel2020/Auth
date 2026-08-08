@@ -8,7 +8,7 @@ from app.db.session import get_engine, get_session_factory
 async def test_engine_connection():
     engine = get_engine()
     async with engine.connect() as conn:
-        result = await conn.execute(text("SELECT 1"))
+        result = await conn.execute(text('SELECT 1'))
         assert result.scalar() == 1
 
 
@@ -19,7 +19,7 @@ async def test_session_close_and_pool_release():
     # Use a session context to ensure the session is closed at exit
     session_factory = get_session_factory()
     async with session_factory() as session:
-        await session.execute(text("SELECT 1"))
+        await session.execute(text('SELECT 1'))
 
     # After the session context exits, the pool should not have checked-out connections
     pool = engine.sync_engine.pool

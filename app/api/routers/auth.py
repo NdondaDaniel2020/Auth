@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.api.dependencies.database import SessionDep
+from app.api.dependencies.rate_limit import rate_limit
 from app.schemas.auth import (
     EmailVerificationConfirm,
     LoginRequest,
@@ -25,6 +26,7 @@ router = APIRouter(prefix='/auth', tags=['auth'])
     '/register',
     response_model=UserRead,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(rate_limit('RATE_LIMIT_REGISTER'))],
 )
 async def register(data: UserCreate, db: SessionDep) -> UserRead:
     user = await user_service.register_user(db, data)
@@ -66,16 +68,25 @@ async def refresh(data: RefreshRequest, db: SessionDep) -> Token:
 
 
 @router.post('/logout', status_code=status.HTTP_204_NO_CONTENT)
-async def logout(data: RefreshRequest, db: SessionDep) -> Response:
-    await auth_service.logout(db, data.refresh_token)
+async def logout(
+    data: RefreshRequest, request: Request, db: SessionDep
+) -> Response:
+    client_ip = request.client.host if request.client else None
+    await auth_service.logout(db, data.refresh_token, client_ip=client_ip)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.post('/password-reset/request')
+@router.post(
+    '/password-reset/request',
+    dependencies=[Depends(rate_limit('RATE_LIMIT_PASSWORD_RESET'))],
+)
 async def request_password_reset(
-    data: PasswordResetRequest, db: SessionDep
+    data: PasswordResetRequest, request: Request, db: SessionDep
 ) -> dict[str, str]:
-    await auth_service.request_password_reset(db, data.email)
+    client_ip = request.client.host if request.client else None
+    await auth_service.request_password_reset(
+        db, data.email, client_ip=client_ip
+    )
     return {
         'message': 'If the e-mail is registered, a password reset link has been sent.'
     }
@@ -83,21 +94,28 @@ async def request_password_reset(
 
 @router.post('/password-reset/confirm')
 async def confirm_password_reset(
-    data: PasswordResetConfirm, db: SessionDep
+    data: PasswordResetConfirm, request: Request, db: SessionDep
 ) -> dict[str, str]:
-    await auth_service.reset_password(db, data.token, data.new_password)
+    client_ip = request.client.host if request.client else None
+    await auth_service.reset_password(
+        db, data.token, data.new_password, client_ip=client_ip
+    )
     return {'message': 'Password has been reset successfully.'}
 
 
 @router.post('/verify-email')
 async def verify_email(
-    data: EmailVerificationConfirm, db: SessionDep
+    data: EmailVerificationConfirm, request: Request, db: SessionDep
 ) -> dict[str, str]:
-    await auth_service.verify_email(db, data.token)
+    client_ip = request.client.host if request.client else None
+    await auth_service.verify_email(db, data.token, client_ip=client_ip)
     return {'message': 'E-mail verified successfully.'}
 
 
-@router.post('/verify-email/resend')
+@router.post(
+    '/verify-email/resend',
+    dependencies=[Depends(rate_limit('RATE_LIMIT_EMAIL_RESEND'))],
+)
 async def resend_verification(
     data: ResendVerificationRequest, db: SessionDep
 ) -> dict[str, str]:

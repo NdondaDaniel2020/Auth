@@ -12,7 +12,9 @@ from tests.conftest import run_in_isolated_db
 
 
 def _register(
-    api_client, email: str = 'login@example.com', password: str = 'password123'
+    api_client,
+    email: str = 'login@example.com',
+    password: str = 'T3st!Passw0rd',
 ):
     response = api_client.post(
         '/auth/register',
@@ -27,7 +29,7 @@ def test_login_success_returns_valid_tokens(api_client) -> None:
 
     response = api_client.post(
         '/auth/login',
-        json={'email': 'login@example.com', 'password': 'password123'},
+        json={'email': 'login@example.com', 'password': 'T3st!Passw0rd'},
     )
     assert response.status_code == 200
 
@@ -43,6 +45,45 @@ def test_login_success_returns_valid_tokens(api_client) -> None:
     refresh_payload = decode_refresh_token(body['refresh_token'])
     assert refresh_payload['sub'] == user['id']
     assert refresh_payload['jti']
+
+
+def test_login_token_contains_expiration_claim(api_client) -> None:
+    from datetime import UTC, datetime
+
+    _register(api_client)
+    response = api_client.post(
+        '/auth/login',
+        json={'email': 'login@example.com', 'password': 'T3st!Passw0rd'},
+    )
+    assert response.status_code == 200
+
+    payload = decode_access_token(response.json()['access_token'])
+    exp = payload['exp']
+    assert isinstance(exp, int)
+    assert exp > int(datetime.now(UTC).timestamp())
+
+
+def test_login_missing_fields_rejected(api_client) -> None:
+    no_email = api_client.post(
+        '/auth/login', json={'password': 'T3st!Passw0rd'}
+    )
+    assert no_email.status_code == 422
+
+    no_password = api_client.post(
+        '/auth/login', json={'email': 'login@example.com'}
+    )
+    assert no_password.status_code == 422
+
+    empty = api_client.post('/auth/login', json={})
+    assert empty.status_code == 422
+
+
+def test_login_invalid_email_format_rejected(api_client) -> None:
+    response = api_client.post(
+        '/auth/login',
+        json={'email': 'not-an-email', 'password': 'T3st!Passw0rd'},
+    )
+    assert response.status_code == 422
 
 
 def test_login_wrong_password_rejected(api_client) -> None:
@@ -61,7 +102,7 @@ def test_login_form_success_returns_valid_tokens(api_client) -> None:
 
     response = api_client.post(
         '/auth/login-form',
-        data={'username': 'form@example.com', 'password': 'password123'},
+        data={'username': 'form@example.com', 'password': 'T3st!Passw0rd'},
     )
     assert response.status_code == 200
 
@@ -89,7 +130,7 @@ def test_login_form_wrong_password_rejected(api_client) -> None:
 def test_login_form_unknown_email_rejected(api_client) -> None:
     response = api_client.post(
         '/auth/login-form',
-        data={'username': 'nobody@example.com', 'password': 'password123'},
+        data={'username': 'nobody@example.com', 'password': 'T3st!Passw0rd'},
     )
     assert response.status_code == 401
     assert response.json()['error']['type'] == 'InvalidCredentialsError'
@@ -99,7 +140,7 @@ def test_login_form_unknown_email_rejected(api_client) -> None:
 def test_login_unknown_email_rejected(api_client) -> None:
     response = api_client.post(
         '/auth/login',
-        json={'email': 'nobody@example.com', 'password': 'password123'},
+        json={'email': 'nobody@example.com', 'password': 'T3st!Passw0rd'},
     )
     assert response.status_code == 401
     assert response.json()['error']['type'] == 'InvalidCredentialsError'
@@ -112,7 +153,7 @@ def test_login_inactive_user_rejected(api_client, isolated_db_path) -> None:
             session.add(
                 User(
                     email='inactive@example.com',
-                    hashed_password=hash_password('password123'),
+                    hashed_password=hash_password('T3st!Passw0rd'),
                     is_active=False,
                 )
             )
@@ -122,7 +163,7 @@ def test_login_inactive_user_rejected(api_client, isolated_db_path) -> None:
 
     response = api_client.post(
         '/auth/login',
-        json={'email': 'inactive@example.com', 'password': 'password123'},
+        json={'email': 'inactive@example.com', 'password': 'T3st!Passw0rd'},
     )
     assert response.status_code == 401
 
@@ -139,7 +180,7 @@ def test_login_blocks_after_repeated_failures(api_client) -> None:
 
     blocked = api_client.post(
         '/auth/login',
-        json={'email': 'brute@example.com', 'password': 'password123'},
+        json={'email': 'brute@example.com', 'password': 'T3st!Passw0rd'},
     )
     assert blocked.status_code == 429
     assert blocked.json()['error']['type'] == 'TooManyLoginAttemptsError'
@@ -164,7 +205,10 @@ def test_successful_login_resets_failed_attempts(api_client) -> None:
 
     ok = api_client.post(
         '/auth/login',
-        json={'email': 'reset-counter@example.com', 'password': 'password123'},
+        json={
+            'email': 'reset-counter@example.com',
+            'password': 'T3st!Passw0rd',
+        },
     )
     assert ok.status_code == 200
 

@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+import app.models  # register models on Base.metadata
 from app.db.base import Base
 
 os.environ.setdefault('ENVIRONMENT', 'test')
@@ -76,11 +77,30 @@ def client(app: FastAPI) -> Iterator[TestClient]:
 
 @pytest.fixture(autouse=True)
 def _clear_rate_limiter() -> Iterator[None]:
-    from app.core.rate_limiter import rate_limiter
+    from app.core.rate_limiter import rate_limiter, request_rate_limiter
 
     rate_limiter.clear()
+    request_rate_limiter.clear()
     yield
     rate_limiter.clear()
+    request_rate_limiter.clear()
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _clear_database_session_cache() -> AsyncIterator[None]:
+    from app.db.session import get_engine, get_session_factory
+
+    yield
+
+    if get_engine.cache_info().currsize > 0:
+        try:
+            engine = get_engine()
+            await engine.dispose()
+        except Exception:  # noqa: BLE001, S110
+            pass
+
+    get_engine.cache_clear()
+    get_session_factory.cache_clear()
 
 
 @pytest_asyncio.fixture
@@ -156,6 +176,68 @@ def api_client(
     app = FastAPI()
     register_exception_handlers(app)
     app.include_router(auth_router)
+
+    async def _override_get_db() -> AsyncIterator[AsyncSession]:
+        async with isolated_session_factory() as session:
+            yield session
+
+    app.dependency_overrides[get_db] = _override_get_db
+
+    with TestClient(app) as test_client:
+        yield test_client
+
+
+@pytest.fixture
+def full_client(
+    isolated_session_factory: async_sessionmaker[AsyncSession],
+) -> Iterator[TestClient]:
+    """FastAPI TestClient with the auth + users routers and an isolated DB.
+
+    Shared by the EPIC-7 suites that need both public auth endpoints and
+    protected user-management endpoints (RBAC, access-denied, integration).
+    """
+    from fastapi import FastAPI
+
+    from app.api.routers.auth import router as auth_router
+    from app.api.routers.users import router as users_router
+    from app.core.error_handlers import register_exception_handlers
+    from app.db.session import get_db
+
+    app = FastAPI()
+    register_exception_handlers(app)
+    app.include_router(auth_router)
+    app.include_router(users_router)
+
+    async def _override_get_db() -> AsyncIterator[AsyncSession]:
+        async with isolated_session_factory() as session:
+            yield session
+
+    app.dependency_overrides[get_db] = _override_get_db
+
+    with TestClient(app) as test_client:
+        yield test_client
+
+
+@pytest.fixture
+def google_client(
+    isolated_session_factory: async_sessionmaker[AsyncSession],
+) -> Iterator[TestClient]:
+    """FastAPI TestClient with the auth + google-auth routers and an isolated DB.
+
+    External calls to Google are not made: ``google_auth_service`` is
+    monkeypatched per-test (see ``tests/test_google_auth.py``).
+    """
+    from fastapi import FastAPI
+
+    from app.api.routers.auth import router as auth_router
+    from app.api.routers.google_auth import router as google_router
+    from app.core.error_handlers import register_exception_handlers
+    from app.db.session import get_db
+
+    app = FastAPI()
+    register_exception_handlers(app)
+    app.include_router(auth_router)
+    app.include_router(google_router)
 
     async def _override_get_db() -> AsyncIterator[AsyncSession]:
         async with isolated_session_factory() as session:

@@ -1,0 +1,50 @@
+name: Smoke Test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: smoke-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Install Python
+        run: uv python install
+
+      - name: Cache dependencies
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Sync dependencies
+        run: uv sync --frozen --group dev
+
+      - name: Apply migrations
+        run: uv run alembic upgrade head
+
+      - name: Start server
+        run: |
+          uv run uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000 &
+          SERVER_PID=$!
+          echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+          sleep 3
+
+      - name: Health check
+        run: |
+          curl -sf http://localhost:8000/api/health | jq -e '.status == "ok"'
+
+      - name: Stop server
+        if: always()
+        run: kill $SERVER_PID

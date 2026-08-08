@@ -10,7 +10,7 @@ from app.core.security import create_refresh_token
 def _login(
     api_client,
     email: str = 'refresh@example.com',
-    password: str = 'password123',
+    password: str = 'T3st!Passw0rd',
 ):
     assert (
         api_client.post(

@@ -16,7 +16,7 @@ from app.models.user import User, user_roles
 
 logger = logging.getLogger(__name__)
 
-pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
+pwd_context = CryptContext(schemes=['argon2'], deprecated='auto')
 
 
 def get_password_hash(password: str) -> str:
@@ -24,21 +24,23 @@ def get_password_hash(password: str) -> str:
 
 
 DEFAULT_ROLES: tuple[tuple[str, str], ...] = (
-    ("admin", "Administrative role with full access"),
-    ("user", "Default authenticated user role"),
+    ('admin', 'Administrative role with full access'),
+    ('user', 'Default authenticated user role'),
 )
 
 DEFAULT_PERMISSIONS: tuple[tuple[str, str, list[str]], ...] = (
-    ("users:create", "Create users",  ["admin"]),
-    ("users:read",   "Read users",    ["admin", "user"]),
-    ("users:update", "Update users",  ["admin"]),
-    ("users:delete", "Delete users",  ["admin"]),
-    ("roles:read",   "Read roles",    ["admin"]),
-    ("roles:manage", "Manage roles",  ["admin"]),
+    ('users:create', 'Create users', ['admin']),
+    ('users:read', 'Read users', ['admin', 'user']),
+    ('users:update', 'Update users', ['admin']),
+    ('users:delete', 'Delete users', ['admin']),
+    ('roles:read', 'Read roles', ['admin']),
+    ('roles:manage', 'Manage roles', ['admin']),
 )
 
 
-async def _get_or_create_permission(session, code: str, description: str) -> Permission:
+async def _get_or_create_permission(
+    session, code: str, description: str
+) -> Permission:
     """Return existing permission or create a new one (idempotent)."""
     result = await session.execute(
         select(Permission).where(Permission.code == code)
@@ -47,7 +49,7 @@ async def _get_or_create_permission(session, code: str, description: str) -> Per
     if perm is None:
         perm = Permission(code=code, description=description)
         session.add(perm)
-        logger.debug("Created permission: %s", code)
+        logger.debug('Created permission: %s', code)
     return perm
 
 
@@ -62,7 +64,7 @@ async def _get_or_create_role(session, name: str, description: str) -> Role:
     if role is None:
         role = Role(name=name, description=description)
         session.add(role)
-        logger.debug("Created role: %s", name)
+        logger.debug('Created role: %s', name)
     return role
 
 
@@ -91,7 +93,7 @@ async def _get_or_create_user(
             is_active=is_active,
         )
         session.add(user)
-        logger.debug("Created user: %s", email)
+        logger.debug('Created user: %s', email)
     return user
 
 
@@ -99,8 +101,8 @@ async def seed_roles_and_permissions(
     roles: Iterable[tuple[str, str]] = DEFAULT_ROLES,
     permissions: Iterable[tuple[str, str, list[str]]] = DEFAULT_PERMISSIONS,
     *,
-    admin_email: str = "admin@example.com",
-    admin_password: str = "admin123",
+    admin_email: str = 'admin@example.com',
+    admin_password: str = 'admin123',
 ) -> None:
     # Materialise the iterables once so we can iterate them multiple times
     roles_list = list(roles)
@@ -146,7 +148,7 @@ async def seed_roles_and_permissions(
 
         await session.commit()
         logger.info(
-            "Seeded %d role(s) and %d permission(s).",
+            'Seeded %d role(s) and %d permission(s).',
             len(role_map),
             len(permissions_list),
         )
@@ -154,24 +156,24 @@ async def seed_roles_and_permissions(
     # 3. Seed admin user in a fresh session (roles already committed above)
     async with session_factory() as session:
         admin_role_id_result = await session.execute(
-            select(Role.id).where(Role.name == "admin")
+            select(Role.id).where(Role.name == 'admin')
         )
         admin_role_id = admin_role_id_result.scalar_one_or_none()
 
         if admin_role_id is None:
-            logger.warning("Admin role not found; skipping admin user seed.")
+            logger.warning('Admin role not found; skipping admin user seed.')
             return
 
-        result = await session.execute(
+        admin_user_result = await session.execute(
             select(User).where(User.email == admin_email)
         )
-        admin_user = result.scalar_one_or_none()
+        admin_user = admin_user_result.scalar_one_or_none()
 
         if admin_user is None:
             admin_user = User(
                 email=admin_email,
                 hashed_password=get_password_hash(admin_password),
-                full_name="Administrator",
+                full_name='Administrator',
                 is_superuser=True,
                 is_active=True,
             )
@@ -186,7 +188,7 @@ async def seed_roles_and_permissions(
         )
         await session.execute(stmt)
         await session.commit()
-        logger.info("Admin user seeded: %s", admin_email)
+        logger.info('Admin user seeded: %s', admin_email)
 
 
 async def init_db() -> None:
@@ -201,13 +203,13 @@ async def init_db() -> None:
         await connection.run_sync(Base.metadata.create_all)
 
     if settings.RUN_SEED_ON_STARTUP:
-        logger.info("RUN_SEED_ON_STARTUP=true — running seed…")
+        logger.info('RUN_SEED_ON_STARTUP=true — running seed…')
         await seed_roles_and_permissions(
             admin_email=settings.ADMIN_EMAIL,
             admin_password=settings.ADMIN_PASSWORD,
         )
     else:
-        logger.debug("RUN_SEED_ON_STARTUP=false — skipping seed.")
+        logger.debug('RUN_SEED_ON_STARTUP=false — skipping seed.')
 
 
 async def _main() -> None:
@@ -217,16 +219,18 @@ async def _main() -> None:
     logging.basicConfig(level=logging.INFO)
     settings = get_settings()
 
-    logger.info("Running seed standalone (env=%s)…", EnvironmentSettings().ENVIRONMENT)
+    logger.info(
+        'Running seed standalone (env=%s)…', EnvironmentSettings().ENVIRONMENT
+    )
     await seed_roles_and_permissions(
         admin_email=settings.ADMIN_EMAIL,
         admin_password=settings.ADMIN_PASSWORD,
     )
-    logger.info("Seed complete.")
+    logger.info('Seed complete.')
 
     engine = get_engine()
     await engine.dispose()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     asyncio.run(_main())

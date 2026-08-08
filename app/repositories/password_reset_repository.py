@@ -13,7 +13,7 @@ class PasswordResetTokenRepository(BaseRepository[PasswordResetToken]):
     def __init__(self, session):
         super().__init__(session, PasswordResetToken)
 
-    async def create(
+    async def create(  # type: ignore[override]
         self,
         *,
         user_id: str,

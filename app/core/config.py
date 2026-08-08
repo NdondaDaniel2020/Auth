@@ -5,7 +5,7 @@ from functools import lru_cache
 from typing import Literal
 from urllib.parse import quote_plus
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
@@ -36,7 +36,22 @@ class BaseAppSettings(BaseSettings):
         default='sqlite+aiosqlite:///./.data/app.db',
         alias='DATABASE_URL',
     )
-    CORS_ORIGINS: str = Field(default='*', alias='CORS_ORIGINS')
+    CORS_ALLOWED_ORIGINS: str = Field(
+        default='http://localhost:3000,http://localhost:5173',
+        alias='CORS_ALLOWED_ORIGINS',
+    )
+    CORS_ALLOW_CREDENTIALS: bool = Field(
+        default=True,
+        alias='CORS_ALLOW_CREDENTIALS',
+    )
+    CORS_ALLOWED_METHODS: str = Field(
+        default='GET,POST,PUT,PATCH,DELETE,OPTIONS,HEAD',
+        alias='CORS_ALLOWED_METHODS',
+    )
+    CORS_ALLOWED_HEADERS: str = Field(
+        default='Authorization,Content-Type,Origin,Accept',
+        alias='CORS_ALLOWED_HEADERS',
+    )
     SECRET_KEY: str = Field(
         default='dev-only-secret-change-me',
         alias='SECRET_KEY',
@@ -62,6 +77,30 @@ class BaseAppSettings(BaseSettings):
         default=8,
         alias='PASSWORD_MIN_LENGTH',
     )
+    PASSWORD_MAX_LENGTH: int = Field(
+        default=128,
+        alias='PASSWORD_MAX_LENGTH',
+    )
+    PASSWORD_REQUIRE_UPPERCASE: bool = Field(
+        default=True,
+        alias='PASSWORD_REQUIRE_UPPERCASE',
+    )
+    PASSWORD_REQUIRE_LOWERCASE: bool = Field(
+        default=True,
+        alias='PASSWORD_REQUIRE_LOWERCASE',
+    )
+    PASSWORD_REQUIRE_DIGIT: bool = Field(
+        default=True,
+        alias='PASSWORD_REQUIRE_DIGIT',
+    )
+    PASSWORD_REQUIRE_SPECIAL: bool = Field(
+        default=True,
+        alias='PASSWORD_REQUIRE_SPECIAL',
+    )
+    PASSWORD_REJECT_COMMON: bool = Field(
+        default=True,
+        alias='PASSWORD_REJECT_COMMON',
+    )
     LOGIN_MAX_ATTEMPTS: int = Field(
         default=5,
         alias='LOGIN_MAX_ATTEMPTS',
@@ -73,6 +112,22 @@ class BaseAppSettings(BaseSettings):
     LOGIN_BLOCK_DURATION_MINUTES: int = Field(
         default=30,
         alias='LOGIN_BLOCK_DURATION_MINUTES',
+    )
+    RATE_LIMIT_DEFAULT: str = Field(
+        default='60/minute',
+        alias='RATE_LIMIT_DEFAULT',
+    )
+    RATE_LIMIT_REGISTER: str = Field(
+        default='10/minute',
+        alias='RATE_LIMIT_REGISTER',
+    )
+    RATE_LIMIT_PASSWORD_RESET: str = Field(
+        default='5/minute',
+        alias='RATE_LIMIT_PASSWORD_RESET',
+    )
+    RATE_LIMIT_EMAIL_RESEND: str = Field(
+        default='3/minute',
+        alias='RATE_LIMIT_EMAIL_RESEND',
     )
     PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = Field(
         default=30,
@@ -95,9 +150,40 @@ class BaseAppSettings(BaseSettings):
     SMTP_FROM: str = Field(default='', alias='SMTP_FROM')
     SMTP_TLS: bool = Field(default=True, alias='SMTP_TLS')
 
+    # Google OAuth 2.0 / OpenID Connect
+    GOOGLE_LOGIN_ENABLED: bool = Field(
+        default=False, alias='GOOGLE_LOGIN_ENABLED'
+    )
+    GOOGLE_CLIENT_ID: str = Field(default='', alias='GOOGLE_CLIENT_ID')
+    GOOGLE_CLIENT_SECRET: str = Field(default='', alias='GOOGLE_CLIENT_SECRET')
+    GOOGLE_REDIRECT_URI: str = Field(default='', alias='GOOGLE_REDIRECT_URI')
+    GOOGLE_AUTH_URL: str = Field(
+        default='https://accounts.google.com/o/oauth2/v2/auth',
+        alias='GOOGLE_AUTH_URL',
+    )
+    GOOGLE_TOKEN_URL: str = Field(
+        default='https://oauth2.googleapis.com/token',
+        alias='GOOGLE_TOKEN_URL',
+    )
+    GOOGLE_CERTS_URL: str = Field(
+        default='https://www.googleapis.com/oauth2/v3/certs',
+        alias='GOOGLE_CERTS_URL',
+    )
+    GOOGLE_ISSUER: str = Field(
+        default='https://accounts.google.com',
+        alias='GOOGLE_ISSUER',
+    )
+    GOOGLE_STATE_TTL_MINUTES: int = Field(
+        default=10, alias='GOOGLE_STATE_TTL_MINUTES'
+    )
+    GOOGLE_CERTS_CACHE_TTL_SECONDS: int = Field(
+        default=300, alias='GOOGLE_CERTS_CACHE_TTL_SECONDS'
+    )
+
     @property
     def REFRESH_SECRET_KEY_ACTIVE(self) -> str:
         return self.REFRESH_SECRET_KEY or self.SECRET_KEY
+
     DB_ENGINE: str = Field(default='', alias='DB_ENGINE')
     DB_USER: str = Field(default='', alias='DB_USER')
     DB_PASSWORD: str = Field(default='', alias='DB_PASSWORD')
@@ -106,19 +192,37 @@ class BaseAppSettings(BaseSettings):
     DB_NAME: str = Field(default='', alias='DB_NAME')
 
     # Seed configuration
-    RUN_SEED_ON_STARTUP: bool = Field(default=False, alias='RUN_SEED_ON_STARTUP')
+    RUN_SEED_ON_STARTUP: bool = Field(
+        default=False, alias='RUN_SEED_ON_STARTUP'
+    )
     ADMIN_EMAIL: str = Field(default='admin@example.com', alias='ADMIN_EMAIL')
     ADMIN_PASSWORD: str = Field(default='admin123', alias='ADMIN_PASSWORD')
 
     @property
-    def CORS_ORIGINS_LIST(self) -> list[str]:
-        if self.CORS_ORIGINS.strip() == '*':
+    def CORS_ALLOWED_ORIGINS_LIST(self) -> list[str]:
+        if self.CORS_ALLOWED_ORIGINS.strip() == '*':
             return ['*']
 
         return [
             origin.strip()
-            for origin in self.CORS_ORIGINS.split(',')
+            for origin in self.CORS_ALLOWED_ORIGINS.split(',')
             if origin.strip()
+        ]
+
+    @property
+    def CORS_ALLOWED_METHODS_LIST(self) -> list[str]:
+        return [
+            method.strip().upper()
+            for method in self.CORS_ALLOWED_METHODS.split(',')
+            if method.strip()
+        ]
+
+    @property
+    def CORS_ALLOWED_HEADERS_LIST(self) -> list[str]:
+        return [
+            header.strip()
+            for header in self.CORS_ALLOWED_HEADERS.split(',')
+            if header.strip()
         ]
 
     def build_database_url(self) -> str:
@@ -155,14 +259,14 @@ class BaseAppSettings(BaseSettings):
             user = quote_plus(self.DB_USER) if self.DB_USER else ''
             pwd = quote_plus(self.DB_PASSWORD) if self.DB_PASSWORD else ''
             host = self.DB_HOST or 'localhost'
-            port = f":{self.DB_PORT}" if self.DB_PORT else ''
+            port = f':{self.DB_PORT}' if self.DB_PORT else ''
 
             auth = ''
             if user or pwd:
-                auth = f"{user}:{pwd}@"
+                auth = f'{user}:{pwd}@'
 
             dbname = self.DB_NAME or ''
-            return f"{scheme}://{auth}{host}{port}/{dbname}"
+            return f'{scheme}://{auth}{host}{port}/{dbname}'
 
         return self.DATABASE_URL
 
@@ -177,7 +281,6 @@ class DevelopmentSettings(BaseAppSettings):
         default='sqlite+aiosqlite:///./.data/app.db',
         alias='DATABASE_URL',
     )
-    CORS_ORIGINS: str = Field(default='*', alias='CORS_ORIGINS')
     SECRET_KEY: str = Field(
         default='dev-only-secret-change-me',
         alias='SECRET_KEY',
@@ -194,7 +297,13 @@ class TestSettings(BaseAppSettings):
         default='sqlite+aiosqlite:///./.data/test.db',
         alias='DATABASE_URL',
     )
-    CORS_ORIGINS: str = Field(default='*', alias='CORS_ORIGINS')
+    CORS_ALLOWED_ORIGINS: str = Field(
+        default='*', alias='CORS_ALLOWED_ORIGINS'
+    )
+    CORS_ALLOW_CREDENTIALS: bool = Field(
+        default=False,
+        alias='CORS_ALLOW_CREDENTIALS',
+    )
     SECRET_KEY: str = Field(
         default='test-only-secret-change-me',
         alias='SECRET_KEY',
@@ -205,15 +314,29 @@ class ProductionSettings(BaseAppSettings):
     model_config = SettingsConfigDict(env_file=None, extra='ignore')
 
     DATABASE_URL: str = Field(min_length=1, alias='DATABASE_URL')
-    CORS_ORIGINS: str = Field(min_length=1, alias='CORS_ORIGINS')
+    CORS_ALLOWED_ORIGINS: str = Field(
+        min_length=1, alias='CORS_ALLOWED_ORIGINS'
+    )
     SECRET_KEY: str = Field(min_length=1, alias='SECRET_KEY')
+
+    @model_validator(mode='after')
+    def _reject_wildcard_with_credentials(self) -> ProductionSettings:
+        if (
+            '*' in self.CORS_ALLOWED_ORIGINS_LIST
+            and self.CORS_ALLOW_CREDENTIALS
+        ):
+            raise ValueError(
+                "CORS_ALLOWED_ORIGINS cannot be '*' when "
+                'CORS_ALLOW_CREDENTIALS is enabled'
+            )
+        return self
 
 
 @lru_cache(maxsize=1)
 def get_settings() -> BaseAppSettings:
     environment = EnvironmentSettings().ENVIRONMENT
 
-    settings_map = {
+    settings_map: dict[str, type[BaseAppSettings]] = {
         'development': DevelopmentSettings,
         'test': TestSettings,
         'production': ProductionSettings,
@@ -228,18 +351,24 @@ def get_settings() -> BaseAppSettings:
     try:
         settings.DATABASE_URL = settings.build_database_url()
     except Exception:
-        logger.warning('Could not build DATABASE_URL from DB_* parts', exc_info=True)
+        logger.warning(
+            'Could not build DATABASE_URL from DB_* parts', exc_info=True
+        )
 
     try:
         data = settings.model_dump()
     except Exception:
-        logger.warning('Could not dump settings; falling back to __dict__', exc_info=True)
+        logger.warning(
+            'Could not dump settings; falling back to __dict__', exc_info=True
+        )
         data = getattr(settings, '__dict__', {})
 
     for key, value in data.items():
         try:
             setattr(settings, key.upper(), value)
         except Exception:
-            logger.debug('Could not set attribute %r on settings', key, exc_info=True)
+            logger.debug(
+                'Could not set attribute %r on settings', key, exc_info=True
+            )
 
     return settings

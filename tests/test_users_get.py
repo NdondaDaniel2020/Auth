@@ -1,4 +1,5 @@
 """Endpoint tests for GET /users/{user_id} — #32 consulta de usuário (admin)."""
+
 from __future__ import annotations
 
 import pytest
@@ -42,7 +43,9 @@ def _seed_admin(isolated_db_path: str) -> str:
     async def _coro(factory):
         async with factory() as session:
             role = Role(name='admin')
-            user = User(email='admin@example.com', hashed_password='not-a-real-hash')
+            user = User(
+                email='admin@example.com', hashed_password='not-a-real-hash'
+            )
             user.roles.append(role)
             session.add(user)
             await session.commit()
@@ -106,17 +109,22 @@ def test_nonexistent_user_returns_404(admin_client, isolated_db_path) -> None:
     token = create_access_token({'sub': admin_id})
 
     response = admin_client.get(
-        '/users/00000000-0000-0000-0000-000000000000', headers=_auth_headers(token)
+        '/users/00000000-0000-0000-0000-000000000000',
+        headers=_auth_headers(token),
     )
     assert response.status_code == 404
     assert response.json()['error']['code'] == 'USER_NOT_FOUND'
 
 
-def test_invalid_user_id_format_returns_422(admin_client, isolated_db_path) -> None:
+def test_invalid_user_id_format_returns_422(
+    admin_client, isolated_db_path
+) -> None:
     admin_id = _seed_admin(isolated_db_path)
     token = create_access_token({'sub': admin_id})
 
-    response = admin_client.get('/users/not-a-uuid', headers=_auth_headers(token))
+    response = admin_client.get(
+        '/users/not-a-uuid', headers=_auth_headers(token)
+    )
     assert response.status_code == 422
 
 
@@ -143,7 +151,9 @@ def test_unauthenticated_receives_401(admin_client, isolated_db_path) -> None:
     assert response.json()['error']['code'] == 'NOT_AUTHENTICATED'
 
 
-def test_response_has_no_sensitive_fields(admin_client, isolated_db_path) -> None:
+def test_response_has_no_sensitive_fields(
+    admin_client, isolated_db_path
+) -> None:
     admin_id = _seed_admin(isolated_db_path)
     target_id = _seed_user(
         isolated_db_path, email='secret@example.com', full_name='Secret'

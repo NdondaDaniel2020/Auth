@@ -52,6 +52,16 @@ class UserNotFoundError(NotFoundError):
         self.code = 'USER_NOT_FOUND'
 
 
+class RoleNotFoundError(NotFoundError):
+    def __init__(
+        self,
+        message: str = 'Role not found',
+        payload: dict[str, Any] | None = None,
+    ):
+        super().__init__(message=message, payload=payload)
+        self.code = 'ROLE_NOT_FOUND'
+
+
 class PermissionDeniedError(AppError):
     def __init__(
         self,
@@ -94,6 +104,26 @@ class DomainValidationError(AppError):
             payload=payload,
             code='VALIDATION_ERROR',
         )
+
+
+class SelfDeactivationError(BusinessRuleError):
+    def __init__(
+        self,
+        message: str = 'You cannot deactivate your own account',
+        payload: dict[str, Any] | None = None,
+    ):
+        super().__init__(message=message, payload=payload)
+        self.code = 'SELF_DEACTIVATION_NOT_ALLOWED'
+
+
+class SelfRoleRemovalError(BusinessRuleError):
+    def __init__(
+        self,
+        message: str = 'You cannot remove your own admin role',
+        payload: dict[str, Any] | None = None,
+    ):
+        super().__init__(message=message, payload=payload)
+        self.code = 'SELF_ROLE_REMOVAL_NOT_ALLOWED'
 
 
 class EmailAlreadyExistsError(AppError):
@@ -227,4 +257,65 @@ class TooManyLoginAttemptsError(AppError):
             payload=payload,
             headers=headers,
             code='TOO_MANY_ATTEMPTS',
+        )
+
+
+class RateLimitExceededError(AppError):
+    def __init__(
+        self,
+        message: str = 'Too many requests. Try again later.',
+        payload: dict[str, Any] | None = None,
+        retry_after: int | None = None,
+    ):
+        headers = {}
+        if retry_after is not None:
+            headers['Retry-After'] = str(retry_after)
+        super().__init__(
+            message=message,
+            status_code=429,
+            payload=payload,
+            headers=headers,
+            code='RATE_LIMIT_EXCEEDED',
+        )
+
+
+class GoogleLoginDisabledError(AppError):
+    def __init__(
+        self,
+        message: str = 'Google login is not enabled',
+        payload: dict[str, Any] | None = None,
+    ):
+        super().__init__(
+            message=message,
+            status_code=403,
+            payload=payload,
+            code='GOOGLE_LOGIN_DISABLED',
+        )
+
+
+class InvalidGoogleTokenError(AppError):
+    def __init__(
+        self,
+        message: str = 'Invalid Google token',
+        payload: dict[str, Any] | None = None,
+    ):
+        super().__init__(
+            message=message,
+            status_code=400,
+            payload=payload,
+            code='INVALID_GOOGLE_TOKEN',
+        )
+
+
+class GoogleAuthError(AppError):
+    def __init__(
+        self,
+        message: str = 'Google authentication service error',
+        payload: dict[str, Any] | None = None,
+    ):
+        super().__init__(
+            message=message,
+            status_code=502,
+            payload=payload,
+            code='GOOGLE_AUTH_ERROR',
         )

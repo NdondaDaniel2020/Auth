@@ -1,0 +1,65 @@
+name: Migrations
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: migrations-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ENVIRONMENT: test
+  DATABASE_URL: postgresql+asyncpg://auth:auth@localhost:5432/auth_test
+
+jobs:
+  migrations:
+    name: Migration checks
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: auth
+          POSTGRES_PASSWORD: auth
+          POSTGRES_DB: auth_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U auth -d auth_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Install Python
+        run: uv python install
+
+      - name: Cache dependencies
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Sync dependencies
+        run: uv sync --frozen --group dev
+
+      - name: Verify single migration head
+        run: uv run alembic heads
+
+      - name: Apply migrations
+        run: uv run alembic upgrade head
+
+      - name: Verify no schema drift
+        run: uv run alembic check
+
+      - name: Rollback and re-apply
+        run: |
+          uv run alembic downgrade base
+          uv run alembic upgrade head

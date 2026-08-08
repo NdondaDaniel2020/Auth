@@ -31,7 +31,7 @@ def _token_from_link(link: str) -> str:
 def _register(api_client, email: str = 'verify@example.com') -> None:
     response = api_client.post(
         '/auth/register',
-        json={'email': email, 'password': 'password123'},
+        json={'email': email, 'password': 'T3st!Passw0rd'},
     )
     assert response.status_code == 201
 

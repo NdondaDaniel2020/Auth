@@ -51,9 +51,16 @@ Formato padrão de resposta de erro, aplicado centralmente por
 | `INVALID_OR_EXPIRED_TOKEN` | Token de redefinição/verificação inválido ou expirado. | 400 | `InvalidOrExpiredTokenError` |
 | `TOKEN_ALREADY_USED` | Token de utilização única já consumido. | 400 | `TokenAlreadyUsedError` |
 | `TOO_MANY_ATTEMPTS` | Limite de tentativas de login excedido (header `Retry-After`). | 429 | `TooManyLoginAttemptsError` |
+| `RATE_LIMIT_EXCEEDED` | Limite de requisições excedido em rota sensível (header `Retry-After`). | 429 | `RateLimitExceededError` |
 | `EMAIL_ALREADY_EXISTS` | E-mail já registado. | 409 | `EmailAlreadyExistsError` |
+| `GOOGLE_LOGIN_DISABLED` | Login via Google desativado nas configurações. | 403 | `GoogleLoginDisabledError` |
+| `INVALID_GOOGLE_TOKEN` | `code`/`id_token`/`state` inválido, expirado, sem e-mail verificado ou chave desconhecida. | 400 | `InvalidGoogleTokenError` |
+| `GOOGLE_AUTH_ERROR` | Falha de comunicação/HTTP com a API do Google. | 502 | `GoogleAuthError` |
 | `NOT_FOUND` | Recurso não encontrado. | 404 | `NotFoundError` |
 | `USER_NOT_FOUND` | Utilizador não encontrado pelo `id`. | 404 | `UserNotFoundError` |
+| `ROLE_NOT_FOUND` | Role não encontrada pelos `id`s informados. | 404 | `RoleNotFoundError` |
+| `SELF_DEACTIVATION_NOT_ALLOWED` | Admin tentou desativar a própria conta. | 400 | `SelfDeactivationError` |
+| `SELF_ROLE_REMOVAL_NOT_ALLOWED` | Admin tentou remover a própria role `admin`. | 400 | `SelfRoleRemovalError` |
 
 ## Como o frontend deve reagir
 
@@ -62,3 +69,4 @@ Formato padrão de resposta de erro, aplicado centralmente por
 - `ACCOUNT_INACTIVE` → informar que a conta está desativada.
 - `INSUFFICIENT_ROLE` / `INSUFFICIENT_PERMISSION` → exibir mensagem de acesso negado (sem redirecionar).
 - `TOO_MANY_ATTEMPTS` → aguardar o valor de `Retry-After` antes de tentar novamente.
+- `RATE_LIMIT_EXCEEDED` → aguardar o valor de `Retry-After` antes de tentar novamente.

@@ -72,6 +72,30 @@ def create_refresh_token(
     )
 
 
+def create_signed_token(
+    data: dict[str, Any],
+    *,
+    token_type: str,
+    expires_delta: timedelta,
+) -> str:
+    """Create a signed JWT with a custom type claim and expiry.
+
+    Signed with ``SECRET_KEY``. The matching verification is
+    ``decode_token(token, expected_type=token_type)``.
+    """
+    settings = get_settings()
+
+    payload = dict(data)
+    now = datetime.now(UTC)
+    payload['type'] = token_type
+    payload['iat'] = now
+    payload['exp'] = now + expires_delta
+
+    return jwt.encode(
+        payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM
+    )
+
+
 def decode_token(
     token: str, *, expected_type: str | None = None
 ) -> dict[str, Any]:

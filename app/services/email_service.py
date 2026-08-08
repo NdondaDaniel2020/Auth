@@ -4,6 +4,8 @@ import logging
 from pathlib import Path
 from string import Template
 
+from pydantic import NameEmail, SecretStr
+
 from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -17,7 +19,7 @@ def _render_template(name: str, **context) -> str:
     return template.substitute(**context)
 
 
-def _send_via_smtp(to_email: str, subject: str, html: str) -> None:
+async def _send_via_smtp(to_email: str, subject: str, html: str) -> None:
     """Send an e-mail through the configured SMTP server.
 
     If ``SMTP_HOST`` is not set the application falls back to logging the
@@ -43,7 +45,7 @@ def _send_via_smtp(to_email: str, subject: str, html: str) -> None:
 
     conf = ConnectionConfig(
         MAIL_USERNAME=settings.SMTP_USER,
-        MAIL_PASSWORD=settings.SMTP_PASSWORD,
+        MAIL_PASSWORD=SecretStr(settings.SMTP_PASSWORD),
         MAIL_FROM=settings.SMTP_FROM or settings.SMTP_USER,
         MAIL_PORT=settings.SMTP_PORT,
         MAIL_SERVER=settings.SMTP_HOST,
@@ -55,13 +57,13 @@ def _send_via_smtp(to_email: str, subject: str, html: str) -> None:
 
     message = MessageSchema(
         subject=subject,
-        recipients=[to_email],
+        recipients=[NameEmail(name=to_email, email=to_email)],
         body=html,
         subtype=MessageType.html,
     )
 
     fm = FastMail(conf)
-    fm.send_message(message)
+    await fm.send_message(message)
 
 
 async def send_password_reset_email(to_email: str, reset_link: str) -> None:
@@ -70,7 +72,7 @@ async def send_password_reset_email(to_email: str, reset_link: str) -> None:
         'password_reset.html',
         reset_link=reset_link,
     )
-    _send_via_smtp(to_email, subject, html)
+    await _send_via_smtp(to_email, subject, html)
 
 
 async def send_verification_email(to_email: str, verify_link: str) -> None:
@@ -79,4 +81,4 @@ async def send_verification_email(to_email: str, verify_link: str) -> None:
         'account_created.html',
         verify_link=verify_link,
     )
-    _send_via_smtp(to_email, subject, html)
+    await _send_via_smtp(to_email, subject, html)

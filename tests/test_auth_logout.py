@@ -7,13 +7,13 @@ def _login(api_client, email: str = 'logout@example.com'):
     assert (
         api_client.post(
             '/auth/register',
-            json={'email': email, 'password': 'password123'},
+            json={'email': email, 'password': 'T3st!Passw0rd'},
         ).status_code
         == 201
     )
     response = api_client.post(
         '/auth/login',
-        json={'email': email, 'password': 'password123'},
+        json={'email': email, 'password': 'T3st!Passw0rd'},
     )
     assert response.status_code == 200
     return response.json()

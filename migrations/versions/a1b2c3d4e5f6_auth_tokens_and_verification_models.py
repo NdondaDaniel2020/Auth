@@ -20,13 +20,13 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    op.add_column('users', sa.Column('is_verified', sa.Boolean(), server_default=sa.text('(false())'), nullable=False))
+    op.add_column('users', sa.Column('is_verified', sa.Boolean(), server_default='false', nullable=False))
 
     op.create_table('refresh_tokens',
     sa.Column('jti', sa.String(length=64), nullable=False),
     sa.Column('user_id', sa.String(length=36), nullable=False),
     sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('revoked', sa.Boolean(), server_default=sa.text('(false())'), nullable=False),
+    sa.Column('revoked', sa.Boolean(), server_default='false', nullable=False),
     sa.Column('revoked_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
@@ -40,7 +40,7 @@ def upgrade() -> None:
     sa.Column('user_id', sa.String(length=36), nullable=False),
     sa.Column('token_hash', sa.String(length=64), nullable=False),
     sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('used', sa.Boolean(), server_default=sa.text('(false())'), nullable=False),
+    sa.Column('used', sa.Boolean(), server_default='false', nullable=False),
     sa.Column('used_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
@@ -54,7 +54,7 @@ def upgrade() -> None:
     sa.Column('user_id', sa.String(length=36), nullable=False),
     sa.Column('token_hash', sa.String(length=64), nullable=False),
     sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('used', sa.Boolean(), server_default=sa.text('(false())'), nullable=False),
+    sa.Column('used', sa.Boolean(), server_default='false', nullable=False),
     sa.Column('used_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),

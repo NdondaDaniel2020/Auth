@@ -19,7 +19,7 @@ def _run(coro):
 
 
 def test_create_and_persist_role(tmp_path) -> None:
-    database_url = f"sqlite+aiosqlite:///{tmp_path / 'role-test.db'}"
+    database_url = f'sqlite+aiosqlite:///{tmp_path / "role-test.db"}'
 
     async def scenario() -> None:
         engine = create_async_engine(database_url)
@@ -45,7 +45,9 @@ def test_create_and_persist_role(tmp_path) -> None:
                 assert role.created_at is not None
                 assert role.updated_at is not None
 
-                result = await db_session.execute(select(Role).where(Role.name == 'tester'))
+                result = await db_session.execute(
+                    select(Role).where(Role.name == 'tester')
+                )
                 persisted_role = result.scalar_one()
                 assert persisted_role.id == role.id
         finally:
@@ -55,7 +57,7 @@ def test_create_and_persist_role(tmp_path) -> None:
 
 
 def test_seed_default_roles(tmp_path, monkeypatch) -> None:
-    database_url = f"sqlite+aiosqlite:///{tmp_path / 'seed-test.db'}"
+    database_url = f'sqlite+aiosqlite:///{tmp_path / "seed-test.db"}'
 
     async def scenario() -> None:
         engine = create_async_engine(database_url)
@@ -69,12 +71,18 @@ def test_seed_default_roles(tmp_path, monkeypatch) -> None:
                 expire_on_commit=False,
             )
 
-            monkeypatch.setattr('app.db.init_db.get_session_factory', lambda: session_factory)
+            monkeypatch.setattr(
+                'app.db.init_db.get_session_factory', lambda: session_factory
+            )
 
-            await seed_roles_and_permissions(roles=DEFAULT_ROLES, permissions=[])
+            await seed_roles_and_permissions(
+                roles=DEFAULT_ROLES, permissions=[]
+            )
 
             async with session_factory() as session:
-                result = await session.execute(select(Role.name).order_by(Role.name))
+                result = await session.execute(
+                    select(Role.name).order_by(Role.name)
+                )
                 names = [row[0] for row in result.all()]
 
             assert names == ['admin', 'user']

@@ -8,6 +8,7 @@ from urllib.parse import parse_qs, urlparse
 from sqlalchemy import select
 
 from app.models.password_reset_token import PasswordResetToken
+from app.models.user import User
 from app.utils.tokens import hash_token
 from tests.conftest import run_in_isolated_db
 
@@ -39,7 +40,7 @@ def test_request_reset_for_existing_email_sends_email(
     assert (
         api_client.post(
             '/auth/register',
-            json={'email': 'reset@example.com', 'password': 'password123'},
+            json={'email': 'reset@example.com', 'password': 'T3st!Passw0rd'},
         ).status_code
         == 201
     )
@@ -66,12 +67,71 @@ def test_request_reset_for_unknown_email_is_generic(
     assert captured == {}
 
 
+def test_request_reset_persists_token_for_existing_email(
+    api_client, monkeypatch, isolated_db_path
+) -> None:
+    captured = _capture_reset_email(monkeypatch)
+
+    api_client.post(
+        '/auth/register',
+        json={'email': 'persist@example.com', 'password': 'T3st!Passw0rd'},
+    )
+    response = api_client.post(
+        '/auth/password-reset/request',
+        json={'email': 'persist@example.com'},
+    )
+    assert response.status_code == 200
+
+    token = _token_from_link(captured['link'])
+
+    async def _check(factory):
+        async with factory() as session:
+            record = (
+                await session.execute(
+                    select(PasswordResetToken).where(
+                        PasswordResetToken.token_hash == hash_token(token)
+                    )
+                )
+            ).scalar_one_or_none()
+            assert record is not None
+            assert record.used is False
+
+            user = (
+                await session.execute(
+                    select(User).where(User.email == 'persist@example.com')
+                )
+            ).scalar_one()
+            assert record.user_id == user.id
+
+    run_in_isolated_db(isolated_db_path, _check)
+
+
+def test_request_reset_creates_no_token_for_unknown_email(
+    api_client, monkeypatch, isolated_db_path
+) -> None:
+    captured = _capture_reset_email(monkeypatch)
+
+    response = api_client.post(
+        '/auth/password-reset/request',
+        json={'email': 'ghost@example.com'},
+    )
+    assert response.status_code == 200
+    assert captured == {}
+
+    async def _check(factory):
+        async with factory() as session:
+            records = (await session.execute(select(PasswordResetToken))).all()
+            assert records == []
+
+    run_in_isolated_db(isolated_db_path, _check)
+
+
 def test_reset_password_with_valid_token(api_client, monkeypatch) -> None:
     captured = _capture_reset_email(monkeypatch)
 
     api_client.post(
         '/auth/register',
-        json={'email': 'reset@example.com', 'password': 'password123'},
+        json={'email': 'reset@example.com', 'password': 'T3st!Passw0rd'},
     )
     api_client.post(
         '/auth/password-reset/request',
@@ -81,19 +141,19 @@ def test_reset_password_with_valid_token(api_client, monkeypatch) -> None:
 
     response = api_client.post(
         '/auth/password-reset/confirm',
-        json={'token': token, 'new_password': 'newpassword456'},
+        json={'token': token, 'new_password': 'NewPass456!'},
     )
     assert response.status_code == 200
 
     old_login = api_client.post(
         '/auth/login',
-        json={'email': 'reset@example.com', 'password': 'password123'},
+        json={'email': 'reset@example.com', 'password': 'T3st!Passw0rd'},
     )
     assert old_login.status_code == 401
 
     new_login = api_client.post(
         '/auth/login',
-        json={'email': 'reset@example.com', 'password': 'newpassword456'},
+        json={'email': 'reset@example.com', 'password': 'NewPass456!'},
     )
     assert new_login.status_code == 200
 
@@ -105,11 +165,11 @@ def test_reset_password_revokes_refresh_tokens(
 
     api_client.post(
         '/auth/register',
-        json={'email': 'reset@example.com', 'password': 'password123'},
+        json={'email': 'reset@example.com', 'password': 'T3st!Passw0rd'},
     )
     login = api_client.post(
         '/auth/login',
-        json={'email': 'reset@example.com', 'password': 'password123'},
+        json={'email': 'reset@example.com', 'password': 'T3st!Passw0rd'},
     ).json()
     api_client.post(
         '/auth/password-reset/request',
@@ -118,7 +178,7 @@ def test_reset_password_revokes_refresh_tokens(
     token = _token_from_link(captured['link'])
     api_client.post(
         '/auth/password-reset/confirm',
-        json={'token': token, 'new_password': 'newpassword456'},
+        json={'token': token, 'new_password': 'NewPass456!'},
     )
 
     stale_refresh = api_client.post(
@@ -139,7 +199,7 @@ def test_reset_password_with_expired_token_rejected(
             session.add(
                 User(
                     email='expired@example.com',
-                    hashed_password=hash_password('password123'),
+                    hashed_password=hash_password('T3st!Passw0rd'),
                 )
             )
             await session.flush()
@@ -157,7 +217,7 @@ def test_reset_password_with_expired_token_rejected(
 
     response = api_client.post(
         '/auth/password-reset/confirm',
-        json={'token': 'expired-token', 'new_password': 'newpassword456'},
+        json={'token': 'expired-token', 'new_password': 'NewPass456!'},
     )
     assert response.status_code == 400
     assert response.json()['error']['type'] == 'InvalidOrExpiredTokenError'
@@ -167,11 +227,39 @@ def test_reset_password_with_expired_token_rejected(
 def test_reset_password_with_invalid_token_rejected(api_client) -> None:
     response = api_client.post(
         '/auth/password-reset/confirm',
-        json={'token': 'garbage-token', 'new_password': 'newpassword456'},
+        json={'token': 'garbage-token', 'new_password': 'NewPass456!'},
     )
     assert response.status_code == 400
     assert response.json()['error']['type'] == 'InvalidOrExpiredTokenError'
     assert response.json()['error']['code'] == 'INVALID_OR_EXPIRED_TOKEN'
+
+
+def test_reset_password_with_weak_new_password_rejected(
+    api_client, monkeypatch
+) -> None:
+    captured = _capture_reset_email(monkeypatch)
+
+    api_client.post(
+        '/auth/register',
+        json={'email': 'weakreset@example.com', 'password': 'T3st!Passw0rd'},
+    )
+    api_client.post(
+        '/auth/password-reset/request',
+        json={'email': 'weakreset@example.com'},
+    )
+    token = _token_from_link(captured['link'])
+
+    response = api_client.post(
+        '/auth/password-reset/confirm',
+        json={'token': token, 'new_password': 'short'},
+    )
+    assert response.status_code == 422
+
+    login = api_client.post(
+        '/auth/login',
+        json={'email': 'weakreset@example.com', 'password': 'T3st!Passw0rd'},
+    )
+    assert login.status_code == 200
 
 
 def test_reset_password_token_is_single_use(api_client, monkeypatch) -> None:
@@ -179,7 +267,7 @@ def test_reset_password_token_is_single_use(api_client, monkeypatch) -> None:
 
     api_client.post(
         '/auth/register',
-        json={'email': 'reset@example.com', 'password': 'password123'},
+        json={'email': 'reset@example.com', 'password': 'T3st!Passw0rd'},
     )
     api_client.post(
         '/auth/password-reset/request',
@@ -189,13 +277,13 @@ def test_reset_password_token_is_single_use(api_client, monkeypatch) -> None:
 
     first = api_client.post(
         '/auth/password-reset/confirm',
-        json={'token': token, 'new_password': 'newpassword456'},
+        json={'token': token, 'new_password': 'NewPass456!'},
     )
     assert first.status_code == 200
 
     second = api_client.post(
         '/auth/password-reset/confirm',
-        json={'token': token, 'new_password': 'anotherpass789'},
+        json={'token': token, 'new_password': 'Another789!'},
     )
     assert second.status_code == 400
     assert second.json()['error']['type'] == 'TokenAlreadyUsedError'
