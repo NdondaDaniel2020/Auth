@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.core.config import get_settings
+from app.core.observability import setup_logging
 from app.db.init_db import init_db
 from app.db.session import get_engine
 from app.models import (
@@ -17,6 +18,7 @@ from app.models import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    setup_logging()
     settings = get_settings()
 
     engine = get_engine()
