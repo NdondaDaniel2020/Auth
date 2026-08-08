@@ -52,10 +52,43 @@ Isto força novo login em todas as sessões quando um token vazado é reutilizad
 | `POST /auth/logout` | Revoga o refresh token enviado (idempotente; HTTP 204). |
 | `POST /auth/refresh` | Revoga o refresh token usado (rotação). |
 | Redefinição de senha (`/auth/password-reset/confirm`) | Revoga **todos** os refresh tokens do utilizador. |
+| Desativação de conta (`PATCH /users/{id}/deactivate`) | Revoga **todos** os refresh tokens do utilizador. |
+| Remoção da role crítica `admin` de um utilizador | Revoga **todos** os refresh tokens do utilizador. |
 | Reuso de token revogado | Revoga **todos** os refresh tokens do utilizador (contenção). |
 
 > Os access tokens não são colocados em denylist; permanecem válidos até a
 > expiração natural (15 min), conforme o fluxo atual.
+
+## Estratégia de revogação
+
+A revogação opera apenas sobre refresh tokens (os access tokens expiram
+naturalmente em 15 minutos). Há dois níveis, com funções distintas:
+
+- **Revogação seletiva (uma sessão):** `logout` revoga apenas o refresh token
+  enviado; `refresh` revoga o token usado na rotação. Outras sessões do mesmo
+  utilizador permanecem ativas.
+- **Revogação total (todas as sessões):** redefinição de senha, desativação de
+  conta, remoção da role `admin` e contenção por reuso de token revogado
+  invalidam **todos** os refresh tokens ativos do utilizador.
+
+### Mecanismo centralizado
+
+Toda revogação total passa por
+`auth_service.revoke_all_user_sessions(db, user_id)` — a única fonte de
+verdade para invalidar todas as sessões de um utilizador. Fluxos que precisam
+apenas encerrar uma sessão continuam usando a revogação seletiva (`revoke` do
+repository / `logout`). Isto evita lógica de revogação duplicada e garante que
+novos gatilhos adotem o mesmo comportamento.
+
+### Decisão sobre roles
+
+Alterações de role sensíveis forçam revogação **apenas quando a role `admin` é
+removida** de um utilizador: a remoção do privilégio máximo invalida as sessões
+em que ele ainda poderia atuar como admin. Outras alterações de role não
+revogam sessões, pois os privilégios são sempre relidos do banco a cada
+requisição autenticada (`get_current_user`), aplicando-se imediatamente. Um
+admin não pode remover a própria role `admin` (HTTP 400), então a revogação por
+role aplica-se a utilizadores distintos do ator.
 
 ## Configuração
 

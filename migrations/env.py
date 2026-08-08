@@ -20,12 +20,14 @@ config = context.config
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+# ``disable_existing_loggers=False`` is required: alembic must NOT disable the
+# application's own loggers (e.g. ``auth_app.security``) while it runs.
+fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # add your model's MetaData object here for 'autogenerate' support.
 # Import model modules so they can register themselves on Base.metadata.
 import app.models.email_verification_token  # noqa: F401
+import app.models.mfa_method  # noqa: F401
 import app.models.password_reset_token  # noqa: F401
 import app.models.permission  # noqa: F401
 import app.models.refresh_token  # noqa: F401
@@ -76,6 +78,13 @@ def run_migrations_online() -> None:
     config.set_main_option("sqlalchemy.url", url)
 
     parsed_url = make_url(url)
+    if parsed_url.drivername.startswith("sqlite"):
+        db_path = parsed_url.database
+        if db_path and db_path != ":memory:":
+            import os
+            from pathlib import Path
+            os.makedirs(Path(db_path).parent, exist_ok=True)
+
     is_async_driver = parsed_url.drivername.endswith("+asyncpg") or parsed_url.drivername.startswith(
         "sqlite+aiosqlite"
     )

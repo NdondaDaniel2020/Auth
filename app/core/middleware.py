@@ -8,16 +8,21 @@ from app.core.logging import get_logger
 def setup_cors_middleware(app: FastAPI) -> None:
     settings = get_settings()
 
-    origins = getattr(settings, 'CORS_ORIGINS_LIST', settings.CORS_ORIGINS_LIST)
+    origins = settings.CORS_ALLOWED_ORIGINS_LIST
+    allow_credentials = settings.CORS_ALLOW_CREDENTIALS
 
-    allow_credentials = origins != ['*']
+    if '*' in origins and allow_credentials:
+        raise RuntimeError(
+            "CORS_ALLOWED_ORIGINS cannot contain '*' when "
+            'CORS_ALLOW_CREDENTIALS is enabled'
+        )
 
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
         allow_credentials=allow_credentials,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=settings.CORS_ALLOWED_METHODS_LIST,
+        allow_headers=settings.CORS_ALLOWED_HEADERS_LIST,
     )
 
 
@@ -28,7 +33,7 @@ def setup_request_logging_middleware(app: FastAPI) -> None:
     """
     logger = get_logger()
 
-    @app.middleware("http")
+    @app.middleware('http')
     async def _log_requests(request, call_next):
         import time
 
@@ -36,9 +41,11 @@ def setup_request_logging_middleware(app: FastAPI) -> None:
         response = await call_next(request)
         elapsed = time.perf_counter() - start
 
-        client = request.client.host if getattr(request, 'client', None) else None
+        client = (
+            request.client.host if getattr(request, 'client', None) else None
+        )
         logger.info(
-            "%s %s %s %.3fs client=%s",
+            '%s %s %s %.3fs client=%s',
             request.method,
             request.url.path,
             response.status_code,

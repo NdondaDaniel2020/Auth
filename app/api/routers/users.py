@@ -11,14 +11,21 @@ from app.api.dependencies.pagination import PaginationParamsDep
 from app.api.dependencies.permissions import require_role
 from app.models.user import User
 from app.schemas.pagination import PaginatedResponse
-from app.schemas.user import UserPublic, UserRead, UserUpdate
-from app.services.user_service import get_user, list_users, update_profile
+from app.schemas.user import UserPublic, UserRead, UserRoleUpdate, UserUpdate
+from app.services.user_service import (
+    activate_user,
+    deactivate_user,
+    get_user,
+    list_users,
+    update_profile,
+    update_user_roles,
+)
 
 router = APIRouter(prefix='/users', tags=['users'])
 
 
 @router.get('/me', response_model=UserPublic)
-async def read_current_user(user: CurrentUserDep) -> User:
+async def read_current_user(user: CurrentUserDep) -> UserPublic:
     """Return the profile of the currently authenticated user.
 
     The user is resolved entirely from the access token; no parameters are
@@ -72,3 +79,49 @@ async def get_user_by_id(
     unknown users yield HTTP 404 via ``UserNotFoundError``.
     """
     return await get_user(db, user_id=str(user_id))
+
+
+@router.patch('/{user_id}/deactivate', response_model=UserRead)
+async def deactivate_user_account(
+    db: SessionDep,
+    admin_user: Annotated[User, Depends(require_role('admin'))],
+    user_id: uuid.UUID,
+) -> UserRead:
+    """Deactivate a user account (admin only).
+
+    Soft delete via ``is_active``: the record is preserved, the user can no
+    longer log in and active refresh tokens are revoked. Admins cannot
+    deactivate their own account.
+    """
+    return await deactivate_user(db, user_id=str(user_id), actor=admin_user)
+
+
+@router.patch('/{user_id}/activate', response_model=UserRead)
+async def activate_user_account(
+    db: SessionDep,
+    admin_user: Annotated[User, Depends(require_role('admin'))],
+    user_id: uuid.UUID,
+) -> UserRead:
+    """Reactivate a previously deactivated user account (admin only)."""
+    return await activate_user(db, user_id=str(user_id), actor=admin_user)
+
+
+@router.put('/{user_id}/roles', response_model=UserRead)
+async def replace_user_roles(
+    db: SessionDep,
+    admin_user: Annotated[User, Depends(require_role('admin'))],
+    user_id: uuid.UUID,
+    data: UserRoleUpdate,
+) -> UserRead:
+    """Replace the user's roles (admin only).
+
+    Replace-all semantics: the final role set is exactly ``role_ids``. Unknown
+    roles or users yield HTTP 404; removing one's own ``admin`` role is
+    blocked (HTTP 400).
+    """
+    return await update_user_roles(
+        db,
+        user_id=str(user_id),
+        role_ids=data.role_ids,
+        actor=admin_user,
+    )

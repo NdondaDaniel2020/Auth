@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import selectinload
 
 from app.models.role import Role
@@ -28,13 +28,23 @@ class UserRepository(BaseRepository[User]):
         )
         return result.scalar_one_or_none()
 
-    async def create(
-        self, *, email: str, hashed_password: str, full_name: str | None = None
+    async def create(  # type: ignore[override]
+        self,
+        *,
+        email: str,
+        hashed_password: str | None = None,
+        full_name: str | None = None,
+        oauth_provider: str | None = None,
+        google_id: str | None = None,
+        is_verified: bool = False,
     ) -> User:
         user = User(
             email=email.lower(),
             hashed_password=hashed_password,
             full_name=full_name,
+            oauth_provider=oauth_provider,
+            google_id=google_id,
+            is_verified=is_verified,
         )
         self.session.add(user)
         await self.session.flush()
@@ -58,3 +68,24 @@ class UserRepository(BaseRepository[User]):
             select(func.count()).select_from(User)
         )
         return int(result.scalar_one())
+
+    async def set_active_status(self, user_id: str, is_active: bool) -> None:
+        """Update only the ``is_active`` flag (soft activate/deactivate)."""
+        await self.session.execute(
+            update(User).where(User.id == user_id).values(is_active=is_active)
+        )
+
+    async def get_roles_by_ids(self, role_ids: list[str]) -> list[Role]:
+        """Return the roles matching ``role_ids`` (used to validate existence)."""
+        if not role_ids:
+            return []
+        result = await self.session.execute(
+            select(Role).where(Role.id.in_(role_ids))
+        )
+        return list(result.scalars().all())
+
+    async def set_roles(self, user: User, roles: list[Role]) -> User:
+        """Replace the user's role set (association table diff is ORM-managed)."""
+        user.roles = roles
+        await self.session.flush()
+        return user

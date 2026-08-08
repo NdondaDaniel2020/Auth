@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
@@ -94,6 +95,24 @@ async def handle_http_exception(
     return JSONResponse(status_code=exc.status_code, content=content)
 
 
+def _normalize_validation_details(
+    errors: Sequence[Any],
+) -> list[dict[str, str]]:
+    """Flatten pydantic errors into ``{"field": ..., "message": ...}`` items."""
+    location_parts = {'body', 'query', 'path', 'header', 'cookie'}
+
+    normalized: list[dict[str, str]] = []
+    for error in errors:
+        loc = error.get('loc', [])
+        field = '.'.join(
+            str(part) for part in loc if part not in location_parts
+        )
+        message = error.get('msg', '')
+        message = message.removeprefix('Value error, ')
+        normalized.append({'field': field or 'request', 'message': message})
+    return normalized
+
+
 async def handle_validation_error(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
@@ -105,7 +124,7 @@ async def handle_validation_error(
         exc_type='RequestValidationError',
         message='Validation error',
         status_code=422,
-        details=_json_safe(exc.errors()),
+        details=_normalize_validation_details(exc.errors()),
     )
     return JSONResponse(status_code=422, content=content)
 
@@ -130,7 +149,7 @@ async def handle_generic_exception(
 
 def register_exception_handlers(app: FastAPI) -> None:
     """Register global exception handlers on the FastAPI app."""
-    app.add_exception_handler(AppError, handle_app_error)
-    app.add_exception_handler(HTTPException, handle_http_exception)
-    app.add_exception_handler(RequestValidationError, handle_validation_error)
+    app.add_exception_handler(AppError, handle_app_error)  # type: ignore[arg-type]
+    app.add_exception_handler(HTTPException, handle_http_exception)  # type: ignore[arg-type]
+    app.add_exception_handler(RequestValidationError, handle_validation_error)  # type: ignore[arg-type]
     app.add_exception_handler(Exception, handle_generic_exception)

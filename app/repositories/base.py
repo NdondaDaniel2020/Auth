@@ -66,7 +66,12 @@ class BaseRepository[ModelT]:
 
         return db_object
 
-    async def delete(self, db_object: ModelT, *, commit: bool = True,) -> None:
+    async def delete(
+        self,
+        db_object: ModelT,
+        *,
+        commit: bool = True,
+    ) -> None:
         await self.session.delete(db_object)
 
         if commit:

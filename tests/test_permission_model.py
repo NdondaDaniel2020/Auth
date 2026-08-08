@@ -20,7 +20,7 @@ def _run(coro):
 
 
 def test_create_and_associate_permission(tmp_path) -> None:
-    database_url = f"sqlite+aiosqlite:///{tmp_path / 'permission-test.db'}"
+    database_url = f'sqlite+aiosqlite:///{tmp_path / "permission-test.db"}'
 
     async def scenario() -> None:
         engine = create_async_engine(database_url)
@@ -37,11 +37,13 @@ def test_create_and_associate_permission(tmp_path) -> None:
             async with session_factory() as db_session:
                 # Create and persist a role and a permission
                 role = Role(name='admin', description='Admin role')
-                permission = Permission(code='users:write', description='Write users')
-                
+                permission = Permission(
+                    code='users:write', description='Write users'
+                )
+
                 # Associate
                 role.permissions.append(permission)
-                
+
                 db_session.add(role)
                 db_session.add(permission)
                 await db_session.commit()
@@ -56,10 +58,12 @@ def test_create_and_associate_permission(tmp_path) -> None:
 
                 # Fetch from db to verify association
                 result = await db_session.execute(
-                    select(Role).options(selectinload(Role.permissions)).where(Role.name == 'admin')
+                    select(Role)
+                    .options(selectinload(Role.permissions))
+                    .where(Role.name == 'admin')
                 )
                 persisted_role = result.scalar_one()
-                
+
                 assert len(persisted_role.permissions) == 1
                 assert persisted_role.permissions[0].code == 'users:write'
                 assert persisted_role.permissions[0].id == permission.id

@@ -5,7 +5,9 @@ import logging
 from app.core.config import get_settings
 
 
-def configure_logger(name: str = 'auth_app', level: int | None = None) -> logging.Logger:
+def configure_logger(
+    name: str = 'auth_app', level: int | None = None
+) -> logging.Logger:
     """Configure and return a logger for the application.
 
     If the logger already has handlers, it is returned as-is. The level
@@ -16,7 +18,11 @@ def configure_logger(name: str = 'auth_app', level: int | None = None) -> loggin
     logger = logging.getLogger(name)
 
     if level is None:
-        level = logging.DEBUG if getattr(settings, 'DEBUG', False) else logging.INFO
+        level = (
+            logging.DEBUG
+            if getattr(settings, 'DEBUG', False)
+            else logging.INFO
+        )
 
     logger.setLevel(level)
 

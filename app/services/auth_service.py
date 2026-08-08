@@ -18,6 +18,7 @@ from app.core.security import (
     decode_refresh_token,
     hash_password,
 )
+from app.core.security_logger import log_security_event
 from app.models.user import User
 from app.repositories.email_verification_repository import (
     EmailVerificationTokenRepository,
@@ -55,6 +56,17 @@ async def create_token_pair(db: AsyncSession, user: User) -> Token:
     return Token(access_token=access_token, refresh_token=refresh_token)
 
 
+async def revoke_all_user_sessions(db: AsyncSession, user_id: str) -> None:
+    """Revoke every active refresh token of a user (total revocation).
+
+    Single source of truth for invalidating all of a user's sessions. Used by
+    password reset, user deactivation, token-reuse containment and sensitive
+    role changes. Contrast with ``logout``, which revokes a single token
+    (selective revocation).
+    """
+    await RefreshTokenRepository(db).revoke_all_for_user(user_id)
+
+
 async def refresh_tokens(db: AsyncSession, refresh_token: str) -> Token:
     """Rotate a refresh token and issue a fresh pair.
 
@@ -79,7 +91,7 @@ async def refresh_tokens(db: AsyncSession, refresh_token: str) -> Token:
         raise InvalidRefreshTokenError()
 
     if record.revoked:
-        await refresh_repository.revoke_all_for_user(record.user_id)
+        await revoke_all_user_sessions(db, record.user_id)
         await db.commit()
         raise InvalidRefreshTokenError()
 
@@ -95,7 +107,9 @@ async def refresh_tokens(db: AsyncSession, refresh_token: str) -> Token:
     return await create_token_pair(db, user)
 
 
-async def logout(db: AsyncSession, refresh_token: str) -> None:
+async def logout(
+    db: AsyncSession, refresh_token: str, *, client_ip: str | None = None
+) -> None:
     """Revoke the given refresh token.
 
     Idempotent for tokens that are or were valid; malformed or unknown
@@ -120,8 +134,17 @@ async def logout(db: AsyncSession, refresh_token: str) -> None:
         await refresh_repository.revoke(jti)
         await db.commit()
 
+    log_security_event(
+        'LOGOUT',
+        user_id=record.user_id,
+        ip=client_ip,
+        metadata={'token_id': jti},
+    )
 
-async def request_password_reset(db: AsyncSession, email: str) -> None:
+
+async def request_password_reset(
+    db: AsyncSession, email: str, *, client_ip: str | None = None
+) -> None:
     """Generate a short-lived reset token and e-mail the reset link.
 
     The response never reveals whether the e-mail is registered.
@@ -144,6 +167,10 @@ async def request_password_reset(db: AsyncSession, email: str) -> None:
     )
     await db.commit()
 
+    log_security_event(
+        'PASSWORD_RESET_REQUESTED', user_id=user.id, ip=client_ip
+    )
+
     reset_link = (
         f'{settings.APP_BASE_URL}/auth/password-reset/confirm?token={token}'
     )
@@ -151,7 +178,11 @@ async def request_password_reset(db: AsyncSession, email: str) -> None:
 
 
 async def reset_password(
-    db: AsyncSession, token: str, new_password: str
+    db: AsyncSession,
+    token: str,
+    new_password: str,
+    *,
+    client_ip: str | None = None,
 ) -> None:
     """Validate a reset token and replace the user's password.
 
@@ -180,13 +211,18 @@ async def reset_password(
     user.hashed_password = hash_password(new_password)
     await reset_repository.mark_used(record, used_at=now)
 
-    refresh_repository = RefreshTokenRepository(db)
-    await refresh_repository.revoke_all_for_user(user.id)
+    await revoke_all_user_sessions(db, user.id)
 
     await db.commit()
 
+    log_security_event(
+        'PASSWORD_RESET_COMPLETED', user_id=user.id, ip=client_ip
+    )
 
-async def verify_email(db: AsyncSession, token: str) -> None:
+
+async def verify_email(
+    db: AsyncSession, token: str, *, client_ip: str | None = None
+) -> None:
     """Confirm a user's e-mail address using a single-use token."""
     now = utcnow()
 
@@ -209,6 +245,8 @@ async def verify_email(db: AsyncSession, token: str) -> None:
     user.is_verified = True
     await verification_repository.mark_used(record, used_at=now)
     await db.commit()
+
+    log_security_event('EMAIL_VERIFIED', user_id=user.id, ip=client_ip)
 
 
 async def send_verification_email_for_user(

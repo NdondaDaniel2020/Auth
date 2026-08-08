@@ -11,7 +11,9 @@ from sqlalchemy import (
     ForeignKey,
     String,
     Table,
+    false,
     func,
+    true,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -19,6 +21,7 @@ from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.models.email_verification_token import EmailVerificationToken
+    from app.models.mfa_method import MfaMethod
     from app.models.password_reset_token import PasswordResetToken
     from app.models.refresh_token import RefreshToken
     from app.models.role import Role
@@ -55,25 +58,44 @@ class User(Base):
         index=True,
         nullable=False,
     )
-    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    hashed_password: Mapped[str | None] = mapped_column(
+        String(255), nullable=True
+    )
+    oauth_provider: Mapped[str | None] = mapped_column(
+        String(32), nullable=True, default=None
+    )
+    google_id: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, default=None
+    )
     full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
         default=True,
-        server_default=func.true(),
+        server_default=true(),
     )
     is_superuser: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
         default=False,
-        server_default=func.false(),
+        server_default=false(),
     )
     is_verified: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
         default=False,
+        server_default=false(),
+    )
+    mfa_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
         server_default=func.false(),
+    )
+    mfa_type: Mapped[str | None] = mapped_column(
+        String(16),
+        nullable=True,
+        default=None,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -108,4 +130,9 @@ class User(Base):
             back_populates='user',
             cascade='all, delete-orphan',
         )
+    )
+    mfa_methods: Mapped[list[MfaMethod]] = relationship(
+        'MfaMethod',
+        back_populates='user',
+        cascade='all, delete-orphan',
     )

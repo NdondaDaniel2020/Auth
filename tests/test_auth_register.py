@@ -14,7 +14,7 @@ def test_register_success(api_client, isolated_db_path) -> None:
         '/auth/register',
         json={
             'email': 'new@example.com',
-            'password': 'password123',
+            'password': 'T3st!Passw0rd',
             'full_name': 'New User',
         },
     )
@@ -36,21 +36,23 @@ def test_register_stores_password_hash_only(
 ) -> None:
     api_client.post(
         '/auth/register',
-        json={'email': 'hash@example.com', 'password': 'password123'},
+        json={'email': 'hash@example.com', 'password': 'T3st!Passw0rd'},
     )
 
     async def _check(factory):
         async with factory() as session:
             user = (await session.execute(select(User))).scalar_one()
             assert user.email == 'hash@example.com'
-            assert user.hashed_password != 'password123'
-            assert verify_password('password123', user.hashed_password) is True
+            assert user.hashed_password != 'T3st!Passw0rd'
+            assert (
+                verify_password('T3st!Passw0rd', user.hashed_password) is True
+            )
 
     run_in_isolated_db(isolated_db_path, _check)
 
 
 def test_register_duplicate_email_rejected(api_client) -> None:
-    payload = {'email': 'dup@example.com', 'password': 'password123'}
+    payload = {'email': 'dup@example.com', 'password': 'T3st!Passw0rd'}
     first = api_client.post('/auth/register', json=payload)
     assert first.status_code == 201
 
@@ -58,6 +60,37 @@ def test_register_duplicate_email_rejected(api_client) -> None:
     assert second.status_code == 409
     body = second.json()
     assert body['error']['type'] == 'EmailAlreadyExistsError'
+
+
+def test_register_duplicate_email_creates_no_second_record(
+    api_client, isolated_db_path
+) -> None:
+    payload = {'email': 'dup@example.com', 'password': 'T3st!Passw0rd'}
+    assert api_client.post('/auth/register', json=payload).status_code == 201
+    assert api_client.post('/auth/register', json=payload).status_code == 409
+
+    async def _check(factory):
+        async with factory() as session:
+            users = (await session.execute(select(User))).scalars().all()
+            assert len(users) == 1
+            assert users[0].email == 'dup@example.com'
+
+    run_in_isolated_db(isolated_db_path, _check)
+
+
+def test_register_missing_required_fields_rejected(api_client) -> None:
+    no_email = api_client.post(
+        '/auth/register', json={'password': 'T3st!Passw0rd'}
+    )
+    assert no_email.status_code == 422
+
+    no_password = api_client.post(
+        '/auth/register', json={'email': 'nofield@example.com'}
+    )
+    assert no_password.status_code == 422
+
+    empty = api_client.post('/auth/register', json={})
+    assert empty.status_code == 422
 
 
 def test_register_weak_password_rejected(api_client) -> None:
@@ -71,6 +104,6 @@ def test_register_weak_password_rejected(api_client) -> None:
 def test_register_invalid_email_rejected(api_client) -> None:
     response = api_client.post(
         '/auth/register',
-        json={'email': 'not-an-email', 'password': 'password123'},
+        json={'email': 'not-an-email', 'password': 'T3st!Passw0rd'},
     )
     assert response.status_code == 422

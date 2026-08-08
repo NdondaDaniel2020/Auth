@@ -1,133 +1,162 @@
-# Estrutura do projeto
+# Auth API
 
-Este projeto segue uma organização em camadas para separar responsabilidades, facilitar testes e manter o crescimento do código previsível.
+API de autenticação e autorização construída com FastAPI (assíncrono).
+Serve de base para projetos que precisam de **registro e login de
+utilizadores, gestão de sessão com tokens JWT rotativos, RBAC
+(roles/permissões), recuperação de senha, verificação de e-mail e login
+social com Google** — com testes, migrações e seeds prontos.
 
-## Visão geral das pastas
+## Visão geral
+
+- **Autenticação:** registro, login (e-mail/senha e OAuth2 password form),
+  refresh com rotação de tokens, logout idempotente, recuperação de senha,
+  verificação de e-mail e login social com Google.
+- **Autorização (RBAC):** roles e permissões com checagem centralizada em
+  dependências (`require_role`, `check_permission`).
+- **Gestão de utilizadores:** perfil próprio, listagem/consulta e
+  ativação/desativação administrativa, atribuição de roles.
+- **Segurança:** política de senha forte, rate limiting por rota, bloqueio
+  por tentativas de login falhas, tokens revogáveis, eventos de segurança.
+
+### Stack
+
+| Camada | Tecnologia |
+|---|---|
+| Framework | FastAPI (async) |
+| ORM | SQLAlchemy 2.0 (async) |
+| Migrações | Alembic |
+| Banco | PostgreSQL (produção) / SQLite (dev e testes) |
+| Validação | Pydantic v2 + pydantic-settings |
+| Contêineres | Docker / Docker Compose |
+| Gerenciador de dependências | `uv` |
+
+## Estrutura do projeto
 
 ```text
 app/
-├── main.py
+├── main.py                     # Ponto de entrada (FastAPI app)
 ├── api/
-│   ├── dependencies/
-│   └── routers/
-├── core/
-├── db/
-├── models/
-├── repositories/
-├── schemas/
-├── services/
-├── static/
-├── templates/
-└── utils/
-secrets/
-migrations/
-tests/
+│   ├── dependencies/           # Auth, permissions, pagination, rate limit, db
+│   ├── routers/                # auth.py, google_auth.py, users.py
+│   └── router.py               # Agrega os routers
+├── core/                       # Config, security, exceptions, logging, limiter
+├── db/                         # base.py, session.py, init_db.py (seed)
+├── models/                     # ORM: user, role, permission, tokens, etc.
+├── schemas/                    # Pydantic de entrada/saída
+├── repositories/               # Acesso a dados (base.py genérico + específicos)
+├── services/                   # Regras de negócio (auth, user, email, google)
+├── templates/emails/           # Templates de e-mail
+├── static/                     # Assets estáticos
+└── utils/                      # Helpers transversais
+migrations/                     # Migrações Alembic (versions/)
+tests/                          # Suíte: raiz (HTTP), services, repositories, integration
 ```
 
-## Responsabilidade de cada camada
-
-### `app/main.py`
-Ponto de entrada da aplicação. Cria a instância do FastAPI, registra rotas, configura middlewares e expõe recursos estáticos quando necessário.
-
-### `app/api/`
-Camada de interface HTTP. Recebe as requisições, valida dependências e encaminha a execução para as regras de negócio.
-
-### `app/api/routers/`
-Agrupa os endpoints da aplicação por domínio ou funcionalidade. Cada router define as rotas públicas da API e mantém o código de transporte HTTP organizado.
-
-### `app/api/dependencies/`
-Centraliza dependências reutilizáveis do FastAPI, como sessão de banco, autenticação, autorização, paginação e outros dados derivados da requisição.
-
-### `app/core/`
-Concentra configurações e componentes transversais do projeto, como variáveis de ambiente, segurança, hashing, tokens, logging e utilitários globais de infraestrutura.
-
-### `app/db/`
-Responsável pela infraestrutura de persistência. Normalmente contém a configuração da engine, da sessão, da base declarativa e rotinas de inicialização do banco.
-
-### `app/models/`
-Define os modelos ORM que representam as tabelas do banco de dados. Essa camada descreve a estrutura persistida, não as regras de uso da API.
-
-### `app/schemas/`
-Contém os schemas do Pydantic usados para entrada e saída de dados. Faz a validação e a serialização dos dados que entram e saem da API.
-
-### `app/repositories/`
-Isola o acesso a dados. Aqui ficam as consultas e operações de persistência, escondendo detalhes do ORM do restante da aplicação.
-
-### `app/services/`
-Implementa as regras de negócio. Essa camada orquestra repositórios, validações e integrações para executar casos de uso da aplicação.
-
-### `app/templates/`
-Armazena templates, principalmente para e-mails e conteúdos renderizados dinamicamente.
-
-### `app/static/`
-Guarda arquivos estáticos servidos diretamente pela aplicação, como imagens, CSS e outros assets sem processamento.
-
-### `app/utils/`
-Reúne funções auxiliares e utilitários compartilhados que não pertencem a uma camada específica.
-
-### `migrations/`
-Contém as migrações do banco de dados. Essa pasta versiona a evolução do schema ao longo do tempo.
-
-### `tests/`
-Reúne os testes automatizados do projeto, cobrindo rotas, serviços, repositórios e demais comportamentos críticos.
-
-## Fluxo recomendado entre camadas
+### Fluxo recomendado entre camadas
 
 1. A requisição entra por `app/api/routers/`.
-2. O router usa dependências de `app/api/dependencies/` quando necessário.
+2. O router usa dependências de `app/api/dependencies/` (auth, autorização,
+   paginação, rate limit).
 3. A lógica principal fica em `app/services/`.
 4. O acesso ao banco ocorre via `app/repositories/` e `app/db/`.
-5. Os dados retornados são validados e serializados por `app/schemas/`.
+5. Os dados são validados/serializados por `app/schemas/`.
 
-Essa separação reduz acoplamento e deixa cada parte do sistema com uma responsabilidade clara.
+## Requisitos
 
-## Configuração da aplicação
+- **Python 3.14+** (definido em `pyproject.toml`)
+- **`uv`** como gerenciador de dependências
+- **Docker + Docker Compose** (opcional, para PostgreSQL)
+- **Make** (opcional, atalhos do `Makefile`)
 
-As configurações são carregadas com `pydantic-settings` em [app/core/config.py](app/core/config.py).
+## Instalação
 
-Variáveis principais:
+```bash
+# 1. Clonar o repositório
+git clone <url-do-repo>
+cd Auth
 
-- `ENVIRONMENT`: seleciona o perfil da aplicação (`development`, `test` ou `production`).
-- `APP_NAME`, `APP_VERSION`, `APP_DESCRIPTION`: metadados da aplicação.
-- `DEBUG`: ativa ou desativa modo de depuração.
-- `DATABASE_URL`: URL do banco de dados.
-- `DB_ENGINE`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`: permitem montar a URL dinamicamente para SQLite e PostgreSQL sem alterar o código.
-- `CORS_ORIGINS`: origens permitidas pelo CORS.
-- `SECRET_KEY`: chave usada para recursos de autenticação e segurança.
-- `ALGORITHM`: algoritmo de assinatura JWT.
-- `JWT_ACCESS_MINUTES` e `JWT_REFRESH_DAYS`: tempos de expiração dos tokens.
+# 2. Instalar dependências (inclui grupo dev)
+uv sync --group dev
 
-Comportamento por ambiente:
+# 3. Copiar as variáveis de ambiente
+cp .env.example .env
+```
 
-- `development`: usa defaults seguros para desenvolvimento e lê o arquivo `.env`.
-- `test`: usa defaults próprios para testes e também pode ler `.env`.
-- `production`: exige que `DATABASE_URL`, `CORS_ORIGINS` e `SECRET_KEY` sejam informados por variáveis de ambiente.
+> O `.env.example` contém placeholders — nenhum valor real está versionado.
 
-## Alternar entre SQLite e PostgreSQL
+## Configuração de ambiente
 
-A aplicação pode trocar de banco apenas alterando variáveis de ambiente.
+As variáveis são carregadas via `pydantic-settings` em
+`app/core/config.py`. O perfil ativo é escolhido por `ENVIRONMENT`
+(`development`, `test` ou `production`).
+
+Principais grupos:
+
+- **Aplicação:** `ENVIRONMENT`, `APP_NAME`, `DEBUG`
+- **Banco:** `DATABASE_URL` ou `DB_ENGINE`/`DB_NAME`/`DB_USER`/`DB_PASSWORD`/
+  `DB_HOST`/`DB_PORT`
+- **JWT:** `SECRET_KEY`, `REFRESH_SECRET_KEY`, `ALGORITHM`,
+  `JWT_ACCESS_MINUTES`, `JWT_REFRESH_DAYS`
+- **SMTP:** `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`,
+  `SMTP_FROM`
+- **CORS:** `CORS_ALLOWED_ORIGINS`, `CORS_ALLOW_CREDENTIALS` e demais
+- **Rate limiting:** `RATE_LIMIT_DEFAULT`, `RATE_LIMIT_REGISTER`, ...
+- **Login social:** `GOOGLE_LOGIN_ENABLED`, `GOOGLE_CLIENT_ID`, ...
+
+Referência completa de todas as variáveis (nome, tipo, default,
+obrigatoriedade e segurança): [docs/environment-variables.md](docs/environment-variables.md).
+
+## Execução local
+
+### Via `uvicorn` (desenvolvimento)
+
+```bash
+uv run task run
+# ou, com hot-reload:
+uv run task runserver
+```
+
+### Via Docker Compose
+
+```bash
+# Subir o PostgreSQL (serviço `db`)
+docker compose up -d
+```
+
+> O `docker-compose.yml` usa `secrets/` para as credenciais do PostgreSQL.
+> Crie `secrets/db_user.txt`, `secrets/db_password.txt` e `secrets/db_name.txt`
+> na raiz antes de subir o banco.
+
+### Aplicar migrações e seeds
+
+```bash
+uv run alembic upgrade head
+uv run python -m app.db.init_db   # idempotente
+```
+
+Documentação completa do banco (migrações, seeds, testes):
+[docs/migrations-seeds-tests.md](docs/migrations-seeds-tests.md).
+
+### Documentação automática
+
+Com a aplicação a correr, acesse:
+
+- **Swagger UI:** <http://localhost:8001/docs>
+- **ReDoc:** <http://localhost:8001/redoc>
+
+## Banco de dados
+
+A aplicação alterna entre bancos apenas via variáveis de ambiente — sem
+mudança de código.
 
 ### SQLite (desenvolvimento/teste)
-
-Use:
 
 ```env
 DB_ENGINE=sqlite
 DB_NAME=./.data/app.db
-DATABASE_URL=
-```
-
-Para banco em memória durante testes:
-
-```env
-DB_ENGINE=sqlite
-DB_NAME=:memory:
-DATABASE_URL=
 ```
 
 ### PostgreSQL local (Docker)
-
-Use:
 
 ```env
 DB_ENGINE=postgresql
@@ -136,235 +165,111 @@ DB_PASSWORD=Auth1234
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=Auth
-DATABASE_URL=
 ```
 
-O `DATABASE_URL` é montado automaticamente a partir desses campos e será algo como:
+Com a aplicação no mesmo `docker-compose.yml`, use `DB_HOST=db` (nome do
+serviço na rede interna do Compose).
 
-```text
-postgresql+asyncpg://Auth:Auth1234@localhost:5432/Auth
-```
+### Criar novas migrações
 
-### PostgreSQL via Docker Compose com a aplicação em container
-
-Se a aplicação também estiver rodando em um container no mesmo `docker-compose.yml`,
-use o nome do serviço do banco como host. Neste projeto, o serviço do banco se chama
-`db`, então a configuração correta é:
-
-```env
-DB_ENGINE=postgresql
-DB_USER=Auth
-DB_PASSWORD=Auth1234
-DB_HOST=db
-DB_PORT=5432
-DB_NAME=Auth
-DATABASE_URL=
-```
-
-Nesse cenário, `localhost` aponta para o próprio container da aplicação, não para o
-container do PostgreSQL. O hostname `db` funciona porque o Docker Compose cria uma
-rede interna e resolve o nome do serviço automaticamente.
-
-## PostgreSQL com Docker Compose e secrets
-
-O arquivo [docker-compose.yml](docker-compose.yml) usa secrets para injetar as credenciais do PostgreSQL no container do banco. Por isso, o diretório `secrets/` precisa existir na raiz do projeto com estes arquivos:
-
-```text
-secrets/
-├── db_user.txt
-├── db_password.txt
-└── db_name.txt
-```
-
-Cada arquivo deve conter apenas o valor do secret correspondente, sem aspas nem espaços extras.
-
-Exemplo:
-
-- `secrets/db_user.txt` -> `Auth`
-- `secrets/db_password.txt` -> `Auth1234`
-- `secrets/db_name.txt` -> `Auth`
-
-Quando a aplicação rodar em um container no mesmo compose, use:
-
-```env
-DB_HOST=db
-DB_PORT=5432
-```
-
-Com isso, a aplicação acessa o banco pelo nome do serviço `db` dentro da rede interna do Docker Compose.
-
-Se você trocar credenciais do container, recrie também o volume do Postgres para reaplicar `POSTGRES_USER`, `POSTGRES_PASSWORD` e `POSTGRES_DB`.
-
-## Migrações (Alembic)
-
-O controle de versão do schema do banco de dados é feito com o [Alembic](https://alembic.sqlalchemy.org/). A configuração central está em `alembic.ini` e `migrations/env.py`. O Alembic foi configurado para ler automaticamente o `DATABASE_URL` do seu ambiente local, então basta definir as variáveis de ambiente corretas (via `.env` ou exportando-as).
-
-### Gerar uma nova migração (autogenerate)
-Quando adicionar ou modificar tabelas no seu `app/models/`, gere a migração correspondente:
 ```bash
 uv run alembic revision --autogenerate -m "descrição da migração"
-```
-*Sempre revise o arquivo gerado em `migrations/versions/` antes de aplicar, especialmente para operações destrutivas como drops ou alteração de restrições (constraints).*
-
-### Aplicar as migrações (upgrade)
-Para atualizar o banco de dados até a última migração:
-```bash
 uv run alembic upgrade head
 ```
 
-### Reverter migrações (downgrade)
-Para desfazer a última migração aplicada:
-```bash
-uv run alembic downgrade -1
-```
-Ou para reverter todas as migrações até o estado inicial (banco limpo):
-```bash
-uv run alembic downgrade base
-```
+## Testes
 
-## Seed de dados iniciais
+A suíte é organizada por camada:
 
-O módulo `app/db/init_db.py` contém toda a lógica de seed do projecto. Ele é **idempotente**: pode ser executado múltiplas vezes sem criar duplicados nem lançar erros.
-
-### O que o seed cria
-
-| Entidade | Valores padrão |
-|---|---|
-| Roles | `admin` (acesso total), `user` (somente leitura) |
-| Permissões | `users:create/read/update/delete`, `roles:read`, `roles:manage` |
-| Atribuições | Todas as permissões → `admin`; apenas `users:read` → `user` |
-| Utilizador admin | `ADMIN_EMAIL` (default: `admin@example.com`) com a role `admin` |
-
-### Variáveis de ambiente relevantes
-
-```env
-# Ativa o seed automático no arranque da aplicação (default: false)
-RUN_SEED_ON_STARTUP=true
-
-# Credenciais do utilizador admin criado pelo seed
-ADMIN_EMAIL=admin@example.com
-ADMIN_PASSWORD=admin123
-```
-
-> **Aviso de segurança**: Altere sempre `ADMIN_PASSWORD` antes de correr o seed em produção.
-
-### Execução standalone (recomendado para CI/CD e produção)
+- `tests/` — comportamento via HTTP dos fluxos de auth/RBAC.
+- `tests/test_services/` — regras de negócio sem a camada HTTP.
+- `tests/test_repositories/` — acesso a dados (CRUD, constraints).
+- `tests/test_integration/` — jornadas ponta a ponta (marcadas com
+  `@pytest.mark.integration`).
 
 ```bash
-uv run python -m app.db.init_db
+uv run task lint        # ruff
+uv run task test        # suíte completa com cobertura (gera htmlcov/)
+uv run pytest -m integration          # apenas integração
+uv run pytest -m "not integration"    # apenas os demais
+uv run pytest tests/test_auth_login.py -k "test_login_success"  # teste específico
 ```
 
-Use esta forma em pipelines de deploy, após aplicar as migrações:
+O relatório de cobertura é gerado em `htmlcov/`. Convenções:
+[docs/testing-conventions.md](docs/testing-conventions.md).
 
-```bash
-# Pipeline típico
-uv run alembic upgrade head
-uv run python -m app.db.init_db
-```
+## Autenticação e autorização
 
-### Execução automática no arranque (desenvolvimento)
+### Fluxo de autenticação
 
-Defina `RUN_SEED_ON_STARTUP=true` no `.env`. O seed será chamado pelo lifespan da aplicação cada vez que ela arrancar.
-
-```env
-RUN_SEED_ON_STARTUP=true
-```
-
-Este modo é conveniente em desenvolvimento mas **não é recomendado em produção**, pois o seed corre antes de aceitar tráfego e pode atrasar o arranque.
-
-### Quando executar o seed
-
-| Contexto | Método recomendado |
-|---|---|
-| Desenvolvimento local | `RUN_SEED_ON_STARTUP=true` no `.env` |
-| CI/CD (staging/produção) | `uv run python -m app.db.init_db` após `alembic upgrade head` |
-| Reset de base local | `alembic downgrade base && alembic upgrade head && python -m app.db.init_db` |
-
-## Fluxo de autenticação
-
-Os endpoints de autenticação estão agrupados em `app/api/routers/auth.py` sob o prefixo `/api/auth`.
+Endpoints sob `/api/auth`:
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `POST` | `/api/auth/register` | Regista um novo utilizador (devuelve os dados públicos; a senha é guardada como hash e nunca é devolvida). |
-| `POST` | `/api/auth/login` | Autentica com e-mail/senha e devolve `access_token` + `refresh_token`. |
-| `POST` | `/api/auth/refresh` | Rota o refresh token e devolve um novo par de tokens. |
-| `POST` | `/api/auth/logout` | Revoga o refresh token (idempotente, HTTP 204). |
-| `POST` | `/api/auth/password-reset/request` | Envia e-mail de recuperação de senha (resposta genérica). |
-| `POST` | `/api/auth/password-reset/confirm` | Redefine a senha com o token recebido por e-mail. |
-| `POST` | `/api/auth/verify-email` | Confirma o e-mail com o token de verificação. |
-| `POST` | `/api/auth/verify-email/resend` | Reenvia o token de verificação. |
+| `POST` | `/api/auth/register` | Regista utilizador e envia e-mail de verificação |
+| `POST` | `/api/auth/login` | Login com e-mail/senha; devolve `access_token` + `refresh_token` |
+| `POST` | `/api/auth/login-form` | Login via OAuth2 password form |
+| `POST` | `/api/auth/refresh` | Roda o refresh token (novo par emitido) |
+| `POST` | `/api/auth/logout` | Revoga o refresh token (idempotente, 204) |
+| `POST` | `/api/auth/password-reset/request` | Envia e-mail de recuperação |
+| `POST` | `/api/auth/password-reset/confirm` | Redefine a senha com o token |
+| `POST` | `/api/auth/verify-email` | Confirma o e-mail com o token |
+| `POST` | `/api/auth/verify-email/resend` | Reenvia o token de verificação |
+| `GET` | `/api/auth/google/url` | URL de autorização do login Google |
+| `POST` | `/api/auth/google/callback` | Completa o login com Google |
 
-### Regras relevantes
-
-- **Registo**: e-mails duplicados são rejeitados com HTTP 409
-  (`EmailAlreadyExistsError`). A senha é armazenada apenas como hash
-  (`argon2`).
-- **Login**: credenciais inválidas devolvem HTTP 401 com mensagem genérica.
-  Tentativas falhas consecutivas bloqueiam temporariamente o identificador
-  (HTTP 429) — ver `LOGIN_MAX_ATTEMPTS`,
-  `LOGIN_ATTEMPT_WINDOW_MINUTES` e `LOGIN_BLOCK_DURATION_MINUTES`.
-- **Refresh**: cada refresh token é de utilização única (rotação). O reuso de
-  um token já rotacionado revoga todas as sessões do utilizador.
-- **Recuperação de senha**: tokens temporários de alta entropia, com expiração
-  curta (`PASSWORD_RESET_TOKEN_EXPIRE_MINUTES`) e de utilização única. Após a
-  redefinição, todos os refresh tokens do utilizador são revogados.
-- **Verificação de e-mail**: o registo cria um token de verificação e envia o
-  e-mail. `is_verified` não bloqueia o login (apenas fica registado).
-
-### Envio de e-mails
-
-Se `SMTP_HOST` não estiver configurado, os e-mails são apenas registados nos
-logs (modo de desenvolvimento). Para envio real, configure as variáveis
-`SMTP_*`. Os templates estão em `app/templates/emails/`.
+Documentação detalhada (diagramas, tokens, estados do utilizador, erros):
+[docs/authentication-flow.md](docs/authentication-flow.md).
 
 ### Política de tokens
 
-TTLs, rotação, revogação e estrutura de claims dos tokens estão documentados
-em [docs/token-policy.md](docs/token-policy.md).
+TTLs, rotação, revogação e claims: [docs/token-policy.md](docs/token-policy.md).
 
-## Autorização (RBAC)
+### RBAC (roles e permissões)
 
 Toda a autorização está centralizada em `app/api/dependencies/` — as rotas
 **não** implementam verificações ad-hoc:
 
 | Dependência | Uso | Sem acesso |
 |---|---|---|
-| `get_current_user` (`auth.py`) | Extrai e valida o access token, resolve o utilizador ativo | HTTP 401 `NotAuthenticatedError` |
-| `require_role('admin')` (`permissions.py`) | Exige uma das roles listadas | HTTP 403 `PermissionDeniedError` |
-| `check_permission('users:delete')` (`permissions.py`) | Exige uma permissão específica (via roles do utilizador) | HTTP 403 `PermissionDeniedError` |
+| `get_current_user` | Extrai e valida o access token | HTTP 401 `NOT_AUTHENTICATED` |
+| `require_role('admin')` | Exige uma das roles listadas | HTTP 403 `INSUFFICIENT_ROLE` |
+| `check_permission('users:delete')` | Exige uma permissão granular | HTTP 403 `INSUFFICIENT_PERMISSION` |
 
-Exemplo:
+Roles padrão (seed): `admin` (acesso total) e `user` (`users:read`).
+Permissões: `users:create/read/update/delete`, `roles:read`, `roles:manage`.
 
-```python
-from app.api.dependencies.auth import CurrentUserDep
-from app.api.dependencies.permissions import require_role, check_permission
-from fastapi import Depends
+Modelo conceitual: [docs/rbac-model.md](docs/rbac-model.md).
+Matriz endpoint-a-endpoint: [docs/authorization-matrix.md](docs/authorization-matrix.md).
 
-@router.get('/users/me')
-async def profile(user: CurrentUserDep) -> UserRead:
-    ...
+## Usando este projeto como template
 
-@router.get('/users')
-async def list_users(
-    user=Depends(require_role('admin')),
-    db: SessionDep,
-) -> list[UserRead]:
-    ...
-```
+Guia para reaproveitar esta base em novos projetos (o que manter, o que
+adaptar, como adicionar entidades e rotas protegidas):
+[docs/boilerplate-guide.md](docs/boilerplate-guide.md).
 
-- `get_current_user` carrega as roles e permissões do utilizador de forma
-  antecipada (`selectinload`), para que `require_role`/`check_permission`
-  funcionem em contexto assíncrono.
-- O `OAuth2PasswordBearer` aponta para `/api/auth/login-form` (o endpoint
-  OAuth2 com `OAuth2PasswordRequestForm`).
-- As roles/permissões seedadas estão em `app/db/init_db.py`
-  (`DEFAULT_ROLES`/`DEFAULT_PERMISSIONS`): a role `admin` tem todas as
-  permissões; a role `user` apenas `users:read`.
+## Contribuição
 
-### Códigos de erro de acesso
+- **Lint/formatação:** `uv run task lint` (ruff).
+- **Testes:** `uv run task test` (cobertura).
+- **Padrão de commits:** convencional, com referência à issue quando
+  aplicável (ex.: `feat: ... (#53)`).
+- **PRs:** abertos contra a `main`; a suíte completa deve passar.
 
-Todas as respostas de erro seguem o formato `{error: {type, message, code},
-status, path, method}`. O campo `code` é um identificador estável que o
-frontend usa para distinguir cenários (ex: `TOKEN_EXPIRED`,
-`INSUFFICIENT_ROLE`) — ver [docs/error-codes.md](docs/error-codes.md).
+## Links úteis
+
+- Documentação automática: <http://localhost:8001/docs>
+- [docs/environment-variables.md](docs/environment-variables.md) — variáveis de ambiente
+- [docs/authentication-flow.md](docs/authentication-flow.md) — fluxo de autenticação
+- [docs/token-policy.md](docs/token-policy.md) — política de tokens
+- [docs/rbac-model.md](docs/rbac-model.md) — modelo de roles e permissões
+- [docs/authorization-matrix.md](docs/authorization-matrix.md) — matriz de autorização
+- [docs/error-codes.md](docs/error-codes.md) — formato e códigos de erro
+- [docs/security-events.md](docs/security-events.md) — eventos de segurança
+- [docs/password-policy.md](docs/password-policy.md) — política de senha
+- [docs/validation-guidelines.md](docs/validation-guidelines.md) — validação de entrada
+- [docs/mfa-readiness.md](docs/mfa-readiness.md) — preparação para MFA
+- [docs/migrations-seeds-tests.md](docs/migrations-seeds-tests.md) — migrações, seeds e testes
+- [docs/testing-conventions.md](docs/testing-conventions.md) — convenções de teste
+- [docs/boilerplate-guide.md](docs/boilerplate-guide.md) — extensibilidade
+- [docs/EXPLAIN_GOOGLE_IMPLEMENTATION.md](docs/EXPLAIN_GOOGLE_IMPLEMENTATION.md) — implementação do login Google

@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+import logging
+
 from app.core.exceptions import (
     EmailAlreadyExistsError,
     InvalidCredentialsError,
+    RoleNotFoundError,
+    SelfDeactivationError,
+    SelfRoleRemovalError,
     TooManyLoginAttemptsError,
     UserNotFoundError,
 )
@@ -13,10 +18,13 @@ from app.core.rate_limiter import (
     reset_login_attempts,
 )
 from app.core.security import hash_password, verify_password
+from app.core.security_logger import log_security_event
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
 from app.schemas.pagination import PaginatedResponse
 from app.schemas.user import UserCreate, UserRead, UserUpdate
+from app.services import auth_service
+from app.services.audit_service import record_admin_action
 
 
 async def register_user(db, data: UserCreate) -> User:
@@ -57,6 +65,12 @@ async def authenticate_user(
 
     blocked_seconds = check_login_blocked(login_key)
     if blocked_seconds is not None:
+        log_security_event(
+            'LOGIN_RATE_LIMITED',
+            ip=client_ip,
+            metadata={'email': email},
+            level=logging.WARNING,
+        )
         raise TooManyLoginAttemptsError(retry_after=blocked_seconds)
 
     repository = UserRepository(db)
@@ -65,12 +79,31 @@ async def authenticate_user(
     if (
         user is None
         or not user.is_active
+        or user.hashed_password is None
         or not verify_password(password, user.hashed_password)
     ):
+        reason = (
+            'account_inactive'
+            if user is not None and not user.is_active
+            else 'invalid_credentials'
+        )
+        log_security_event(
+            'LOGIN_FAILED',
+            user_id=user.id if user is not None else None,
+            ip=client_ip,
+            metadata={'email': email, 'reason': reason},
+            level=logging.WARNING,
+        )
         register_failed_login(login_key)
         raise InvalidCredentialsError()
 
+    # MFA_HOOK: verificação de segundo fator entraria aqui, após a senha ter
+    # sido validada e antes de emitir o access token final. Quando MFA for
+    # ativado (ver docs/mfa-readiness.md), este ponto emitiria um token
+    # intermediário de curta duração e retornaria um desafio pendente em vez
+    # de seguir direto para a emissão do token.
     reset_login_attempts(login_key)
+    log_security_event('LOGIN_SUCCESS', user_id=user.id, ip=client_ip)
     return user
 
 
@@ -124,4 +157,128 @@ async def update_profile(db, user: User, data: UserUpdate) -> UserRead:
     updates = data.model_dump(exclude_unset=True)
     if updates:
         user = await UserRepository(db).update(user, updates)
+    return UserRead.model_validate(user)
+
+
+async def _set_active_status(
+    db,
+    *,
+    user_id: str,
+    is_active: bool,
+    actor: User | None = None,
+) -> UserRead:
+    """Set ``is_active`` for a user (admin scope), persisting the change.
+
+    Raises ``UserNotFoundError`` for unknown ids. Deactivating revokes every
+    active refresh token so existing sessions end immediately; the account
+    stays in the database (soft delete). An actor cannot deactivate their own
+    account (``SelfDeactivationError``).
+    """
+    repository = UserRepository(db)
+    user = await repository.get_by_id(user_id)
+    if user is None:
+        raise UserNotFoundError()
+
+    action = 'USER_DEACTIVATED' if not is_active else 'USER_ACTIVATED'
+
+    if not is_active and actor is not None and user.id == actor.id:
+        await record_admin_action(
+            db,
+            actor_user_id=actor.id,
+            action=action,
+            resource_type='user',
+            resource_id=user_id,
+            result='denied',
+            details={'reason': 'self deactivation'},
+        )
+        await db.commit()
+        raise SelfDeactivationError()
+
+    await repository.set_active_status(user_id, is_active)
+    if not is_active:
+        await auth_service.revoke_all_user_sessions(db, user_id)
+
+    await record_admin_action(
+        db,
+        actor_user_id=actor.id if actor is not None else None,
+        action=action,
+        resource_type='user',
+        resource_id=user_id,
+    )
+    await db.refresh(user)
+    await db.commit()
+    return UserRead.model_validate(user)
+
+
+async def deactivate_user(db, *, user_id: str, actor: User) -> UserRead:
+    """Deactivate a user account (admin scope)."""
+    return await _set_active_status(
+        db, user_id=user_id, is_active=False, actor=actor
+    )
+
+
+async def activate_user(db, *, user_id: str, actor: User) -> UserRead:
+    """Reactivate a user account (admin scope)."""
+    return await _set_active_status(
+        db, user_id=user_id, is_active=True, actor=actor
+    )
+
+
+async def update_user_roles(
+    db,
+    *,
+    user_id: str,
+    role_ids: list[str],
+    actor: User,
+) -> UserRead:
+    """Replace the user's roles with ``role_ids`` (admin scope).
+
+    Validates that the user and every role exist (404 otherwise). An actor
+    cannot remove the ``admin`` role from their own account
+    (``SelfRoleRemovalError``). Because ``get_current_user`` always reloads
+    the user's roles from the database, the change takes effect on the very
+    next authenticated request. If the target user loses a critical role
+    (``admin``), all their sessions are revoked (see ``docs/token-policy.md``).
+    """
+    repository = UserRepository(db)
+    user = await repository.get_by_id(user_id)
+    if user is None:
+        raise UserNotFoundError()
+
+    unique_ids = list(dict.fromkeys(role_ids))
+    roles = await repository.get_roles_by_ids(unique_ids)
+    if len(roles) != len(unique_ids):
+        raise RoleNotFoundError()
+
+    previous_role_names = {role.name for role in user.roles}
+    new_role_names = {role.name for role in roles}
+    if (
+        actor.id == user.id
+        and 'admin' in previous_role_names
+        and 'admin' not in new_role_names
+    ):
+        await record_admin_action(
+            db,
+            actor_user_id=actor.id,
+            action='USER_ROLES_UPDATED',
+            resource_type='user',
+            resource_id=user_id,
+            result='denied',
+            details={'reason': 'self admin role removal'},
+        )
+        await db.commit()
+        raise SelfRoleRemovalError()
+
+    await repository.set_roles(user, roles)
+    await record_admin_action(
+        db,
+        actor_user_id=actor.id,
+        action='USER_ROLES_UPDATED',
+        resource_type='user',
+        resource_id=user_id,
+        details={'role_ids': unique_ids},
+    )
+    if 'admin' in previous_role_names and 'admin' not in new_role_names:
+        await auth_service.revoke_all_user_sessions(db, user_id)
+    await db.commit()
     return UserRead.model_validate(user)
