@@ -50,7 +50,9 @@ def rate_limit(scope: str) -> Callable[[Request], Awaitable[None]]:
 
         # Use Redis if configured, otherwise fall back to in-memory
         if get_redis_client():
-            retry_after = await redis_check_and_consume(key, limit, int(window_seconds))
+            retry_after = await redis_check_and_consume(
+                key, limit, int(window_seconds)
+            )
         else:
             retry_after = request_rate_limiter.check_and_consume(
                 key, limit, window_seconds
