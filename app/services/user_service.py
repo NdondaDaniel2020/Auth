@@ -2,6 +2,11 @@ from __future__ import annotations
 
 import logging
 
+from app.core.events import (
+    Event,
+    UserEvents,
+    get_event_bus,
+)
 from app.core.exceptions import (
     EmailAlreadyExistsError,
     InvalidCredentialsError,
@@ -45,6 +50,21 @@ async def register_user(db, data: UserCreate) -> User:
         full_name=data.full_name,
     )
     await db.commit()
+
+    # Publish user.created event
+    bus = get_event_bus()
+    await bus.publish(
+        Event(
+            type=UserEvents.CREATED,
+            payload={
+                'user_id': user.id,
+                'email': user.email,
+                'full_name': user.full_name,
+                'is_verified': user.is_verified,
+            },
+        )
+    )
+
     return user
 
 
@@ -156,7 +176,26 @@ async def update_profile(db, user: User, data: UserUpdate) -> UserRead:
     """
     updates = data.model_dump(exclude_unset=True)
     if updates:
+        old_values = {k: getattr(user, k) for k in updates}
         user = await UserRepository(db).update(user, updates)
+        new_values = {k: getattr(user, k) for k in updates}
+
+        # Publish user.updated event
+        bus = get_event_bus()
+        await bus.publish(
+            Event(
+                type=UserEvents.UPDATED,
+                payload={
+                    'user_id': user.id,
+                    'email': user.email,
+                    'changed_fields': list(updates.keys()),
+                    'old_values': old_values,
+                    'new_values': new_values,
+                    'actor_id': user.id,
+                },
+            )
+        )
+
     return UserRead.model_validate(user)
 
 
@@ -207,6 +246,20 @@ async def _set_active_status(
     )
     await db.refresh(user)
     await db.commit()
+
+    # Publish user.activated / user.deactivated event
+    bus = get_event_bus()
+    await bus.publish(
+        Event(
+            type=UserEvents.ACTIVATED if is_active else UserEvents.DEACTIVATED,
+            payload={
+                'user_id': user.id,
+                'email': user.email,
+                'actor_id': actor.id if actor is not None else None,
+            },
+        )
+    )
+
     return UserRead.model_validate(user)
 
 
@@ -281,4 +334,20 @@ async def update_user_roles(
     if 'admin' in previous_role_names and 'admin' not in new_role_names:
         await auth_service.revoke_all_user_sessions(db, user_id)
     await db.commit()
+
+    # Publish user.roles_changed event
+    bus = get_event_bus()
+    await bus.publish(
+        Event(
+            type=UserEvents.ROLES_CHANGED,
+            payload={
+                'user_id': user.id,
+                'email': user.email,
+                'old_roles': list(previous_role_names),
+                'new_roles': list(new_role_names),
+                'actor_id': actor.id,
+            },
+        )
+    )
+
     return UserRead.model_validate(user)
