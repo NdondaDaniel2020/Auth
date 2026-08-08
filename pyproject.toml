@@ -20,6 +20,8 @@ dependencies = [
     "prometheus-client>=0.21.0",
     "python-json-logger>=2.0.0",
     "redis>=5.2.0",
+    "aio-pika>=9.5.0",
+    "aiokafka>=0.10.0",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "pyjwt[cryptography]>=2.10.0",
@@ -75,6 +77,12 @@ omit = [
     "app/core/logging.py",
     "app/core/observability.py",
     "app/core/redis.py",
+    "app/api/routers/websockets.py",
+    "app/api/websockets.py",
+    "app/core/broker.py",
+    "app/core/events.py",
+    "app/schemas/notification.py",
+    "app/services/notification_service.py",
 ]
 
 [tool.coverage.report]

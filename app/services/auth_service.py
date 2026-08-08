@@ -7,6 +7,12 @@ import jwt as pyjwt
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.core.events import (
+    AuthEvents,
+    Event,
+    UserEvents,
+    get_event_bus,
+)
 from app.core.exceptions import (
     InvalidOrExpiredTokenError,
     InvalidRefreshTokenError,
@@ -176,6 +182,21 @@ async def request_password_reset(
     )
     await email_service.send_password_reset_email(user.email, reset_link)
 
+    # Publish auth.password_reset_requested event
+    bus = get_event_bus()
+    await bus.publish(
+        Event(
+            type=AuthEvents.PASSWORD_RESET_REQUESTED,
+            payload={
+                'user_id': user.id,
+                'email': user.email,
+                'reset_token': token,
+                'expires_at': expires_at.isoformat(),
+                'client_ip': client_ip,
+            },
+        )
+    )
+
 
 async def reset_password(
     db: AsyncSession,
@@ -219,6 +240,19 @@ async def reset_password(
         'PASSWORD_RESET_COMPLETED', user_id=user.id, ip=client_ip
     )
 
+    # Publish auth.password_reset_completed event
+    bus = get_event_bus()
+    await bus.publish(
+        Event(
+            type=AuthEvents.PASSWORD_RESET_COMPLETED,
+            payload={
+                'user_id': user.id,
+                'email': user.email,
+                'client_ip': client_ip,
+            },
+        )
+    )
+
 
 async def verify_email(
     db: AsyncSession, token: str, *, client_ip: str | None = None
@@ -247,6 +281,18 @@ async def verify_email(
     await db.commit()
 
     log_security_event('EMAIL_VERIFIED', user_id=user.id, ip=client_ip)
+
+    # Publish user.email_verified event
+    bus = get_event_bus()
+    await bus.publish(
+        Event(
+            type=UserEvents.EMAIL_VERIFIED,
+            payload={
+                'user_id': user.id,
+                'email': user.email,
+            },
+        )
+    )
 
 
 async def send_verification_email_for_user(
