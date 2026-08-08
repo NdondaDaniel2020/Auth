@@ -144,18 +144,19 @@ async def seed_roles_and_permissions(
                 # Use INSERT OR IGNORE (SQLite) / ON CONFLICT DO NOTHING to
                 # keep this idempotent without querying the association table.
                 if dialect_name == 'postgresql':
-                    stmt = (
+                    pg_stmt = (
                         pg_insert(role_permissions)
                         .values(role_id=role_id, permission_id=perm.id)
                         .on_conflict_do_nothing()
                     )
+                    await session.execute(pg_stmt)
                 else:
-                    stmt = (
+                    sqlite_stmt = (
                         sqlite_insert(role_permissions)
                         .values(role_id=role_id, permission_id=perm.id)
                         .on_conflict_do_nothing()
                     )
-                await session.execute(stmt)
+                    await session.execute(sqlite_stmt)
 
         await session.commit()
         logger.info(
@@ -196,18 +197,19 @@ async def seed_roles_and_permissions(
 
         # Insert into user_roles with ON CONFLICT DO NOTHING (idempotent)
         if dialect_name == 'postgresql':
-            stmt = (
+            pg_ur_stmt = (
                 pg_insert(user_roles)
                 .values(user_id=admin_user.id, role_id=admin_role_id)
                 .on_conflict_do_nothing()
             )
+            await session.execute(pg_ur_stmt)
         else:
-            stmt = (
+            sqlite_ur_stmt = (
                 sqlite_insert(user_roles)
                 .values(user_id=admin_user.id, role_id=admin_role_id)
                 .on_conflict_do_nothing()
             )
-        await session.execute(stmt)
+            await session.execute(sqlite_ur_stmt)
         await session.commit()
         logger.info('Admin user seeded: %s', admin_email)
 
