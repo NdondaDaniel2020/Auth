@@ -14,14 +14,14 @@ logger = logging.getLogger(__name__)
 
 def _read_secret_file(env_var: str) -> str | None:
     """Read secret from file if corresponding _FILE env var is set."""
-    file_env = f"{env_var}_FILE"
+    file_env = f'{env_var}_FILE'
     file_path = os.getenv(file_env)
     if file_path:
         try:
             with open(file_path) as f:
                 return f.read().strip()
         except OSError as e:
-            logger.warning("Could not read secret file %s: %s", file_path, e)
+            logger.warning('Could not read secret file %s: %s', file_path, e)
     return None
 
 
