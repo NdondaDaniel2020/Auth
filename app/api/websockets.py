@@ -21,7 +21,9 @@ class WebSocketManager:
 
     def __init__(self) -> None:
         self._connections: dict[str, WebSocket] = {}  # user_id -> WebSocket
-        self._user_data: dict[str, dict[str, Any]] = {}  # user_id -> {socket, metadata}
+        self._user_data: dict[
+            str, dict[str, Any]
+        ] = {}  # user_id -> {socket, metadata}
 
     async def connect(
         self,
@@ -36,12 +38,12 @@ class WebSocketManager:
         try:
             payload = decode_access_token(token)
         except InvalidTokenError as e:
-            logger.warning("WebSocket auth failed: invalid token: %s", e)
+            logger.warning('WebSocket auth failed: invalid token: %s', e)
             return None
 
-        user_id = payload.get("sub")
+        user_id = payload.get('sub')
         if not user_id:
-            logger.warning("WebSocket auth failed: no subject in token")
+            logger.warning('WebSocket auth failed: no subject in token')
             return None
 
         # Verify user exists and is active
@@ -50,7 +52,10 @@ class WebSocketManager:
             user_repo = UserRepository(session)
             user = await user_repo.get_by_id(user_id)
             if user is None or not user.is_active:
-                logger.warning("WebSocket auth failed: user not found or inactive: %s", user_id)
+                logger.warning(
+                    'WebSocket auth failed: user not found or inactive: %s',
+                    user_id,
+                )
                 return None
 
         # Accept connection
@@ -58,9 +63,12 @@ class WebSocketManager:
 
         # Store connection
         self._connections[user_id] = websocket
-        self._user_data[user_id] = {"socket": websocket, "connected_at": payload.get("iat")}
+        self._user_data[user_id] = {
+            'socket': websocket,
+            'connected_at': payload.get('iat'),
+        }
 
-        logger.info("WebSocket connected: user_id=%s", user_id)
+        logger.info('WebSocket connected: user_id=%s', user_id)
         return user_id
 
     def disconnect(self, user_id: str) -> None:
@@ -69,13 +77,15 @@ class WebSocketManager:
             del self._connections[user_id]
         if user_id in self._user_data:
             del self._user_data[user_id]
-        logger.info("WebSocket disconnected: user_id=%s", user_id)
+        logger.info('WebSocket disconnected: user_id=%s', user_id)
 
     def is_connected(self, user_id: str) -> bool:
         """Check if a user has an active WebSocket connection."""
         return user_id in self._connections
 
-    async def send_personal_message(self, user_id: str, message: dict[str, Any]) -> bool:
+    async def send_personal_message(
+        self, user_id: str, message: dict[str, Any]
+    ) -> bool:
         """Send a message to a specific user's WebSocket."""
         websocket = self._connections.get(user_id)
         if not websocket:
@@ -84,11 +94,13 @@ class WebSocketManager:
             await websocket.send_json(message)
             return True
         except Exception as e:  # noqa: BLE001
-            logger.error("Failed to send message to user %s: %s", user_id, e)
+            logger.error('Failed to send message to user %s: %s', user_id, e)
             self.disconnect(user_id)
             return False
 
-    async def broadcast(self, message: dict[str, Any], exclude: set[str] | None = None) -> int:
+    async def broadcast(
+        self, message: dict[str, Any], exclude: set[str] | None = None
+    ) -> int:
         """Broadcast a message to all connected users."""
         exclude = exclude or set()
         count = 0
@@ -99,7 +111,7 @@ class WebSocketManager:
                 await websocket.send_json(message)
                 count += 1
             except Exception as e:  # noqa: BLE001
-                logger.error("Failed to broadcast to user %s: %s", user_id, e)
+                logger.error('Failed to broadcast to user %s: %s', user_id, e)
                 self.disconnect(user_id)
         return count
 
@@ -127,12 +139,13 @@ async def authenticate_websocket(websocket: WebSocket, token: str) -> str:
     if user_id is None:
         raise WebSocketException(
             code=status.WS_1008_POLICY_VIOLATION,
-            reason="Authentication failed",
+            reason='Authentication failed',
         )
     return user_id
 
 
 # --- Event-driven WebSocket notifications ---
+
 
 async def setup_ws_event_handlers() -> None:
     """Subscribe to events and forward to WebSocket clients."""
@@ -140,53 +153,70 @@ async def setup_ws_event_handlers() -> None:
     manager = get_ws_manager()
 
     async def handle_user_updated(event: dict[str, Any]) -> None:
-        payload = event["payload"]
-        user_id = payload["user_id"]
+        payload = event['payload']
+        user_id = payload['user_id']
         if manager.is_connected(user_id):
-            await manager.send_personal_message(user_id, {
-                "type": "user.updated",
-                "data": payload,
-            })
+            await manager.send_personal_message(
+                user_id,
+                {
+                    'type': 'user.updated',
+                    'data': payload,
+                },
+            )
 
     async def handle_user_deactivated(event: dict[str, Any]) -> None:
-        payload = event["payload"]
-        user_id = payload["user_id"]
+        payload = event['payload']
+        user_id = payload['user_id']
         if manager.is_connected(user_id):
-            await manager.send_personal_message(user_id, {
-                "type": "user.deactivated",
-                "data": {"reason": "Account deactivated by administrator"},
-            })
+            await manager.send_personal_message(
+                user_id,
+                {
+                    'type': 'user.deactivated',
+                    'data': {'reason': 'Account deactivated by administrator'},
+                },
+            )
             # Force disconnect
             manager.disconnect(user_id)
 
     async def handle_roles_changed(event: dict[str, Any]) -> None:
-        payload = event["payload"]
-        user_id = payload["user_id"]
+        payload = event['payload']
+        user_id = payload['user_id']
         if manager.is_connected(user_id):
-            await manager.send_personal_message(user_id, {
-                "type": "user.roles_changed",
-                "data": payload,
-            })
+            await manager.send_personal_message(
+                user_id,
+                {
+                    'type': 'user.roles_changed',
+                    'data': payload,
+                },
+            )
             # Force disconnect if admin role removed
-            if "admin" in payload.get("old_roles", []) and "admin" not in payload.get("new_roles", []):
+            if 'admin' in payload.get(
+                'old_roles', []
+            ) and 'admin' not in payload.get('new_roles', []):
                 manager.disconnect(user_id)
 
     async def handle_password_changed(event: dict[str, Any]) -> None:
-        payload = event["payload"]
-        user_id = payload["user_id"]
+        payload = event['payload']
+        user_id = payload['user_id']
         if manager.is_connected(user_id):
-            await manager.send_personal_message(user_id, {
-                "type": "user.password_changed",
-                "data": {"message": "Your password was changed. Please log in again."},
-            })
+            await manager.send_personal_message(
+                user_id,
+                {
+                    'type': 'user.password_changed',
+                    'data': {
+                        'message': 'Your password was changed. Please log in again.'
+                    },
+                },
+            )
             # Force disconnect to require re-authentication
             manager.disconnect(user_id)
 
     # Subscribe to relevant events
     from app.core.events import UserEvents
+
     await bus.subscribe(UserEvents.UPDATED, handle_user_updated)
     await bus.subscribe(UserEvents.DEACTIVATED, handle_user_deactivated)
     await bus.subscribe(UserEvents.ROLES_CHANGED, handle_roles_changed)
     await bus.subscribe(UserEvents.PASSWORD_CHANGED, handle_password_changed)
 
-    logger.info("WebSocket event handlers subscribed")
+    logger.info('WebSocket event handlers subscribed')

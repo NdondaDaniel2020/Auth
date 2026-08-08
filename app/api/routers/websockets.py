@@ -12,15 +12,15 @@ from app.api.websockets import (
     get_ws_manager,
 )
 
-router = APIRouter(prefix="/ws", tags=["websockets"])
+router = APIRouter(prefix='/ws', tags=['websockets'])
 
 logger = logging.getLogger(__name__)
 
 
-@router.websocket("/connect")
+@router.websocket('/connect')
 async def websocket_endpoint(
     websocket: WebSocket,
-    token: str = Query(..., description="JWT access token"),
+    token: str = Query(..., description='JWT access token'),
     user_id: str = Depends(authenticate_websocket),
 ) -> None:
     """
@@ -34,21 +34,21 @@ async def websocket_endpoint(
             data = await websocket.receive_json()
             # Echo for now - in production, handle different message types
             await websocket.send_json({
-                "type": "echo",
-                "data": data,
+                'type': 'echo',
+                'data': data,
             })
     except Exception:  # noqa: BLE001
         # Connection closed by client or network error - expected during disconnect
-        logger.debug("WebSocket connection closed for user %s", user_id)
+        logger.debug('WebSocket connection closed for user %s', user_id)
     finally:
         manager.disconnect(user_id)
 
 
-@router.get("/status")
+@router.get('/status')
 async def websocket_status() -> dict[str, Any]:
     """Get WebSocket connection statistics."""
     manager = get_ws_manager()
     return {
-        "connected_users": list(manager._connections.keys()),
-        "total_connections": len(manager._connections),
+        'connected_users': list(manager._connections.keys()),
+        'total_connections': len(manager._connections),
     }

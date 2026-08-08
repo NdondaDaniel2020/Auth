@@ -184,16 +184,18 @@ async def request_password_reset(
 
     # Publish auth.password_reset_requested event
     bus = get_event_bus()
-    await bus.publish(Event(
-        type=AuthEvents.PASSWORD_RESET_REQUESTED,
-        payload={
-            "user_id": user.id,
-            "email": user.email,
-            "reset_token": token,
-            "expires_at": expires_at.isoformat(),
-            "client_ip": client_ip,
-        },
-    ))
+    await bus.publish(
+        Event(
+            type=AuthEvents.PASSWORD_RESET_REQUESTED,
+            payload={
+                'user_id': user.id,
+                'email': user.email,
+                'reset_token': token,
+                'expires_at': expires_at.isoformat(),
+                'client_ip': client_ip,
+            },
+        )
+    )
 
 
 async def reset_password(
@@ -240,14 +242,16 @@ async def reset_password(
 
     # Publish auth.password_reset_completed event
     bus = get_event_bus()
-    await bus.publish(Event(
-        type=AuthEvents.PASSWORD_RESET_COMPLETED,
-        payload={
-            "user_id": user.id,
-            "email": user.email,
-            "client_ip": client_ip,
-        },
-    ))
+    await bus.publish(
+        Event(
+            type=AuthEvents.PASSWORD_RESET_COMPLETED,
+            payload={
+                'user_id': user.id,
+                'email': user.email,
+                'client_ip': client_ip,
+            },
+        )
+    )
 
 
 async def verify_email(
@@ -280,13 +284,15 @@ async def verify_email(
 
     # Publish user.email_verified event
     bus = get_event_bus()
-    await bus.publish(Event(
-        type=UserEvents.EMAIL_VERIFIED,
-        payload={
-            "user_id": user.id,
-            "email": user.email,
-        },
-    ))
+    await bus.publish(
+        Event(
+            type=UserEvents.EMAIL_VERIFIED,
+            payload={
+                'user_id': user.id,
+                'email': user.email,
+            },
+        )
+    )
 
 
 async def send_verification_email_for_user(
