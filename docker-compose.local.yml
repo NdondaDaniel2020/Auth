@@ -15,6 +15,10 @@ services:
       DB_HOST: "db"
       DB_PORT: "5432"
       DB_NAME_FILE: /run/secrets/db_name
+      DB_USER_FILE: /run/secrets/db_user
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      SECRET_KEY_FILE: /run/secrets/app_secret_key
+      REFRESH_SECRET_KEY_FILE: /run/secrets/app_refresh_secret_key
       REDIS_URL: "redis://redis:6379/0"
       SMTP_HOST: "mailhog"
       SMTP_PORT: "1025"
