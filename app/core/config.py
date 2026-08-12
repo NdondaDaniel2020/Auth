@@ -30,9 +30,11 @@ class EnvironmentSettings(BaseSettings):
         env_file='.env', env_file_encoding='utf-8', extra='ignore'
     )
 
-    ENVIRONMENT: Literal['development', 'test', 'production'] = Field(
-        default='development',
-        alias='ENVIRONMENT',
+    ENVIRONMENT: Literal['development', 'test', 'staging', 'production'] = (
+        Field(
+            default='development',
+            alias='ENVIRONMENT',
+        )
     )
 
 
@@ -393,6 +395,16 @@ class ProductionSettings(BaseAppSettings):
         return self
 
 
+class StagingSettings(BaseAppSettings):
+    model_config = SettingsConfigDict(env_file=None, extra='ignore')
+
+    DEBUG: bool = Field(default=False, alias='DEBUG')
+    CORS_ALLOWED_ORIGINS: str = Field(
+        min_length=1, alias='CORS_ALLOWED_ORIGINS'
+    )
+    SECRET_KEY: str = Field(min_length=1, alias='SECRET_KEY')
+
+
 @lru_cache(maxsize=1)
 def get_settings() -> BaseAppSettings:
     environment = EnvironmentSettings().ENVIRONMENT
@@ -400,6 +412,7 @@ def get_settings() -> BaseAppSettings:
     settings_map: dict[str, type[BaseAppSettings]] = {
         'development': DevelopmentSettings,
         'test': TestSettings,
+        'staging': StagingSettings,
         'production': ProductionSettings,
     }
 
