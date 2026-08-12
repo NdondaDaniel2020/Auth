@@ -27,4 +27,4 @@ echo "Environment: $ENVIRONMENT"
 echo "Action: $ACTION"
 echo "Compose files: ${COMPOSE_FILES[*]}"
 
-docker compose "${COMPOSE_FILES[@]}" "$ACTION"
+docker compose "${COMPOSE_FILES[@]}" "$ACTION" "${@:3}"

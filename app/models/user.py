@@ -90,7 +90,7 @@ class User(Base):
         Boolean,
         nullable=False,
         default=False,
-        server_default=func.false(),
+        server_default=false(),
     )
     mfa_type: Mapped[str | None] = mapped_column(
         String(16),
