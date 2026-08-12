@@ -46,10 +46,7 @@ class BaseAppSettings(BaseSettings):
         alias='APP_DESCRIPTION',
     )
     DEBUG: bool = Field(default=False, alias='DEBUG')
-    DATABASE_URL: str = Field(
-        default='sqlite+aiosqlite:///./.data/app.db',
-        alias='DATABASE_URL',
-    )
+    DATABASE_URL: str = Field(default='', alias='DATABASE_URL')
     CORS_ALLOWED_ORIGINS: str = Field(
         default='http://localhost:3000,http://localhost:5173',
         alias='CORS_ALLOWED_ORIGINS',
@@ -238,6 +235,7 @@ class BaseAppSettings(BaseSettings):
         secret_fields = [
             'SECRET_KEY',
             'REFRESH_SECRET_KEY',
+            'DB_USER',
             'DB_PASSWORD',
             'SMTP_PASSWORD',
             'GOOGLE_CLIENT_SECRET',
@@ -310,15 +308,13 @@ class BaseAppSettings(BaseSettings):
         # if no DB_ENGINE specified, return default DATABASE_URL
         engine = (self.DB_ENGINE or '').strip()
         if not engine:
-            return self.DATABASE_URL
+            return 'sqlite+aiosqlite:///./.data/app.db'
 
         # SQLite handling
         if 'sqlite' in engine:
             name = self.DB_NAME or './.data/app.db'
             if name == ':memory:':
                 return 'sqlite+aiosqlite:///:memory:'
-            if name.startswith('/'):
-                return f'sqlite+aiosqlite:///{name}'
             return f'sqlite+aiosqlite:///{name}'
 
         # Postgres-like handling
@@ -339,7 +335,7 @@ class BaseAppSettings(BaseSettings):
             dbname = self.DB_NAME or ''
             return f'{scheme}://{auth}{host}{port}/{dbname}'
 
-        return self.DATABASE_URL
+        return self.DATABASE_URL or 'sqlite+aiosqlite:///./.data/app.db'
 
 
 class DevelopmentSettings(BaseAppSettings):
@@ -348,10 +344,7 @@ class DevelopmentSettings(BaseAppSettings):
     )
 
     DEBUG: bool = Field(default=True, alias='DEBUG')
-    DATABASE_URL: str = Field(
-        default='sqlite+aiosqlite:///./.data/app.db',
-        alias='DATABASE_URL',
-    )
+    DATABASE_URL: str = Field(default='', alias='DATABASE_URL')
     SECRET_KEY: str = Field(
         default='dev-only-secret-change-me',
         alias='SECRET_KEY',
@@ -364,10 +357,7 @@ class TestSettings(BaseAppSettings):
     )
 
     DEBUG: bool = Field(default=False, alias='DEBUG')
-    DATABASE_URL: str = Field(
-        default='sqlite+aiosqlite:///./.data/test.db',
-        alias='DATABASE_URL',
-    )
+    DATABASE_URL: str = Field(default='', alias='DATABASE_URL')
     CORS_ALLOWED_ORIGINS: str = Field(
         default='*', alias='CORS_ALLOWED_ORIGINS'
     )

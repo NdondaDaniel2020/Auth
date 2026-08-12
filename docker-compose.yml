@@ -54,20 +54,27 @@ services:
       PAGE_SIZE_DEFAULT: "20"
       PAGE_SIZE_MAX: "100"
       APP_BASE_URL: "https://api.example.com"
-      # DB connection (non-sensitive parts)
+      # App secrets via files
+      SECRET_KEY_FILE: /run/secrets/app_secret_key
+      REFRESH_SECRET_KEY_FILE: /run/secrets/app_refresh_secret_key
+      # DB connection
       DB_ENGINE: "postgresql"
       DB_HOST: "db"
       DB_PORT: "5432"
       DB_NAME_FILE: /run/secrets/db_name
-      # SMTP (non-sensitive)
+      DB_USER_FILE: /run/secrets/db_user
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      # SMTP
       SMTP_HOST: "smtp.example.com"
       SMTP_PORT: "587"
       SMTP_USER: "noreply@example.com"
       SMTP_FROM: "noreply@example.com"
+      SMTP_PASSWORD_FILE: /run/secrets/smtp_password
       SMTP_TLS: "true"
-      # Google OAuth (non-sensitive)
+      # Google OAuth
       GOOGLE_LOGIN_ENABLED: "false"
       GOOGLE_CLIENT_ID_FILE: /run/secrets/google_client_id
+      GOOGLE_CLIENT_SECRET_FILE: /run/secrets/google_client_secret
       GOOGLE_REDIRECT_URI: "https://api.example.com/api/auth/google/callback"
     secrets:
       # App secrets
