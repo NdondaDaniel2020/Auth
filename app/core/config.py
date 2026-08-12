@@ -30,9 +30,11 @@ class EnvironmentSettings(BaseSettings):
         env_file='.env', env_file_encoding='utf-8', extra='ignore'
     )
 
-    ENVIRONMENT: Literal['development', 'test', 'staging', 'production'] = Field(
-        default='development',
-        alias='ENVIRONMENT',
+    ENVIRONMENT: Literal['development', 'test', 'staging', 'production'] = (
+        Field(
+            default='development',
+            alias='ENVIRONMENT',
+        )
     )
 
 
