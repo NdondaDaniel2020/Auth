@@ -184,6 +184,7 @@ async def request_password_reset(
 
     # Publish auth.password_reset_requested event
     bus = get_event_bus()
+
     await bus.publish(
         Event(
             type=AuthEvents.PASSWORD_RESET_REQUESTED,
