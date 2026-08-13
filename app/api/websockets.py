@@ -96,7 +96,6 @@ class WebSocketManager:
         *,
         force_disconnect: bool = False,
     ) -> bool:
-
         """Publish a message to a specific user via Redis Pub/Sub or local fallback."""
         payload = {
             'target_user_id': user_id,
@@ -106,10 +105,14 @@ class WebSocketManager:
         redis_client = get_redis_client()
         if redis_client:
             try:
-                await redis_client.publish(REDIS_WS_CHANNEL, json.dumps(payload))
+                await redis_client.publish(
+                    REDIS_WS_CHANNEL, json.dumps(payload)
+                )
                 return True
             except Exception as e:  # noqa: BLE001
-                logger.warning('Redis WS publish failed: %s; using local fallback', e)
+                logger.warning(
+                    'Redis WS publish failed: %s; using local fallback', e
+                )
 
         # Fallback for local connection if Redis unavailable
         return await self._send_personal_message_local(
@@ -123,7 +126,6 @@ class WebSocketManager:
         *,
         force_disconnect: bool = False,
     ) -> bool:
-
         """Deliver a message directly to a locally connected user."""
         websocket = self._connections.get(user_id)
         if not websocket:
@@ -197,13 +199,18 @@ async def start_redis_ws_listener(manager: WebSocketManager) -> None:
     """Subscribe to Redis WS channel and deliver messages to local sockets."""
     redis_client = get_redis_client()
     if not redis_client:
-        logger.info('Redis unavailable — WebSocketManager running in local mode')
+        logger.info(
+            'Redis unavailable — WebSocketManager running in local mode'
+        )
         return
 
     try:
         pubsub = redis_client.pubsub()
         await pubsub.subscribe(REDIS_WS_CHANNEL)
-        logger.info('Subscribed WebSocketManager to Redis channel: %s', REDIS_WS_CHANNEL)
+        logger.info(
+            'Subscribed WebSocketManager to Redis channel: %s',
+            REDIS_WS_CHANNEL,
+        )
 
         async for message in pubsub.listen():
             if message['type'] == 'message':
@@ -231,7 +238,9 @@ async def setup_ws_event_handlers() -> None:
 
     global _redis_pubsub_task
     if _redis_pubsub_task is None or _redis_pubsub_task.done():
-        _redis_pubsub_task = asyncio.create_task(start_redis_ws_listener(manager))
+        _redis_pubsub_task = asyncio.create_task(
+            start_redis_ws_listener(manager)
+        )
 
     async def handle_user_updated(event: dict[str, Any]) -> None:
         payload = event['payload']
@@ -303,4 +312,3 @@ async def teardown_ws_event_handlers() -> None:
         _redis_pubsub_task.cancel()
         _redis_pubsub_task = None
     logger.info('WebSocket event handlers torn down')
-
