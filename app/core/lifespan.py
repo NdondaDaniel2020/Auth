@@ -58,4 +58,3 @@ async def lifespan(app: FastAPI):
             await teardown_ws_event_handlers()
     await close_redis()
     await engine.dispose()
-
