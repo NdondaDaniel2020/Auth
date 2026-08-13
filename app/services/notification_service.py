@@ -20,9 +20,6 @@ from app.schemas.notification import (
     UserRolesChangedPayload,
     UserUpdatedPayload,
 )
-from app.services.email_service import (
-    send_password_reset_email,
-)
 from app.services.notification_factory_service import (
     create_deactivation_email,
     create_password_changed_email,
@@ -160,16 +157,12 @@ class NotificationService:
     async def _handle_password_reset_requested(
         self, event: dict[str, Any]
     ) -> None:
-        """Handle auth.password_reset_requested - send reset email."""
+        """Handle auth.password_reset_requested - log notification event."""
         payload = PasswordResetRequestedPayload(**event['payload'])
         logger.info(
-            'Sending password reset email for user %s', payload.user_id
+            'Password reset requested notification event processed for user %s',
+            payload.user_id,
         )
-        # Reuse existing send_password_reset_email from email_service
-        reset_link = (
-            f'https://example.com/reset-password?token={payload.reset_token}'
-        )
-        await send_password_reset_email(payload.email, reset_link)
 
     async def _handle_password_reset_completed(
         self, event: dict[str, Any]
@@ -185,11 +178,14 @@ class NotificationService:
 
     async def _send_email(self, email) -> None:
         """Send email via email_service (which handles SMTP or logging)."""
-        from app.services.email_service import _send_via_smtp
+        from app.services.email_service import _send_via_smtp, render_template
 
-        await _send_via_smtp(
-            email.to_email, email.subject, email.html_body or ''
-        )
+        html_content = email.html_body
+        if not html_content and getattr(email, 'template_id', None):
+            template_data = getattr(email, 'template_data', {}) or {}
+            html_content = render_template(email.template_id, **template_data)
+
+        await _send_via_smtp(email.to_email, email.subject, html_content or '')
 
 
 _notification_service: NotificationService | None = None
