@@ -20,9 +20,7 @@ from app.schemas.notification import (
     UserRolesChangedPayload,
     UserUpdatedPayload,
 )
-from app.services.email_service import (
-    send_password_reset_email,
-)
+
 from app.services.notification_factory_service import (
     create_deactivation_email,
     create_password_changed_email,
@@ -163,8 +161,10 @@ class NotificationService:
         """Handle auth.password_reset_requested - log notification event."""
         payload = PasswordResetRequestedPayload(**event['payload'])
         logger.info(
-            'Password reset requested notification event processed for user %s', payload.user_id
+            'Password reset requested notification event processed for user %s',
+            payload.user_id,
         )
+
 
 
     async def _handle_password_reset_completed(
