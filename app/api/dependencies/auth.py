@@ -52,6 +52,10 @@ async def get_current_user(
     if not user_id:
         raise TokenInvalidError()
 
+    jti = payload.get('jti')
+    if jti and await is_access_token_blacklisted(jti):
+        raise TokenInvalidError()
+
     user = await UserRepository(db).get_by_id(user_id)
     if user is None or not user.is_active:
         raise AccountInactiveError()
