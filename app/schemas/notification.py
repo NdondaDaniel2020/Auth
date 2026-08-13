@@ -215,4 +215,3 @@ class PasswordResetCompletedPayload(BaseModel):
 NotificationPayload = (
     EmailNotification | PushNotification | InAppNotification | SMSNotification
 )
-
