@@ -160,16 +160,12 @@ class NotificationService:
     async def _handle_password_reset_requested(
         self, event: dict[str, Any]
     ) -> None:
-        """Handle auth.password_reset_requested - send reset email."""
+        """Handle auth.password_reset_requested - log notification event."""
         payload = PasswordResetRequestedPayload(**event['payload'])
         logger.info(
-            'Sending password reset email for user %s', payload.user_id
+            'Password reset requested notification event processed for user %s', payload.user_id
         )
-        # Reuse existing send_password_reset_email from email_service
-        reset_link = (
-            f'https://example.com/reset-password?token={payload.reset_token}'
-        )
-        await send_password_reset_email(payload.email, reset_link)
+
 
     async def _handle_password_reset_completed(
         self, event: dict[str, Any]
