@@ -105,3 +105,16 @@ test:
 
 lint:
 	uv run ruff check . && uv run ruff format --check . && uv run mypy app/
+
+container:
+	docker run -d --name redis -p 6379:6379 redis:7-alpine
+	docker run -d --name postgres -p 5432:5432 -e POSTGRES_DB=Auth -e POSTGRES_USER=Auth -e POSTGRES_PASSWORD=Auth1234 -v postgres_data:/var/lib/postgresql/data postgres:16-alpine
+
+fclean:
+	@echo "🗑️  Removing all Docker data..."
+	@docker stop $$(docker ps -qa) 2>/dev/null || true
+	@docker rm $$(docker ps -qa) 2>/dev/null || true
+	@docker rmi -f $$(docker images -qa) 2>/dev/null || true
+	@docker volume rm $$(docker volume ls -q) 2>/dev/null || true
+	@docker network rm $$(docker network ls -q) 2>/dev/null || true
+	@echo "✅ All data removed!"
