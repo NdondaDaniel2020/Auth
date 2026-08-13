@@ -177,7 +177,13 @@ async def request_password_reset(
         'PASSWORD_RESET_REQUESTED', user_id=user.id, ip=client_ip
     )
 
+    reset_link = (
+        f'{settings.APP_BASE_URL}/auth/password-reset/confirm?token={token}'
+    )
+    await email_service.send_password_reset_email(user.email, reset_link)
+
     # Publish auth.password_reset_requested event
+
 
     bus = get_event_bus()
     await bus.publish(
