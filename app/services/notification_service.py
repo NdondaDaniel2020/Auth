@@ -19,6 +19,11 @@ from app.schemas.notification import (
     UserDeactivatedPayload,
     UserRolesChangedPayload,
     UserUpdatedPayload,
+)
+from app.services.email_service import (
+    send_password_reset_email,
+)
+from app.services.notification_factory_service import (
     create_deactivation_email,
     create_password_changed_email,
     create_password_reset_completed_email,
@@ -26,9 +31,7 @@ from app.schemas.notification import (
     create_roles_changed_email,
     create_welcome_email,
 )
-from app.services.email_service import (
-    send_password_reset_email,
-)
+
 
 logger = logging.getLogger(__name__)
 
@@ -190,7 +193,10 @@ class NotificationService:
         )
 
 
+
 _notification_service: NotificationService | None = None
+
+
 
 
 def get_notification_service() -> NotificationService:
