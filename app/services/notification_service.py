@@ -32,7 +32,6 @@ from app.services.notification_factory_service import (
     create_welcome_email,
 )
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -193,10 +192,7 @@ class NotificationService:
         )
 
 
-
 _notification_service: NotificationService | None = None
-
-
 
 
 def get_notification_service() -> NotificationService:
