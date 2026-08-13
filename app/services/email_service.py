@@ -19,9 +19,13 @@ def render_template(name: str, **context) -> str:
         name = f'{name}.html'
     template_path = _TEMPLATES_DIR / name
     if not template_path.is_file():
-        logger.warning('Email template %s not found at %s', name, template_path)
+        logger.warning(
+            'Email template %s not found at %s', name, template_path
+        )
         # Fallback basic html rendering if template file is missing
-        items = ''.join(f'<li><strong>{k}:</strong> {v}</li>' for k, v in context.items())
+        items = ''.join(
+            f'<li><strong>{k}:</strong> {v}</li>' for k, v in context.items()
+        )
         return f'<div><p>Notification Payload:</p><ul>{items}</ul></div>'
     template = Template(template_path.read_text(encoding='utf-8'))
     return template.safe_substitute(**context)
@@ -29,7 +33,6 @@ def render_template(name: str, **context) -> str:
 
 def _render_template(name: str, **context) -> str:
     return render_template(name, **context)
-
 
 
 async def _send_via_smtp(to_email: str, subject: str, html: str) -> None:
