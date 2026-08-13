@@ -272,4 +272,3 @@ adaptar, como adicionar entidades e rotas protegidas):
 - [docs/migrations-seeds-tests.md](docs/migrations-seeds-tests.md) — migrações, seeds e testes
 - [docs/testing-conventions.md](docs/testing-conventions.md) — convenções de teste
 - [docs/boilerplate-guide.md](docs/boilerplate-guide.md) — extensibilidade
-- [docs/EXPLAIN_GOOGLE_IMPLEMENTATION.md](docs/EXPLAIN_GOOGLE_IMPLEMENTATION.md) — implementação do login Google
