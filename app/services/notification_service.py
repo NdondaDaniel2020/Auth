@@ -41,7 +41,6 @@ class NotificationService:
     def __init__(self) -> None:
         self._subscribed = False
 
-
     async def subscribe(self) -> None:
         """Subscribe to all relevant domain events."""
         if self._subscribed:
@@ -77,7 +76,6 @@ class NotificationService:
 
         self._subscribed = True
         logger.info('NotificationService subscribed to domain events')
-
 
     async def unsubscribe(self) -> None:
         """Unsubscribe from all events."""
@@ -121,7 +119,6 @@ class NotificationService:
         email = create_welcome_email(payload)
         await self._send_email(email)
 
-
     async def _handle_user_updated(self, event: dict[str, Any]) -> None:
         """Handle user.updated - send profile updated email."""
         payload = UserUpdatedPayload(**event['payload'])
@@ -131,7 +128,6 @@ class NotificationService:
         email = create_profile_updated_email(payload)
         await self._send_email(email)
 
-
     async def _handle_user_deactivated(self, event: dict[str, Any]) -> None:
         """Handle user.deactivated - send deactivation email."""
         payload = UserDeactivatedPayload(**event['payload'])
@@ -139,14 +135,12 @@ class NotificationService:
         email = create_deactivation_email(payload)
         await self._send_email(email)
 
-
     async def _handle_user_roles_changed(self, event: dict[str, Any]) -> None:
         """Handle user.roles_changed - send roles changed email."""
         payload = UserRolesChangedPayload(**event['payload'])
         logger.info('Sending roles changed email for user %s', payload.user_id)
         email = create_roles_changed_email(payload)
         await self._send_email(email)
-
 
     async def _handle_password_changed(self, event: dict[str, Any]) -> None:
         """Handle user.password_changed - send password changed email."""
@@ -157,13 +151,11 @@ class NotificationService:
         email = create_password_changed_email(payload)
         await self._send_email(email)
 
-
     async def _handle_email_verified(self, event: dict[str, Any]) -> None:
         """Handle user.email_verified - could send confirmation."""
         payload = EmailVerifiedPayload(**event['payload'])
         logger.info('Email verified for user %s', payload.user_id)
         # Optionally send confirmation email
-
 
     async def _handle_password_reset_requested(
         self, event: dict[str, Any]
@@ -179,7 +171,6 @@ class NotificationService:
         )
         await send_password_reset_email(payload.email, reset_link)
 
-
     async def _handle_password_reset_completed(
         self, event: dict[str, Any]
     ) -> None:
@@ -191,7 +182,6 @@ class NotificationService:
         )
         email = create_password_reset_completed_email(payload)
         await self._send_email(email)
-
 
     async def _send_email(self, email) -> None:
         """Send email via email_service (which handles SMTP or logging)."""
