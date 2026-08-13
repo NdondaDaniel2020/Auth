@@ -19,7 +19,6 @@ from app.schemas.notification import (
 )
 
 
-
 def create_welcome_email(user: UserCreatedPayload) -> EmailNotification:
     """Create welcome email for new user."""
     return EmailNotification(
@@ -113,14 +112,15 @@ def create_password_changed_email(
     )
 
 
-
 def create_password_reset_email(
     reset: PasswordResetRequestedPayload,
 ) -> EmailNotification:
     """Create password reset email with reset link."""
     settings = get_settings()
     base_url = getattr(settings, 'APP_BASE_URL', 'http://localhost:8000')
-    reset_link = f'{base_url}/auth/password-reset/confirm?token={reset.reset_token}'
+    reset_link = (
+        f'{base_url}/auth/password-reset/confirm?token={reset.reset_token}'
+    )
     return EmailNotification(
         notification_id=f'password-reset-{reset.user_id}',
         priority=NotificationPriority.HIGH,
@@ -134,7 +134,6 @@ def create_password_reset_email(
             'client_ip': reset.client_ip,
         },
     )
-
 
 
 def create_password_reset_completed_email(

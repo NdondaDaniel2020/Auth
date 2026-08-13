@@ -192,10 +192,7 @@ class NotificationService:
             template_data = getattr(email, 'template_data', {}) or {}
             html_content = render_template(email.template_id, **template_data)
 
-        await _send_via_smtp(
-            email.to_email, email.subject, html_content or ''
-        )
-
+        await _send_via_smtp(email.to_email, email.subject, html_content or '')
 
 
 _notification_service: NotificationService | None = None
