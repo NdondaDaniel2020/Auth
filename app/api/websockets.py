@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
 from typing import Any
 
@@ -9,15 +11,19 @@ from fastapi import WebSocket, WebSocketException, status
 from jwt import InvalidTokenError
 
 from app.core.events import get_event_bus
+from app.core.redis import get_redis_client
 from app.core.security import decode_access_token
 from app.db.session import get_session_factory
 from app.repositories.user_repository import UserRepository
 
 logger = logging.getLogger(__name__)
 
+REDIS_WS_CHANNEL = 'ws:events'
+_redis_pubsub_task: asyncio.Task | None = None
+
 
 class WebSocketManager:
-    """Manages WebSocket connections with authentication."""
+    """Manages WebSocket connections with authentication and optional Redis Pub/Sub."""
 
     def __init__(self) -> None:
         self._connections: dict[str, WebSocket] = {}  # user_id -> WebSocket
@@ -80,28 +86,68 @@ class WebSocketManager:
         logger.info('WebSocket disconnected: user_id=%s', user_id)
 
     def is_connected(self, user_id: str) -> bool:
-        """Check if a user has an active WebSocket connection."""
+        """Check if a user has an active WebSocket connection locally."""
         return user_id in self._connections
 
-    async def send_personal_message(
-        self, user_id: str, message: dict[str, Any]
+    async def publish_message(
+        self,
+        user_id: str,
+        message: dict[str, Any],
+        *,
+        force_disconnect: bool = False,
     ) -> bool:
-        """Send a message to a specific user's WebSocket."""
+
+        """Publish a message to a specific user via Redis Pub/Sub or local fallback."""
+        payload = {
+            'target_user_id': user_id,
+            'message': message,
+            'force_disconnect': force_disconnect,
+        }
+        redis_client = get_redis_client()
+        if redis_client:
+            try:
+                await redis_client.publish(REDIS_WS_CHANNEL, json.dumps(payload))
+                return True
+            except Exception as e:  # noqa: BLE001
+                logger.warning('Redis WS publish failed: %s; using local fallback', e)
+
+        # Fallback for local connection if Redis unavailable
+        return await self._send_personal_message_local(
+            user_id, message, force_disconnect=force_disconnect
+        )
+
+    async def _send_personal_message_local(
+        self,
+        user_id: str,
+        message: dict[str, Any],
+        *,
+        force_disconnect: bool = False,
+    ) -> bool:
+
+        """Deliver a message directly to a locally connected user."""
         websocket = self._connections.get(user_id)
         if not websocket:
             return False
         try:
             await websocket.send_json(message)
+            if force_disconnect:
+                self.disconnect(user_id)
             return True
         except Exception as e:  # noqa: BLE001
             logger.error('Failed to send message to user %s: %s', user_id, e)
             self.disconnect(user_id)
             return False
 
+    async def send_personal_message(
+        self, user_id: str, message: dict[str, Any]
+    ) -> bool:
+        """Send a message to a specific user's WebSocket."""
+        return await self.publish_message(user_id, message)
+
     async def broadcast(
         self, message: dict[str, Any], exclude: set[str] | None = None
     ) -> int:
-        """Broadcast a message to all connected users."""
+        """Broadcast a message to all connected users locally."""
         exclude = exclude or set()
         count = 0
         for user_id, websocket in list(self._connections.items()):
@@ -147,69 +193,97 @@ async def authenticate_websocket(websocket: WebSocket, token: str) -> str:
 # --- Event-driven WebSocket notifications ---
 
 
+async def start_redis_ws_listener(manager: WebSocketManager) -> None:
+    """Subscribe to Redis WS channel and deliver messages to local sockets."""
+    redis_client = get_redis_client()
+    if not redis_client:
+        logger.info('Redis unavailable — WebSocketManager running in local mode')
+        return
+
+    try:
+        pubsub = redis_client.pubsub()
+        await pubsub.subscribe(REDIS_WS_CHANNEL)
+        logger.info('Subscribed WebSocketManager to Redis channel: %s', REDIS_WS_CHANNEL)
+
+        async for message in pubsub.listen():
+            if message['type'] == 'message':
+                try:
+                    data = json.loads(message['data'])
+                    target_user_id = data.get('target_user_id')
+                    ws_msg = data.get('message')
+                    force_disc = data.get('force_disconnect', False)
+                    if target_user_id and manager.is_connected(target_user_id):
+                        await manager._send_personal_message_local(
+                            target_user_id, ws_msg, force_disconnect=force_disc
+                        )
+                except Exception as e:  # noqa: BLE001
+                    logger.error('Error handling Redis WS message: %s', e)
+    except asyncio.CancelledError:
+        logger.info('Redis WS listener task cancelled')
+    except Exception as e:  # noqa: BLE001
+        logger.warning('Redis WS listener stopped: %s', e)
+
+
 async def setup_ws_event_handlers() -> None:
     """Subscribe to events and forward to WebSocket clients."""
     bus = get_event_bus()
     manager = get_ws_manager()
 
+    global _redis_pubsub_task
+    if _redis_pubsub_task is None or _redis_pubsub_task.done():
+        _redis_pubsub_task = asyncio.create_task(start_redis_ws_listener(manager))
+
     async def handle_user_updated(event: dict[str, Any]) -> None:
         payload = event['payload']
         user_id = payload['user_id']
-        if manager.is_connected(user_id):
-            await manager.send_personal_message(
-                user_id,
-                {
-                    'type': 'user.updated',
-                    'data': payload,
-                },
-            )
+        await manager.publish_message(
+            user_id,
+            {
+                'type': 'user.updated',
+                'data': payload,
+            },
+        )
 
     async def handle_user_deactivated(event: dict[str, Any]) -> None:
         payload = event['payload']
         user_id = payload['user_id']
-        if manager.is_connected(user_id):
-            await manager.send_personal_message(
-                user_id,
-                {
-                    'type': 'user.deactivated',
-                    'data': {'reason': 'Account deactivated by administrator'},
-                },
-            )
-            # Force disconnect
-            manager.disconnect(user_id)
+        await manager.publish_message(
+            user_id,
+            {
+                'type': 'user.deactivated',
+                'data': {'reason': 'Account deactivated by administrator'},
+            },
+            force_disconnect=True,
+        )
 
     async def handle_roles_changed(event: dict[str, Any]) -> None:
         payload = event['payload']
         user_id = payload['user_id']
-        if manager.is_connected(user_id):
-            await manager.send_personal_message(
-                user_id,
-                {
-                    'type': 'user.roles_changed',
-                    'data': payload,
-                },
-            )
-            # Force disconnect if admin role removed
-            if 'admin' in payload.get(
-                'old_roles', []
-            ) and 'admin' not in payload.get('new_roles', []):
-                manager.disconnect(user_id)
+        force_disc = 'admin' in payload.get(
+            'old_roles', []
+        ) and 'admin' not in payload.get('new_roles', [])
+        await manager.publish_message(
+            user_id,
+            {
+                'type': 'user.roles_changed',
+                'data': payload,
+            },
+            force_disconnect=force_disc,
+        )
 
     async def handle_password_changed(event: dict[str, Any]) -> None:
         payload = event['payload']
         user_id = payload['user_id']
-        if manager.is_connected(user_id):
-            await manager.send_personal_message(
-                user_id,
-                {
-                    'type': 'user.password_changed',
-                    'data': {
-                        'message': 'Your password was changed. Please log in again.'
-                    },
+        await manager.publish_message(
+            user_id,
+            {
+                'type': 'user.password_changed',
+                'data': {
+                    'message': 'Your password was changed. Please log in again.'
                 },
-            )
-            # Force disconnect to require re-authentication
-            manager.disconnect(user_id)
+            },
+            force_disconnect=True,
+        )
 
     # Subscribe to relevant events
     from app.core.events import UserEvents
@@ -220,3 +294,13 @@ async def setup_ws_event_handlers() -> None:
     await bus.subscribe(UserEvents.PASSWORD_CHANGED, handle_password_changed)
 
     logger.info('WebSocket event handlers subscribed')
+
+
+async def teardown_ws_event_handlers() -> None:
+    """Clean up Redis WS listener task on shutdown."""
+    global _redis_pubsub_task
+    if _redis_pubsub_task and not _redis_pubsub_task.done():
+        _redis_pubsub_task.cancel()
+        _redis_pubsub_task = None
+    logger.info('WebSocket event handlers torn down')
+
