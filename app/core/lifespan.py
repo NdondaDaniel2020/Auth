@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.api.websockets import setup_ws_event_handlers
 from app.core.broker import broker_lifespan, get_broker_config_from_settings
 from app.core.config import get_settings
 from app.core.observability import setup_logging
@@ -15,6 +16,10 @@ from app.models import (
     refresh_token,  # noqa: F401
     role,  # noqa: F401
     user,  # noqa: F401
+)
+from app.services.notification_service import (
+    setup_notifications,
+    teardown_notifications,
 )
 
 
@@ -41,6 +46,11 @@ async def lifespan(app: FastAPI):
     # Start broker if configured
     broker_config = get_broker_config_from_settings()
     async with broker_lifespan(broker_config):
-        yield
+        await setup_notifications()
+        await setup_ws_event_handlers()
+        try:
+            yield
+        finally:
+            await teardown_notifications()
     await close_redis()
     await engine.dispose()
