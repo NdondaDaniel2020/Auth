@@ -20,7 +20,6 @@ from app.schemas.notification import (
     UserRolesChangedPayload,
     UserUpdatedPayload,
 )
-
 from app.services.notification_factory_service import (
     create_deactivation_email,
     create_password_changed_email,
@@ -164,8 +163,6 @@ class NotificationService:
             'Password reset requested notification event processed for user %s',
             payload.user_id,
         )
-
-
 
     async def _handle_password_reset_completed(
         self, event: dict[str, Any]
