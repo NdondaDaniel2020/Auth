@@ -5,6 +5,7 @@ Functions for constructing notification objects from event payloads.
 
 from __future__ import annotations
 
+from app.core.config import get_settings
 from app.schemas.notification import (
     EmailNotification,
     NotificationPriority,
@@ -16,6 +17,7 @@ from app.schemas.notification import (
     UserRolesChangedPayload,
     UserUpdatedPayload,
 )
+
 
 
 def create_welcome_email(user: UserCreatedPayload) -> EmailNotification:
@@ -111,13 +113,14 @@ def create_password_changed_email(
     )
 
 
+
 def create_password_reset_email(
     reset: PasswordResetRequestedPayload,
 ) -> EmailNotification:
     """Create password reset email with reset link."""
-    reset_link = (
-        f'https://example.com/reset-password?token={reset.reset_token}'
-    )
+    settings = get_settings()
+    base_url = getattr(settings, 'APP_BASE_URL', 'http://localhost:8000')
+    reset_link = f'{base_url}/auth/password-reset/confirm?token={reset.reset_token}'
     return EmailNotification(
         notification_id=f'password-reset-{reset.user_id}',
         priority=NotificationPriority.HIGH,
@@ -131,6 +134,7 @@ def create_password_reset_email(
             'client_ip': reset.client_ip,
         },
     )
+
 
 
 def create_password_reset_completed_email(
