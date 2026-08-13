@@ -185,11 +185,17 @@ class NotificationService:
 
     async def _send_email(self, email) -> None:
         """Send email via email_service (which handles SMTP or logging)."""
-        from app.services.email_service import _send_via_smtp
+        from app.services.email_service import _send_via_smtp, render_template
+
+        html_content = email.html_body
+        if not html_content and getattr(email, 'template_id', None):
+            template_data = getattr(email, 'template_data', {}) or {}
+            html_content = render_template(email.template_id, **template_data)
 
         await _send_via_smtp(
-            email.to_email, email.subject, email.html_body or ''
+            email.to_email, email.subject, html_content or ''
         )
+
 
 
 _notification_service: NotificationService | None = None
