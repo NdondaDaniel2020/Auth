@@ -288,3 +288,53 @@ def test_reset_password_token_is_single_use(api_client, monkeypatch) -> None:
     assert second.status_code == 400
     assert second.json()['error']['type'] == 'TokenAlreadyUsedError'
     assert second.json()['error']['code'] == 'TOKEN_ALREADY_USED'
+
+
+def test_reset_password_clears_login_rate_limiter(
+    api_client, monkeypatch
+) -> None:
+    captured = _capture_reset_email(monkeypatch)
+
+    api_client.post(
+        '/auth/register',
+        json={'email': 'blocked-reset@example.com', 'password': 'T3st!Passw0rd'},
+    )
+
+    for _ in range(5):
+        api_client.post(
+            '/auth/login',
+            json={
+                'email': 'blocked-reset@example.com',
+                'password': 'wrongpass',
+            },
+        )
+
+    blocked = api_client.post(
+        '/auth/login',
+        json={
+            'email': 'blocked-reset@example.com',
+            'password': 'T3st!Passw0rd',
+        },
+    )
+    assert blocked.status_code == 429
+
+    api_client.post(
+        '/auth/password-reset/request',
+        json={'email': 'blocked-reset@example.com'},
+    )
+    token = _token_from_link(captured['link'])
+
+    reset = api_client.post(
+        '/auth/password-reset/confirm',
+        json={'token': token, 'new_password': 'BrandNewPass123!'},
+    )
+    assert reset.status_code == 200
+
+    new_login = api_client.post(
+        '/auth/login',
+        json={
+            'email': 'blocked-reset@example.com',
+            'password': 'BrandNewPass123!',
+        },
+    )
+    assert new_login.status_code == 200
