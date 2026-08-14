@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -21,7 +23,18 @@ def _make_ws_app() -> FastAPI:
     return app
 
 
-def test_websocket_connection_within_rate_limit() -> None:
+def test_websocket_connection_within_rate_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    mock_user = MagicMock()
+    mock_user.id = 'ws-user-1'
+    mock_user.is_active = True
+
+    monkeypatch.setattr(
+        'app.api.websockets.UserRepository.get_by_id',
+        AsyncMock(return_value=mock_user),
+    )
+
     app = _make_ws_app()
     token = create_access_token({'sub': 'ws-user-1'})
 
@@ -49,4 +62,6 @@ def test_websocket_handshake_rate_limit_exceeded() -> None:
         TestClient(app) as client,
         pytest.raises((Exception, WebSocketDisconnect)),
     ):
-        client.websocket_connect(f'/ws/connect?token={token}')
+        with client.websocket_connect(f'/ws/connect?token={token}'):
+            pass
+
