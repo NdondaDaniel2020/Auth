@@ -12,6 +12,7 @@ Identifiers are keyed by the client IP; authenticated endpoints can extend
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+from typing import Any
 
 from fastapi import Request
 
@@ -24,7 +25,7 @@ from app.core.rate_limiter import (
 )
 from app.core.redis import get_redis_client
 
-_REQUEST_SENTINEL = object()
+_REQUEST_SENTINEL: Any = object()
 
 
 def get_client_ip(request: Request) -> str:

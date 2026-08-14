@@ -53,4 +53,4 @@ class EmailVerificationTokenRepository(BaseRepository[EmailVerificationToken]):
                 EmailVerificationToken.expires_at < cutoff
             )
         )
-        return result.rowcount
+        return result.rowcount  # type: ignore[attr-defined]

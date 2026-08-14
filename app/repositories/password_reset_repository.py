@@ -53,4 +53,4 @@ class PasswordResetTokenRepository(BaseRepository[PasswordResetToken]):
                 PasswordResetToken.expires_at < cutoff
             )
         )
-        return result.rowcount
+        return result.rowcount  # type: ignore[attr-defined]
