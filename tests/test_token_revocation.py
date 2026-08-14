@@ -232,3 +232,32 @@ def test_revoke_all_user_sessions_is_centralized(
     )
     assert reuse.status_code == 401
     assert reuse.json()['error']['type'] == 'InvalidRefreshTokenError'
+
+
+def test_logout_blacklists_access_token(client, isolated_db_path) -> None:
+    _seed_user(isolated_db_path, email='blacklist@example.com')
+    session = _login(client, 'blacklist@example.com')
+
+    access_token = session['access_token']
+    refresh_token = session['refresh_token']
+
+    # Access token works before logout
+    me = client.get(
+        '/users/me', headers={'Authorization': f'Bearer {access_token}'}
+    )
+    assert me.status_code == 200
+
+    # Logout passing both refresh token and Bearer access token
+    logout = client.post(
+        '/auth/logout',
+        json={'refresh_token': refresh_token},
+        headers={'Authorization': f'Bearer {access_token}'},
+    )
+    assert logout.status_code == 204
+
+    # Access token is now blacklisted and rejected
+    me_after = client.get(
+        '/users/me', headers={'Authorization': f'Bearer {access_token}'}
+    )
+    assert me_after.status_code == 401
+    assert me_after.json()['error']['type'] == 'TokenInvalidError'

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 from datetime import timedelta
 from uuid import uuid4
 
@@ -19,8 +20,10 @@ from app.core.exceptions import (
     TokenAlreadyUsedError,
 )
 from app.core.security import (
+    blacklist_access_token,
     create_access_token,
     create_refresh_token,
+    decode_access_token,
     decode_refresh_token,
     hash_password,
 )
@@ -114,13 +117,16 @@ async def refresh_tokens(db: AsyncSession, refresh_token: str) -> Token:
 
 
 async def logout(
-    db: AsyncSession, refresh_token: str, *, client_ip: str | None = None
+    db: AsyncSession,
+    refresh_token: str,
+    *,
+    client_ip: str | None = None,
+    access_token: str | None = None,
 ) -> None:
-    """Revoke the given refresh token.
+    """Revoke the given refresh token and blacklist the active access token.
 
     Idempotent for tokens that are or were valid; malformed or unknown
-    tokens are rejected. The access token itself remains valid until its
-    natural expiration.
+    tokens are rejected.
     """
     try:
         payload = decode_refresh_token(refresh_token)
@@ -139,6 +145,13 @@ async def logout(
     if not record.revoked:
         await refresh_repository.revoke(jti)
         await db.commit()
+
+    if access_token:
+        with contextlib.suppress(pyjwt.InvalidTokenError):
+            access_payload = decode_access_token(access_token)
+            access_jti = access_payload.get('jti')
+            if access_jti:
+                await blacklist_access_token(access_jti)
 
     log_security_event(
         'LOGOUT',
