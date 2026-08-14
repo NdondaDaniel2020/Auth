@@ -53,7 +53,11 @@ def rate_limit(scope: str) -> Callable[[Request], Awaitable[None]]:
         # Determine client IP from request or fallback
         if request is not _REQUEST_SENTINEL and request.client:
             key = f'{scope}:{request.client.host}'
-        elif request is not _REQUEST_SENTINEL and hasattr(request, 'scope') and request.scope.get('client'):
+        elif (
+            request is not _REQUEST_SENTINEL
+            and hasattr(request, 'scope')
+            and request.scope.get('client')
+        ):
             # WebSocket connection - get IP from scope
             key = f'{scope}:{request.scope["client"].get("host", "unknown")}'
         else:
