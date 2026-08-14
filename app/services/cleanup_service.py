@@ -61,13 +61,13 @@ async def _run_cleanup_loop(interval_minutes: int) -> None:
     )
     try:
         while True:
-            await asyncio.sleep(interval_seconds)
             try:
                 session_factory = get_session_factory()
                 async with session_factory() as session:
                     await cleanup_expired_tokens(session)
             except Exception as e:  # noqa: BLE001
                 logger.warning('Token cleanup loop execution failed: %s', e)
+            await asyncio.sleep(interval_seconds)
     except asyncio.CancelledError:
         logger.info('Token cleanup background loop stopped')
 
