@@ -2,7 +2,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api.websockets import setup_ws_event_handlers
+from app.api.websockets import (
+    setup_ws_event_handlers,
+    teardown_ws_event_handlers,
+)
 from app.core.broker import broker_lifespan, get_broker_config_from_settings
 from app.core.config import get_settings
 from app.core.observability import setup_logging
@@ -52,5 +55,6 @@ async def lifespan(app: FastAPI):
             yield
         finally:
             await teardown_notifications()
+            await teardown_ws_event_handlers()
     await close_redis()
     await engine.dispose()
