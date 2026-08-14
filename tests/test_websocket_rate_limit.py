@@ -61,7 +61,6 @@ def test_websocket_handshake_rate_limit_exceeded() -> None:
     with (
         TestClient(app) as client,
         pytest.raises((Exception, WebSocketDisconnect)),
+        client.websocket_connect(f'/ws/connect?token={token}'),
     ):
-        with client.websocket_connect(f'/ws/connect?token={token}'):
-            pass
-
+        pass
