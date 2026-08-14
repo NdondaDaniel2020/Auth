@@ -24,6 +24,8 @@ from app.core.rate_limiter import (
 )
 from app.core.redis import get_redis_client
 
+_REQUEST_SENTINEL = object()
+
 
 def get_client_ip(request: Request) -> str:
     """Return the client IP, or ``'unknown'`` when unavailable."""
@@ -39,14 +41,23 @@ def rate_limit(scope: str) -> Callable[[Request], Awaitable[None]]:
     """Build a dependency enforcing the request limit configured for ``scope``.
 
     Usage: ``dependencies=[Depends(rate_limit('RATE_LIMIT_REGISTER'))]``.
+    This dependency works for both HTTP requests and WebSocket connections.
     """
 
-    async def dependency(request: Request) -> None:
+    async def dependency(request: Request = _REQUEST_SENTINEL) -> None:
         settings = get_settings()
         limit, window_seconds = parse_rate_limit(
             getattr(settings, scope, settings.RATE_LIMIT_DEFAULT)
         )
-        key = build_rate_limit_key(scope, request)
+
+        # Determine client IP from request or fallback
+        if request is not _REQUEST_SENTINEL and request.client:
+            key = f'{scope}:{request.client.host}'
+        elif request is not _REQUEST_SENTINEL and hasattr(request, 'scope') and request.scope.get('client'):
+            # WebSocket connection - get IP from scope
+            key = f'{scope}:{request.scope["client"].get("host", "unknown")}'
+        else:
+            key = f'{scope}:unknown'
 
         # Use Redis if configured, otherwise fall back to in-memory
         if get_redis_client():
