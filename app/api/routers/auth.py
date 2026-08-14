@@ -31,7 +31,6 @@ router = APIRouter(prefix='/auth', tags=['auth'])
 )
 async def register(data: UserCreate, db: SessionDep) -> UserRead:
     user = await user_service.register_user(db, data)
-    await auth_service.send_verification_email_for_user(db, user)
     return UserRead.model_validate(user)
 
 
