@@ -261,5 +261,3 @@ def test_logout_blacklists_access_token(client, isolated_db_path) -> None:
     )
     assert me_after.status_code == 401
     assert me_after.json()['error']['type'] == 'TokenInvalidError'
-
-

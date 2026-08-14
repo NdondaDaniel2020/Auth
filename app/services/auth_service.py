@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 from datetime import timedelta
 from uuid import uuid4
 
@@ -115,7 +116,6 @@ async def refresh_tokens(db: AsyncSession, refresh_token: str) -> Token:
     return await create_token_pair(db, user)
 
 
-
 async def logout(
     db: AsyncSession,
     refresh_token: str,
@@ -147,13 +147,11 @@ async def logout(
         await db.commit()
 
     if access_token:
-        try:
+        with contextlib.suppress(pyjwt.InvalidTokenError):
             access_payload = decode_access_token(access_token)
             access_jti = access_payload.get('jti')
             if access_jti:
                 await blacklist_access_token(access_jti)
-        except Exception:  # noqa: BLE001
-            pass
 
     log_security_event(
         'LOGOUT',
@@ -161,7 +159,6 @@ async def logout(
         ip=client_ip,
         metadata={'token_id': jti},
     )
-
 
 
 async def request_password_reset(
