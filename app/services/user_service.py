@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import logging
+from datetime import timedelta
 
+from app.core.config import get_settings
 from app.core.events import (
     Event,
     UserEvents,
@@ -25,11 +27,16 @@ from app.core.rate_limiter import (
 from app.core.security import hash_password, verify_password
 from app.core.security_logger import log_security_event
 from app.models.user import User
+from app.repositories.email_verification_repository import (
+    EmailVerificationTokenRepository,
+)
 from app.repositories.user_repository import UserRepository
 from app.schemas.pagination import PaginatedResponse
 from app.schemas.user import UserCreate, UserRead, UserUpdate
 from app.services import auth_service
 from app.services.audit_service import record_admin_action
+from app.utils.datetimes import utcnow
+from app.utils.tokens import generate_opaque_token
 
 
 async def register_user(db, data: UserCreate) -> User:
@@ -49,6 +56,22 @@ async def register_user(db, data: UserCreate) -> User:
         hashed_password=hash_password(data.password),
         full_name=data.full_name,
     )
+
+    verify_link: str | None = None
+    if not user.is_verified:
+        settings = get_settings()
+        token = generate_opaque_token()
+        expires_at = utcnow() + timedelta(
+            minutes=settings.EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES
+        )
+        verification_repo = EmailVerificationTokenRepository(db)
+        await verification_repo.create(
+            user_id=user.id, token=token, expires_at=expires_at
+        )
+        verify_link = (
+            f'{settings.APP_BASE_URL}/auth/verify-email?token={token}'
+        )
+
     await db.commit()
 
     # Publish user.created event
@@ -61,6 +84,7 @@ async def register_user(db, data: UserCreate) -> User:
                 'email': user.email,
                 'full_name': user.full_name,
                 'is_verified': user.is_verified,
+                'verify_link': verify_link,
             },
         )
     )

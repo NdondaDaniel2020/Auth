@@ -103,6 +103,20 @@ async def _clear_database_session_cache() -> AsyncIterator[None]:
     get_session_factory.cache_clear()
 
 
+@pytest_asyncio.fixture(autouse=True)
+async def _setup_test_notifications() -> AsyncIterator[None]:
+    from app.services.notification_service import (
+        setup_notifications,
+        teardown_notifications,
+    )
+
+    await setup_notifications()
+    try:
+        yield
+    finally:
+        await teardown_notifications()
+
+
 @pytest_asyncio.fixture
 async def isolated_session_factory(
     tmp_path: pytest.TempPathFactory,
