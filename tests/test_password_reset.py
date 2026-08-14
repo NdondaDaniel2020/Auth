@@ -297,7 +297,10 @@ def test_reset_password_clears_login_rate_limiter(
 
     api_client.post(
         '/auth/register',
-        json={'email': 'blocked-reset@example.com', 'password': 'T3st!Passw0rd'},
+        json={
+            'email': 'blocked-reset@example.com',
+            'password': 'T3st!Passw0rd',
+        },
     )
 
     for _ in range(5):
