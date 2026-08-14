@@ -7,6 +7,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Query, WebSocket
 
+from app.api.dependencies.rate_limit import rate_limit
 from app.api.websockets import (
     authenticate_websocket,
     get_ws_manager,
@@ -17,7 +18,10 @@ router = APIRouter(prefix='/ws', tags=['websockets'])
 logger = logging.getLogger(__name__)
 
 
-@router.websocket('/connect')
+@router.websocket(
+    '/connect',
+    dependencies=[Depends(rate_limit('RATE_LIMIT_WEBSOCKET'))],
+)
 async def websocket_endpoint(
     websocket: WebSocket,
     token: str = Query(..., description='JWT access token'),
