@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 
+from app.api.dependencies.auth import oauth2_scheme
 from app.api.dependencies.database import SessionDep
 from app.api.dependencies.rate_limit import rate_limit
 from app.schemas.auth import (
@@ -69,10 +70,15 @@ async def refresh(data: RefreshRequest, db: SessionDep) -> Token:
 
 @router.post('/logout', status_code=status.HTTP_204_NO_CONTENT)
 async def logout(
-    data: RefreshRequest, request: Request, db: SessionDep
+    data: RefreshRequest,
+    request: Request,
+    db: SessionDep,
+    access_token: str | None = Depends(oauth2_scheme),
 ) -> Response:
     client_ip = request.client.host if request.client else None
-    await auth_service.logout(db, data.refresh_token, client_ip=client_ip)
+    await auth_service.logout(
+        db, data.refresh_token, client_ip=client_ip, access_token=access_token
+    )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

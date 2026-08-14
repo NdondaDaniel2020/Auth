@@ -13,7 +13,7 @@ from app.core.exceptions import (
     TokenExpiredError,
     TokenInvalidError,
 )
-from app.core.security import decode_access_token
+from app.core.security import decode_access_token, is_access_token_blacklisted
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
 
@@ -50,6 +50,10 @@ async def get_current_user(
 
     user_id = payload.get('sub')
     if not user_id:
+        raise TokenInvalidError()
+
+    jti = payload.get('jti')
+    if jti and await is_access_token_blacklisted(jti):
         raise TokenInvalidError()
 
     user = await UserRepository(db).get_by_id(user_id)

@@ -30,6 +30,31 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return _get_pwd_context().verify(plain_password, hashed_password)
 
 
+import uuid
+
+from app.core.redis import cache_get, cache_set
+
+_in_memory_token_blacklist: set[str] = set()
+
+
+async def blacklist_access_token(jti: str, ttl_seconds: int = 900) -> None:
+    """Blacklist an access token by its JTI (in Redis and in-memory)."""
+    if not jti:
+        return
+    _in_memory_token_blacklist.add(jti)
+    await cache_set(f'blacklist:access_token:{jti}', True, ttl=ttl_seconds)
+
+
+async def is_access_token_blacklisted(jti: str) -> bool:
+    """Check if an access token JTI is blacklisted."""
+    if not jti:
+        return False
+    if jti in _in_memory_token_blacklist:
+        return True
+    redis_val = await cache_get(f'blacklist:access_token:{jti}')
+    return bool(redis_val)
+
+
 def create_access_token(
     data: dict[str, Any],
     expires_delta: timedelta | None = None,
@@ -45,6 +70,8 @@ def create_access_token(
     payload['exp'] = expire
     payload['iat'] = now
     payload['type'] = 'access'
+    if 'jti' not in payload:
+        payload['jti'] = uuid.uuid4().hex
 
     return jwt.encode(
         payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM
