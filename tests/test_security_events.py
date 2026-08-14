@@ -176,9 +176,19 @@ def test_verify_email_logs_event(
 
     captured: dict = {}
 
+    async def fake_send_smtp(to_email: str, subject: str, html: str) -> None:
+        if 'href="' in html:
+            start = html.find('href="') + 6
+            end = html.find('"', start)
+            captured['link'] = html[start:end]
+
     async def fake_send(to_email: str, verify_link: str) -> None:
         captured['link'] = verify_link
 
+    monkeypatch.setattr(
+        'app.services.email_service._send_via_smtp',
+        fake_send_smtp,
+    )
     monkeypatch.setattr(
         'app.services.email_service.send_verification_email',
         fake_send,

@@ -43,6 +43,22 @@ def test_create_welcome_email_with_full_name() -> None:
     assert notification.template_data['is_verified'] is False
 
 
+def test_create_welcome_email_with_verify_link() -> None:
+    payload = UserCreatedPayload(
+        user_id='usr-789',
+        email='bob@example.com',
+        full_name='Bob',
+        is_verified=False,
+        verify_link='http://localhost:8000/auth/verify-email?token=xyz',
+    )
+    notification = create_welcome_email(payload)
+
+    assert (
+        notification.template_data['verify_link']
+        == 'http://localhost:8000/auth/verify-email?token=xyz'
+    )
+
+
 def test_create_welcome_email_without_full_name_uses_email_prefix() -> None:
     payload = UserCreatedPayload(
         user_id='usr-456',
