@@ -19,6 +19,11 @@ from app.core.exceptions import (
     InvalidRefreshTokenError,
     TokenAlreadyUsedError,
 )
+from app.core.rate_limiter import (
+    build_login_key,
+    redis_reset,
+    reset_login_attempts,
+)
 from app.core.security import (
     blacklist_access_token,
     create_access_token,
@@ -247,6 +252,18 @@ async def reset_password(
     await reset_repository.mark_used(record, used_at=now)
 
     await revoke_all_user_sessions(db, user.id)
+
+    # Clear rate limiter keys for user's email and client IP
+    login_key_email = build_login_key(user.email, None)
+    reset_login_attempts(login_key_email)
+    await redis_reset(login_key_email)
+    await redis_reset(f'rate_limit:{login_key_email}')
+
+    if client_ip:
+        login_key_ip = build_login_key(user.email, client_ip)
+        reset_login_attempts(login_key_ip)
+        await redis_reset(login_key_ip)
+        await redis_reset(f'rate_limit:{login_key_ip}')
 
     await db.commit()
 
