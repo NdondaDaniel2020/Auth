@@ -142,6 +142,10 @@ class BaseAppSettings(BaseSettings):
         default='3/minute',
         alias='RATE_LIMIT_EMAIL_RESEND',
     )
+    RATE_LIMIT_WEBSOCKET: str = Field(
+        default='30/minute',
+        alias='RATE_LIMIT_WEBSOCKET',
+    )
     PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = Field(
         default=30,
         alias='PASSWORD_RESET_TOKEN_EXPIRE_MINUTES',
