@@ -58,7 +58,9 @@ def _render_template(name: str, **context) -> str:
     return render_template(name, **context)
 
 
-async def _send_via_smtp(to_email: str, subject: str, html_content: str) -> None:
+async def _send_via_smtp(
+    to_email: str, subject: str, html_content: str
+) -> None:
     """Send an e-mail through the configured SMTP server.
 
     If ``SMTP_HOST`` is not set the application falls back to logging the

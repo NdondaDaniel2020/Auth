@@ -31,16 +31,21 @@ def test_sanitize_context_value_handles_nested_lists_and_dicts() -> None:
 
 
 def test_render_template_escapes_malicious_user_inputs() -> None:
-    html = render_template(
+    welcome_html = render_template(
         'welcome',
         full_name='<script>alert("XSS")</script>',
         temporary_password=None,
-        verify_link='http://localhost:8000/auth/verify-email?token=123&type=test',
+    )
+    assert '<script>' not in welcome_html
+    assert (
+        '&lt;script&gt;alert(&quot;XSS&quot;)&lt;/script&gt;' in welcome_html
     )
 
-    assert '<script>' not in html
-    assert '&lt;script&gt;alert(&quot;XSS&quot;)&lt;/script&gt;' in html
-    assert 'token=123&amp;type=test' in html
+    account_created_html = render_template(
+        'account_created',
+        verify_link='http://localhost:8000/auth/verify-email?token=123&type=test',
+    )
+    assert 'token=123&amp;type=test' in account_created_html
 
 
 def test_render_template_fallback_escapes_html() -> None:
