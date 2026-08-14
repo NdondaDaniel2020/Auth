@@ -32,6 +32,7 @@ def create_welcome_email(user: UserCreatedPayload) -> EmailNotification:
             'full_name': user.full_name or user.email.split('@')[0],
             'is_verified': user.is_verified,
             'temporary_password': user.temporary_password,
+            'verify_link': user.verify_link or '',
         },
     )
 

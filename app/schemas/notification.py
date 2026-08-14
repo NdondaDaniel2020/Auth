@@ -125,6 +125,7 @@ class UserCreatedPayload(BaseModel):
     full_name: str | None = None
     is_verified: bool = False
     temporary_password: str | None = None  # Only for admin-created users
+    verify_link: str | None = None
 
 
 class UserUpdatedPayload(BaseModel):
