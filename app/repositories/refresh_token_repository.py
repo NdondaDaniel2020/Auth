@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 
 from app.models.refresh_token import RefreshToken
 from app.repositories.base import BaseRepository
@@ -49,3 +49,10 @@ class RefreshTokenRepository(BaseRepository[RefreshToken]):
             )
             .values(revoked=True, revoked_at=datetime.now(UTC))
         )
+
+    async def delete_expired(self, before: datetime | None = None) -> int:
+        cutoff = before or datetime.now(UTC)
+        result = await self.session.execute(
+            delete(RefreshToken).where(RefreshToken.expires_at < cutoff)
+        )
+        return result.rowcount  # type: ignore[attr-defined]

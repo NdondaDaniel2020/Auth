@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 
 from app.models.email_verification_token import EmailVerificationToken
 from app.repositories.base import BaseRepository
@@ -45,3 +45,12 @@ class EmailVerificationTokenRepository(BaseRepository[EmailVerificationToken]):
             .where(EmailVerificationToken.id == record.id)
             .values(used=True, used_at=used_at)
         )
+
+    async def delete_expired(self, before: datetime | None = None) -> int:
+        cutoff = before or datetime.now(UTC)
+        result = await self.session.execute(
+            delete(EmailVerificationToken).where(
+                EmailVerificationToken.expires_at < cutoff
+            )
+        )
+        return result.rowcount  # type: ignore[attr-defined]
