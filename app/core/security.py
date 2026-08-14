@@ -31,6 +31,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 import uuid
+
 from app.core.redis import cache_get, cache_set
 
 _in_memory_token_blacklist: set[str] = set()
@@ -75,7 +76,6 @@ def create_access_token(
     return jwt.encode(
         payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM
     )
-
 
 
 def create_refresh_token(

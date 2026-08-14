@@ -13,7 +13,7 @@ from app.core.exceptions import (
     TokenExpiredError,
     TokenInvalidError,
 )
-from app.core.security import decode_access_token
+from app.core.security import decode_access_token, is_access_token_blacklisted
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
 
