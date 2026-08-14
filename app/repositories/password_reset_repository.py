@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 
 from app.models.password_reset_token import PasswordResetToken
 from app.repositories.base import BaseRepository
@@ -45,3 +45,12 @@ class PasswordResetTokenRepository(BaseRepository[PasswordResetToken]):
             .where(PasswordResetToken.id == record.id)
             .values(used=True, used_at=used_at)
         )
+
+    async def delete_expired(self, before: datetime | None = None) -> int:
+        cutoff = before or datetime.now(UTC)
+        result = await self.session.execute(
+            delete(PasswordResetToken).where(
+                PasswordResetToken.expires_at < cutoff
+            )
+        )
+        return result.rowcount

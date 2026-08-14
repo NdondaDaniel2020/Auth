@@ -1,0 +1,115 @@
+"""Unit tests for expired tokens housekeeping cleanup service."""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime, timedelta
+
+from sqlalchemy import select
+
+from app.models.email_verification_token import EmailVerificationToken
+from app.models.password_reset_token import PasswordResetToken
+from app.models.refresh_token import RefreshToken
+from app.services.cleanup_service import cleanup_expired_tokens
+from app.utils.tokens import hash_token
+from tests.conftest import run_in_isolated_db
+
+
+def test_cleanup_expired_tokens_deletes_expired_and_retains_valid(
+    isolated_db_path,
+) -> None:
+    async def _setup_data(factory):
+        async with factory() as session:
+            from app.core.security import hash_password
+            from app.models.user import User
+
+            user = User(
+                email='cleanup@example.com',
+                hashed_password=hash_password('T3st!Passw0rd'),
+            )
+            session.add(user)
+            await session.flush()
+
+            now = datetime.now(UTC)
+
+            # Expired tokens
+            session.add(
+                RefreshToken(
+                    jti='expired-refresh',
+                    user_id=user.id,
+                    expires_at=now - timedelta(hours=1),
+                )
+            )
+            session.add(
+                PasswordResetToken(
+                    user_id=user.id,
+                    token_hash=hash_token('expired-reset'),
+                    expires_at=now - timedelta(hours=1),
+                )
+            )
+            session.add(
+                EmailVerificationToken(
+                    user_id=user.id,
+                    token_hash=hash_token('expired-verify'),
+                    expires_at=now - timedelta(hours=1),
+                )
+            )
+
+            # Active/valid tokens
+            session.add(
+                RefreshToken(
+                    jti='active-refresh',
+                    user_id=user.id,
+                    expires_at=now + timedelta(hours=1),
+                )
+            )
+            session.add(
+                PasswordResetToken(
+                    user_id=user.id,
+                    token_hash=hash_token('active-reset'),
+                    expires_at=now + timedelta(hours=1),
+                )
+            )
+            session.add(
+                EmailVerificationToken(
+                    user_id=user.id,
+                    token_hash=hash_token('active-verify'),
+                    expires_at=now + timedelta(hours=1),
+                )
+            )
+
+            await session.commit()
+
+    run_in_isolated_db(isolated_db_path, _setup_data)
+
+    async def _run_cleanup(factory):
+        async with factory() as session:
+            res = await cleanup_expired_tokens(session)
+            assert res['refresh_tokens'] == 1
+            assert res['password_reset_tokens'] == 1
+            assert res['email_verification_tokens'] == 1
+
+            # Verify database state after cleanup
+            refreshes = (
+                (await session.execute(select(RefreshToken))).scalars().all()
+            )
+            resets = (
+                (await session.execute(select(PasswordResetToken)))
+                .scalars()
+                .all()
+            )
+            verifies = (
+                (await session.execute(select(EmailVerificationToken)))
+                .scalars()
+                .all()
+            )
+
+            assert len(refreshes) == 1
+            assert refreshes[0].jti == 'active-refresh'
+
+            assert len(resets) == 1
+            assert resets[0].token_hash == hash_token('active-reset')
+
+            assert len(verifies) == 1
+            assert verifies[0].token_hash == hash_token('active-verify')
+
+    run_in_isolated_db(isolated_db_path, _run_cleanup)

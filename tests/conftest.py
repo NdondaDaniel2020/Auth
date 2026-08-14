@@ -117,6 +117,21 @@ async def _setup_test_notifications() -> AsyncIterator[None]:
         await teardown_notifications()
 
 
+@pytest.fixture(autouse=True)
+def _prevent_real_smtp_calls(monkeypatch) -> Iterator[None]:
+    """Ensure tests never attempt real SMTP connections to external mail servers."""
+
+    async def fake_send_via_smtp(
+        to_email: str, subject: str, html_content: str
+    ) -> None:
+        pass
+
+    monkeypatch.setattr(
+        'app.services.email_service._send_via_smtp', fake_send_via_smtp
+    )
+    yield
+
+
 @pytest_asyncio.fixture
 async def isolated_session_factory(
     tmp_path: pytest.TempPathFactory,
