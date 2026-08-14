@@ -20,6 +20,10 @@ from app.models import (
     role,  # noqa: F401
     user,  # noqa: F401
 )
+from app.services.cleanup_service import (
+    start_token_cleanup_loop,
+    stop_token_cleanup_loop,
+)
 from app.services.notification_service import (
     setup_notifications,
     teardown_notifications,
@@ -51,9 +55,11 @@ async def lifespan(app: FastAPI):
     async with broker_lifespan(broker_config):
         await setup_notifications()
         await setup_ws_event_handlers()
+        await start_token_cleanup_loop()
         try:
             yield
         finally:
+            await stop_token_cleanup_loop()
             await teardown_notifications()
             await teardown_ws_event_handlers()
     await close_redis()
