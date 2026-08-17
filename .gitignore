@@ -37,9 +37,3 @@ architecture.md
 .coverage
 .agents
 secrets/
-
-# Sensitive files / vulnerability reports
-GUIA-PARA.MD
-ISSUES_GOOGLE_LOGIN.md
-relatorio_vunerabilidade.txt
-vunerabilidades.md
