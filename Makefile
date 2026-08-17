@@ -1,39 +1,62 @@
-.PHONY: help local-up local-down local-logs local-ps staging-up staging-down staging-logs staging-swarm-up staging-swarm-down staging-swarm-logs staging-swarm-ps prod-up prod-down prod-logs secrets-gen test lint
+.DEFAULT_GOAL := help
+
+.PHONY: help \
+	local-up local-down local-logs local-ps \
+	staging-up staging-down staging-logs staging-ps \
+	staging-swarm-up staging-swarm-down staging-swarm-logs staging-swarm-ps \
+	prod-up prod-down prod-logs prod-ps \
+	secrets-gen test lint container fclean
 
 STAGING_STACK := auth_staging
 STAGING_IMAGE := ghcr.io/${GITHUB_REPOSITORY:-ndondaniel2020/auth}:staging
 
-help:
-	@echo "Auth API - Docker Compose Commands"
-	@echo ""
-	@echo "Local development:"
-	@echo "  make local-up              Start local environment (with mailhog, hot reload)"
-	@echo "  make local-down            Stop local environment"
-	@echo "  make local-logs            Follow logs"
-	@echo "  make local-ps              Show running containers"
-	@echo ""
-	@echo "Staging (docker compose):"
-	@echo "  make staging-up            Deploy to staging (requires secrets in Docker/Environment)"
-	@echo "  make staging-down          Stop staging"
-	@echo "  make staging-logs          Follow logs"
-	@echo ""
-	@echo "Staging (Docker Swarm):"
-	@echo "  make staging-swarm-up      Init swarm, create secrets, build image, deploy stack"
-	@echo "  make staging-swarm-down    Remove swarm stack (secrets persist)"
-	@echo "  make staging-swarm-logs    Follow swarm service logs"
-	@echo "  make staging-swarm-ps      Show swarm services"
-	@echo ""
-	@echo "Production:"
-	@echo "  make prod-up               Deploy to production"
-	@echo "  make prod-down             Stop production"
-	@echo "  make prod-logs             Follow logs"
-	@echo ""
-	@echo "Other:"
-	@echo "  make secrets-gen           Generate secret templates in secrets/"
-	@echo "  make test                  Run tests locally"
-	@echo "  make lint                  Run ruff + mypy"
+# Colors
+CYAN  := \033[36m
+GREEN := \033[32m
+YELLOW:= \033[33m
+BOLD  := \033[1m
+RESET := \033[0m
 
-local-up:
+help:
+	@echo "$(BOLD)Auth API - Makefile Commands$(RESET)"
+	@echo ""
+	@echo "$(CYAN)Local Development:$(RESET)"
+	@echo "  $(GREEN)make local-up$(RESET)              Start local environment (mailhog, hot reload)"
+	@echo "  $(GREEN)make local-down$(RESET)            Stop local environment"
+	@echo "  $(GREEN)make local-logs$(RESET)            Follow local container logs"
+	@echo "  $(GREEN)make local-ps$(RESET)              Show running local containers"
+	@echo ""
+	@echo "$(CYAN)Staging (Docker Compose):$(RESET)"
+	@echo "  $(GREEN)make staging-up$(RESET)            Deploy staging environment"
+	@echo "  $(GREEN)make staging-down$(RESET)          Stop staging environment"
+	@echo "  $(GREEN)make staging-logs$(RESET)          Follow staging logs"
+	@echo "  $(GREEN)make staging-ps$(RESET)            Show staging containers"
+	@echo ""
+	@echo "$(CYAN)Staging (Docker Swarm):$(RESET)"
+	@echo "  $(GREEN)make staging-swarm-up$(RESET)      Init swarm, create secrets, build image, deploy stack"
+	@echo "  $(GREEN)make staging-swarm-down$(RESET)    Remove swarm stack"
+	@echo "  $(GREEN)make staging-swarm-logs$(RESET)    Follow swarm service logs"
+	@echo "  $(GREEN)make staging-swarm-ps$(RESET)      Show swarm services"
+	@echo ""
+	@echo "$(CYAN)Production:$(RESET)"
+	@echo "  $(GREEN)make prod-up$(RESET)               Deploy to production"
+	@echo "  $(GREEN)make prod-down$(RESET)             Stop production environment"
+	@echo "  $(GREEN)make prod-logs$(RESET)             Follow production logs"
+	@echo "  $(GREEN)make prod-ps$(RESET)               Show production containers"
+	@echo ""
+	@echo "$(CYAN)Testing & Quality:$(RESET)"
+	@echo "  $(GREEN)make test$(RESET)                  Run tests locally (pytest)"
+	@echo "  $(GREEN)make lint$(RESET)                  Run linters (ruff + mypy)"
+	@echo ""
+	@echo "$(CYAN)Standalone Containers:$(RESET)"
+	@echo "  $(GREEN)make container$(RESET)             Start standalone Redis + Postgres containers"
+	@echo ""
+	@echo "$(CYAN)Utilities & Maintenance:$(RESET)"
+	@echo "  $(GREEN)make secrets-gen$(RESET)           Generate secret templates in secrets/ (preserves existing)"
+	@echo "  $(GREEN)make fclean$(RESET)                Remove all Docker containers, images, volumes, networks"
+	@echo ""
+
+local-up: secrets-gen
 	./scripts/compose.sh local up -d --build
 
 local-down:
@@ -45,7 +68,7 @@ local-logs:
 local-ps:
 	./scripts/compose.sh local ps
 
-staging-up:
+staging-up: secrets-gen
 	./scripts/compose.sh staging up -d
 
 staging-down:
@@ -54,12 +77,17 @@ staging-down:
 staging-logs:
 	./scripts/compose.sh staging logs -f
 
-staging-swarm-up:
+staging-ps:
+	./scripts/compose.sh staging ps
+
+staging-swarm-up: secrets-gen
 	@echo "==> Initializing Docker Swarm (if needed)..."
 	@docker info --format '{{.Swarm.LocalNodeState}}' | grep -q active || docker swarm init
 	@echo "==> Creating secrets (skipping existing)..."
 	@for secret in app_secret_key app_refresh_secret_key db_user db_password db_name smtp_password google_client_id google_client_secret; do \
-		docker secret create $$secret secrets/$$secret.txt 2>/dev/null || true; \
+		if [ -f secrets/$$secret.txt ]; then \
+			docker secret create $$secret secrets/$$secret.txt 2>/dev/null || true; \
+		fi \
 	done
 	@echo "==> Building image $(STAGING_IMAGE)..."
 	docker build -t $(STAGING_IMAGE) -f Dockerfile .
@@ -72,7 +100,8 @@ staging-swarm-down:
 	@echo "Stack removed. Secrets still exist — remove with: docker secret ls"
 
 staging-swarm-logs:
-	@docker service logs -f "$$(docker service ls --filter 'name=$(STAGING_STACK)_app' --format '{{.Name}}')" 2>&1 || \
+	@docker service logs -f $(STAGING_STACK)_app 2>/dev/null || \
+		docker service logs -f "$$(docker service ls --filter 'name=$(STAGING_STACK)' --format '{{.Name}}' | head -n 1)" 2>/dev/null || \
 		echo "No running services. Run 'make staging-swarm-up' first."
 
 staging-swarm-ps:
@@ -87,18 +116,21 @@ prod-down:
 prod-logs:
 	./scripts/compose.sh prod logs -f
 
+prod-ps:
+	./scripts/compose.sh prod ps
+
 secrets-gen:
-	@echo "Generating secret templates..."
+	@echo "Checking/Generating secret templates in secrets/..."
 	@mkdir -p secrets
-	@openssl rand -base64 32 > secrets/app_secret_key.txt 2>/dev/null || echo "your-secret-key-here" > secrets/app_secret_key.txt
-	@openssl rand -base64 32 > secrets/app_refresh_secret_key.txt 2>/dev/null || echo "your-refresh-secret-key-here" > secrets/app_refresh_secret_key.txt
-	@echo "auth_user" > secrets/db_user.txt
-	@openssl rand -base64 24 > secrets/db_password.txt 2>/dev/null || echo "your-db-password" > secrets/db_password.txt
-	@echo "auth_db" > secrets/db_name.txt
-	@openssl rand -base64 24 > secrets/smtp_password.txt 2>/dev/null || echo "your-smtp-password" > secrets/smtp_password.txt
-	@echo "your-client-id.apps.googleusercontent.com" > secrets/google_client_id.txt
-	@openssl rand -base64 24 > secrets/google_client_secret.txt 2>/dev/null || echo "your-google-client-secret" > secrets/google_client_secret.txt
-	@echo "Secrets generated in secrets/ (edit with real values for production)"
+	@[ -f secrets/app_secret_key.txt ] || (openssl rand -base64 32 > secrets/app_secret_key.txt 2>/dev/null || echo "your-secret-key-here" > secrets/app_secret_key.txt)
+	@[ -f secrets/app_refresh_secret_key.txt ] || (openssl rand -base64 32 > secrets/app_refresh_secret_key.txt 2>/dev/null || echo "your-refresh-secret-key-here" > secrets/app_refresh_secret_key.txt)
+	@[ -f secrets/db_user.txt ] || echo "auth_user" > secrets/db_user.txt
+	@[ -f secrets/db_password.txt ] || (openssl rand -base64 24 > secrets/db_password.txt 2>/dev/null || echo "your-db-password" > secrets/db_password.txt)
+	@[ -f secrets/db_name.txt ] || echo "auth_db" > secrets/db_name.txt
+	@[ -f secrets/smtp_password.txt ] || (openssl rand -base64 24 > secrets/smtp_password.txt 2>/dev/null || echo "your-smtp-password" > secrets/smtp_password.txt)
+	@[ -f secrets/google_client_id.txt ] || echo "your-client-id.apps.googleusercontent.com" > secrets/google_client_id.txt
+	@[ -f secrets/google_client_secret.txt ] || (openssl rand -base64 24 > secrets/google_client_secret.txt 2>/dev/null || echo "your-google-client-secret" > secrets/google_client_secret.txt)
+	@echo "Secrets checked. Existing files were preserved."
 
 test:
 	uv run pytest -q
@@ -107,14 +139,16 @@ lint:
 	uv run ruff check . && uv run ruff format --check . && uv run mypy app/
 
 container:
-	docker run -d --name redis -p 6379:6379 redis:7-alpine
-	docker run -d --name postgres -p 5432:5432 -e POSTGRES_DB=Auth -e POSTGRES_USER=Auth -e POSTGRES_PASSWORD=Auth1234 -v postgres_data:/var/lib/postgresql/data postgres:16-alpine
+	@echo "Starting Redis container..."
+	@docker start redis 2>/dev/null || docker run -d --name redis -p 6379:6379 redis:7-alpine
+	@echo "Starting Postgres container..."
+	@docker start postgres 2>/dev/null || docker run -d --name postgres -p 5432:5432 -e POSTGRES_DB=Auth -e POSTGRES_USER=Auth -e POSTGRES_PASSWORD=Auth1234 -v postgres_data:/var/lib/postgresql/data postgres:16-alpine
 
 fclean:
 	@echo "🗑️  Removing all Docker data..."
-	@docker stop $$(docker ps -qa) 2>/dev/null || true
-	@docker rm $$(docker ps -qa) 2>/dev/null || true
-	@docker rmi -f $$(docker images -qa) 2>/dev/null || true
-	@docker volume rm $$(docker volume ls -q) 2>/dev/null || true
-	@docker network rm $$(docker network ls -q) 2>/dev/null || true
-	@echo "✅ All data removed!"
+	@if [ -n "$$(docker ps -qa)" ]; then docker stop $$(docker ps -qa) 2>/dev/null || true; fi
+	@if [ -n "$$(docker ps -qa)" ]; then docker rm $$(docker ps -qa) 2>/dev/null || true; fi
+	@if [ -n "$$(docker images -qa)" ]; then docker rmi -f $$(docker images -qa) 2>/dev/null || true; fi
+	@if [ -n "$$(docker volume ls -q)" ]; then docker volume rm $$(docker volume ls -q) 2>/dev/null || true; fi
+	@if [ -n "$$(docker network ls -q)" ]; then docker network rm $$(docker network ls -q) 2>/dev/null || true; fi
+	@echo "✅ All Docker data removed!"
