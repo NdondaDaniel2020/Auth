@@ -1,0 +1,110 @@
+"""Tests for critical vulnerability fixes."""
+
+from __future__ import annotations
+
+from unittest.mock import AsyncMock, patch
+
+import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from pydantic import ValidationError
+
+from app.core.config import ProductionSettings
+from app.core.events import AuthEvents
+from app.core.middleware import setup_security_headers_middleware
+from app.core.redis import rate_limit_check
+from app.schemas.user import UserCreate
+from app.services import auth_service, user_service
+
+
+def test_production_settings_rejects_weak_secrets() -> None:
+    """Ensure ProductionSettings rejects weak default secrets and duplicate keys."""
+    with pytest.raises(ValidationError):
+        ProductionSettings(
+            DATABASE_URL='sqlite+aiosqlite:///:memory:',
+            CORS_ALLOWED_ORIGINS='https://example.com',
+            SECRET_KEY='dev-only-secret-change-me',
+            REFRESH_SECRET_KEY='prod-refresh-secret-1234567890',
+            ADMIN_PASSWORD='StrongAdminPassword123!',
+        )
+
+    with pytest.raises(ValidationError):
+        ProductionSettings(
+            DATABASE_URL='sqlite+aiosqlite:///:memory:',
+            CORS_ALLOWED_ORIGINS='https://example.com',
+            SECRET_KEY='prod-secret-1234567890',
+            REFRESH_SECRET_KEY='prod-secret-1234567890',  # Same key
+            ADMIN_PASSWORD='StrongAdminPassword123!',
+        )
+
+    with pytest.raises(ValidationError):
+        ProductionSettings(
+            DATABASE_URL='sqlite+aiosqlite:///:memory:',
+            CORS_ALLOWED_ORIGINS='https://example.com',
+            SECRET_KEY='prod-secret-1234567890',
+            REFRESH_SECRET_KEY='prod-refresh-secret-1234567890',
+            ADMIN_PASSWORD='admin123',  # Insecure default password
+        )
+
+
+def test_security_headers_present() -> None:
+    """Ensure HTTP security headers are set on API responses."""
+    app = FastAPI()
+    setup_security_headers_middleware(app)
+
+    @app.get('/test')
+    async def sample_endpoint() -> dict[str, bool]:
+        return {'ok': True}
+
+    with TestClient(app) as test_client:
+        response = test_client.get('/test')
+        assert response.headers.get('X-Frame-Options') == 'DENY'
+        assert response.headers.get('X-Content-Type-Options') == 'nosniff'
+        assert response.headers.get('Referrer-Policy') == 'no-referrer'
+        assert 'Strict-Transport-Security' in response.headers
+
+
+@pytest.mark.asyncio
+async def test_password_reset_event_does_not_contain_reset_token(
+    isolated_session_factory,
+) -> None:
+    """Ensure AuthEvents.PASSWORD_RESET_REQUESTED payload excludes reset_token."""
+    async with isolated_session_factory() as session:
+        user = await user_service.register_user(
+            session,
+            UserCreate(
+                email='reset-no-token@example.com',
+                password='T3st!Password123',
+            ),
+        )
+
+        mock_bus = AsyncMock()
+        with patch(
+            'app.services.auth_service.get_event_bus', return_value=mock_bus
+        ):
+            await auth_service.request_password_reset(
+                session, 'reset-no-token@example.com'
+            )
+
+        assert mock_bus.publish.called
+        event = mock_bus.publish.call_args[0][0]
+        assert event.type == AuthEvents.PASSWORD_RESET_REQUESTED
+        assert 'reset_token' not in event.payload
+        assert event.payload['user_id'] == user.id
+
+
+@pytest.mark.asyncio
+async def test_rate_limit_fails_closed_in_production_when_redis_unavailable(
+    monkeypatch,
+) -> None:
+    """Ensure rate_limit_check fails closed (returns retry_after) when Redis is down in production."""
+    with (
+        patch('app.core.redis.get_redis_client', return_value=None),
+        patch('app.core.redis.get_settings') as mock_settings,
+    ):
+        mock_settings.return_value.ENVIRONMENT = 'production'
+
+        retry_after = await rate_limit_check(
+            key='login:test', limit=5, window_seconds=60
+        )
+        assert retry_after == 60

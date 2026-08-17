@@ -1,0 +1,69 @@
+Vulnerabilidades Encontradas
+Críticas
+1. Secrets Padrão Hardcoded em Desenvolvimento (config.py:69, config.py:278)
+SECRET_KEY: str = Field(default='dev-only-secret-change-me', alias='SECRET_KEY')
+ADMIN_PASSWORD: str = Field(default='admin123', alias='ADMIN_PASSWORD')
+Risco: Secrets padrão podem ir para produção acidentalmente. Senha admin123 é extremamente fraca.
+2. Fallback do Refresh Token para Secret de Acesso (config.py:263-264)
+@property
+def REFRESH_SECRET_KEY_ACTIVE(self) -> str:
+    return self.REFRESH_SECRET_KEY or self.SECRET_KEY
+Risco: Se REFRESH_SECRET_KEY não estiver definido, refresh tokens usam o mesmo secret dos access tokens, quebrando a separação e rotação de tokens.
+3. Rate Limiting Fail-Open (redis.py:141, redis.py:153)
+if not client:
+    return None  # Fallback: allow if Redis unavailable
+...
+return None  # Fail open
+Risco: Quando Redis indisponível, rate limiting é completamente desabilitado, permitindo ataques de força bruta.
+Alta Severidade
+4. Rate Limiter In-Memory Não Pronto para Produção (rate_limiter.py:19-22, rate_limiter.py:119-121)
+- Estado por processo (não funciona com múltiplas instâncias)
+- Sem persistência entre restarts
+- Vulnerável a exaustão de memória
+5. Ausência de Token Binding / Device Fingerprinting
+Access tokens não vinculados a IP, User-Agent ou device ID. Tokens roubados podem ser reutilizados de qualquer lugar.
+6. Token de Reset de Senha Exposto em Eventos (auth_service.py:209-216)
+await bus.publish(Event(
+    type=AuthEvents.PASSWORD_RESET_REQUESTED,
+    payload={..., 'reset_token': token, ...}
+))
+Risco: Tokens publicados no message broker (podem vazar em logs/monitoramento) - tokens nunca devem sair do boundary do serviço.
+7. Flags Secure/HttpOnly/SameSite Ausentes em Cookies (se usando cookies)
+Nenhuma configuração de cookie encontrada para tokens.
+8. State Token OAuth Google Usa Secret da Aplicação (google_auth_service.py:47-51)
+Token CSRF assinado com SECRET_KEY da app em vez de chave dedicada.
+Média Severidade
+9. Lista de Senhas Comuns Fraca (validators.py:20-45)
+Apenas 45 senhas verificadas. Deveria usar lista maior (ex: 10k mais comuns).
+10. Token de Verificação de Email na URL (auth_service.py:349)
+verify_link = f'{settings.APP_BASE_URL}/auth/verify-email?token={token}'
+Tokens em URL vazam via headers Referer, histórico do browser, logs do servidor.
+11. Sem Notificação de Lockout de Conta
+Logins falhos registram eventos mas não notificam usuário de atividade suspeita.
+12. CORS Wildcard em Config de Teste (config.py:371-372)
+CORS_ALLOWED_ORIGINS: str = Field(default='*', alias='CORS_ALLOWED_ORIGINS')
+Config de teste permite origins wildcard - pode ser usada acidentalmente.
+13. Sem Histórico de Senha / Prevenção de Reuso
+Usuários podem reutilizar senhas antigas no reset/troca.
+14. Headers de Segurança Ausentes
+Sem CSP, HSTS, X-Frame-Options, X-Content-Type-Options.
+Baixa Severidade / Defense in Depth
+15. Algoritmo JWT Restrito no Decode (security.py:141) ✓ Bom
+16. Rotação de Refresh Token com Detecção de Reuso (auth_service.py:107-110) ✓ Bom - revoga todas sessões se reuso detectado
+17. Hash Argon2 para Senhas (security.py:15-16) ✓ Bom
+18. Tokens Opacos para Reset/Verificação (tokens.py:7-9) ✓ Bom - alta entropia + SHA-256 no storage
+19. Blacklist de Token no Logout (auth_service.py:154-159) ✓ Bom - JTI do access token adicionado à blacklist
+20. Docker Roda como Root (Dockerfile) - Sem directive USER
+Prioridade de Correção
+ 1. Remover secrets padrão - Exigir SECRET_KEY, REFRESH_SECRET_KEY, ADMIN_PASSWORD em produção
+ 2. Rate limiting fail-closed - Bloquear requests quando Redis indisponível em produção
+ 3. Implementar rate limiter Redis-backed para multi-instâncias
+ 4. Adicionar token binding (device fingerprinting)
+ 5. Remover reset tokens dos payloads de eventos
+ 6. Adicionar middleware de security headers
+ 7. Expandir lista de senhas comuns
+ 8. Remover tokens das URLs (usar POST body ou cookies seguros)
+ 9. Adicionar histórico de senhas
+10. Adicionar usuário non-root no Dockerfile
+11. Notificações de lockout de conta
+12. Chave separada para assinar state tokens OAuth
