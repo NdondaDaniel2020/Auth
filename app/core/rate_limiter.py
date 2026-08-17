@@ -80,6 +80,20 @@ class _LoginRateLimiter:
             self._state.pop(key, None)
             self._blocked_until.pop(key, None)
 
+    def prune_all_stale(self, now: float | None = None) -> int:
+        """Purge all expired login attempt counters and unblocked keys."""
+        now = time.monotonic() if now is None else now
+        pruned_count = 0
+        with self._lock:
+            for key in list(self._state.keys()):
+                self._prune(key, now)
+                if key not in self._state:
+                    pruned_count += 1
+            for key, blocked_until in list(self._blocked_until.items()):
+                if now >= blocked_until:
+                    self._blocked_until.pop(key, None)
+        return pruned_count
+
     def clear(self) -> None:
         with self._lock:
             self._state.clear()
@@ -155,6 +169,19 @@ class _RequestRateLimiter:
                 return max(1, int(retry_after) + 1)
             events.append(now)
             return None
+
+    def prune_all_stale(
+        self, window_seconds: float, now: float | None = None
+    ) -> int:
+        """Purge all expired events across tracked keys."""
+        now = time.monotonic() if now is None else now
+        pruned_count = 0
+        with self._lock:
+            for key in list(self._events.keys()):
+                self._prune(key, window_seconds, now)
+                if key not in self._events:
+                    pruned_count += 1
+        return pruned_count
 
     def reset(self, key: str) -> None:
         with self._lock:
