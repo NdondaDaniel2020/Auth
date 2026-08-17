@@ -41,6 +41,9 @@ class EnvironmentSettings(BaseSettings):
 class BaseAppSettings(BaseSettings):
     model_config = SettingsConfigDict(extra='ignore')
 
+    ENVIRONMENT: Literal['development', 'test', 'staging', 'production'] = (
+        Field(default='development', alias='ENVIRONMENT')
+    )
     APP_NAME: str = Field(default='Auth API', alias='APP_NAME')
     APP_VERSION: str = Field(default='0.1.0', alias='APP_VERSION')
     APP_DESCRIPTION: str = Field(
@@ -449,6 +452,7 @@ def get_settings() -> BaseAppSettings:
         raise ValueError(f'Unsupported environment: {environment}')
 
     settings = settings_class()
+    settings.ENVIRONMENT = environment
 
     try:
         settings.DATABASE_URL = settings.build_database_url()
