@@ -1,4 +1,3 @@
 from app.main import app
 
-# Entrypoint para Vercel Serverless Functions
-app = app
+__all__ = ['app']
