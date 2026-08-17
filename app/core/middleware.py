@@ -54,3 +54,22 @@ def setup_request_logging_middleware(app: FastAPI) -> None:
         )
 
         return response
+
+
+def setup_security_headers_middleware(app: FastAPI) -> None:
+    """Register HTTP security headers middleware on the FastAPI app.
+
+    Enforces defensive HTTP headers: X-Frame-Options, X-Content-Type-Options,
+    Referrer-Policy, and Strict-Transport-Security.
+    """
+
+    @app.middleware('http')
+    async def _add_security_headers(request, call_next):
+        response = await call_next(request)
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['Referrer-Policy'] = 'no-referrer'
+        response.headers['Strict-Transport-Security'] = (
+            'max-age=31536000; includeSubDomains'
+        )
+        return response

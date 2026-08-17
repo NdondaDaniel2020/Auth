@@ -209,7 +209,6 @@ async def request_password_reset(
             payload={
                 'user_id': user.id,
                 'email': user.email,
-                'reset_token': token,
                 'expires_at': expires_at.isoformat(),
                 'client_ip': client_ip,
             },
