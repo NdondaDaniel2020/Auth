@@ -1,0 +1,13 @@
+.git
+.github
+.venv
+.data
+.mypy_cache
+.pytest_cache
+.ruff_cache
+tests
+docs
+Dockerfile
+docker-compose*.yml
+Makefile
+uv.lock
