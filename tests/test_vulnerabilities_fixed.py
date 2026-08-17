@@ -108,3 +108,27 @@ async def test_rate_limit_fails_closed_in_production_when_redis_unavailable(
             key='login:test', limit=5, window_seconds=60
         )
         assert retry_after == 60
+
+
+def test_password_reset_token_expiration_minutes_is_15() -> None:
+    """Ensure password reset token expiration default is set to 15 minutes."""
+    from app.core.config import get_settings
+
+    get_settings.cache_clear()
+    assert get_settings().PASSWORD_RESET_TOKEN_EXPIRE_MINUTES == 15
+
+
+def test_in_memory_rate_limiter_prune_all_stale() -> None:
+    """Ensure prune_all_stale clears expired keys in rate limiters."""
+    from app.core.rate_limiter import rate_limiter, request_rate_limiter
+
+    rate_limiter.register_failed_attempt('user1@example.com', now=100.0)
+    assert rate_limiter.prune_all_stale(now=2000.0) == 1
+
+    request_rate_limiter.check_and_consume(
+        'ip:127.0.0.1', limit=1, window_seconds=60.0, now=100.0
+    )
+    assert (
+        request_rate_limiter.prune_all_stale(window_seconds=60.0, now=200.0)
+        == 1
+    )
