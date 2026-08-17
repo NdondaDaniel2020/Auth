@@ -19,6 +19,9 @@ COPY app ./app
 COPY migrations ./migrations
 COPY alembic.ini ./
 
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
 EXPOSE 8000
 
 CMD ["uv", "run", "uvicorn", "app.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]

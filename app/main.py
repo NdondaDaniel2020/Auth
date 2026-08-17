@@ -7,6 +7,7 @@ from app.core.lifespan import lifespan
 from app.core.middleware import (
     setup_cors_middleware,
     setup_request_logging_middleware,
+    setup_security_headers_middleware,
 )
 from app.core.observability import (
     MetricsMiddleware,
@@ -27,6 +28,7 @@ def create_app() -> FastAPI:
     )
 
     app.add_middleware(MetricsMiddleware)
+    setup_security_headers_middleware(app)
     setup_cors_middleware(app)
     setup_request_logging_middleware(app)
     register_exception_handlers(app)

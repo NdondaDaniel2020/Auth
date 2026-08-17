@@ -130,7 +130,9 @@ def test_production_settings_rejects_wildcard_with_credentials() -> None:
         ProductionSettings(
             DATABASE_URL='sqlite+aiosqlite:///./.data/prod.db',
             CORS_ALLOWED_ORIGINS='*',
-            SECRET_KEY='prod-secret',
+            SECRET_KEY='prod-secret-1234567890',
+            REFRESH_SECRET_KEY='prod-refresh-secret-1234567890',
+            ADMIN_PASSWORD='StrongAdminPassword123!',
         )
 
 
@@ -138,7 +140,9 @@ def test_production_settings_accepts_restricted_origins() -> None:
     settings = ProductionSettings(
         DATABASE_URL='sqlite+aiosqlite:///./.data/prod.db',
         CORS_ALLOWED_ORIGINS='https://app.meudominio.com',
-        SECRET_KEY='prod-secret',
+        SECRET_KEY='prod-secret-1234567890',
+        REFRESH_SECRET_KEY='prod-refresh-secret-1234567890',
+        ADMIN_PASSWORD='StrongAdminPassword123!',
     )
     assert settings.CORS_ALLOWED_ORIGINS_LIST == ['https://app.meudominio.com']
     assert settings.CORS_ALLOW_CREDENTIALS is True
