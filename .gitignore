@@ -35,4 +35,5 @@ htmlcov/
 architecture.md
 .env.template
 .coverage
+.agents
 secrets/
