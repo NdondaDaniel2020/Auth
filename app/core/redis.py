@@ -132,13 +132,21 @@ async def cache_delete_pattern(pattern: str) -> int:
 async def rate_limit_check(
     key: str, limit: int, window_seconds: int
 ) -> int | None:
-    """
-    Check and consume a rate limit slot.
+    """Check and consume a rate limit slot.
+
     Returns retry_after seconds if limit exceeded, else None.
+    In production environment, failures or Redis unavailability fail closed
+    (returns retry_after=window_seconds) to prevent brute-force exploitation.
     """
+    settings = get_settings()
     client = get_redis_client()
     if not client:
-        return None  # Fallback: allow if Redis unavailable
+        if settings.ENVIRONMENT == 'production':
+            logger.error(
+                'Redis unavailable for rate limit check in production; enforcing fail-closed'
+            )
+            return window_seconds
+        return None  # Fallback in dev/test: allow if Redis not configured
 
     try:
         current = await client.incr(key)
@@ -150,7 +158,9 @@ async def rate_limit_check(
         return None
     except RedisError as e:
         logger.warning('Rate limit check failed for %s: %s', key, e)
-        return None  # Fail open
+        if settings.ENVIRONMENT == 'production':
+            return window_seconds
+        return None  # Fail open in dev/test
 
 
 # --- Session storage (for future WebSocket / multi-device) ---

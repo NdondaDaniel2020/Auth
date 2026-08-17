@@ -41,6 +41,9 @@ class EnvironmentSettings(BaseSettings):
 class BaseAppSettings(BaseSettings):
     model_config = SettingsConfigDict(extra='ignore')
 
+    ENVIRONMENT: Literal['development', 'test', 'staging', 'production'] = (
+        Field(default='development', alias='ENVIRONMENT')
+    )
     APP_NAME: str = Field(default='Auth API', alias='APP_NAME')
     APP_VERSION: str = Field(default='0.1.0', alias='APP_VERSION')
     APP_DESCRIPTION: str = Field(
@@ -389,9 +392,11 @@ class ProductionSettings(BaseAppSettings):
         min_length=1, alias='CORS_ALLOWED_ORIGINS'
     )
     SECRET_KEY: str = Field(min_length=1, alias='SECRET_KEY')
+    REFRESH_SECRET_KEY: str = Field(min_length=1, alias='REFRESH_SECRET_KEY')
+    ADMIN_PASSWORD: str = Field(min_length=1, alias='ADMIN_PASSWORD')
 
     @model_validator(mode='after')
-    def _reject_wildcard_with_credentials(self) -> ProductionSettings:
+    def _validate_production_security(self) -> ProductionSettings:
         if (
             '*' in self.CORS_ALLOWED_ORIGINS_LIST
             and self.CORS_ALLOW_CREDENTIALS
@@ -400,6 +405,24 @@ class ProductionSettings(BaseAppSettings):
                 "CORS_ALLOWED_ORIGINS cannot be '*' when "
                 'CORS_ALLOW_CREDENTIALS is enabled'
             )
+
+        weak_secrets = {
+            'dev-only-secret-change-me',
+            'test-only-secret-change-me',
+            'change-me',
+            'secret',
+        }
+        if self.SECRET_KEY in weak_secrets:
+            raise ValueError('Insecure SECRET_KEY used in production')
+        if self.REFRESH_SECRET_KEY in weak_secrets:
+            raise ValueError('Insecure REFRESH_SECRET_KEY used in production')
+        if self.REFRESH_SECRET_KEY == self.SECRET_KEY:
+            raise ValueError(
+                'REFRESH_SECRET_KEY must be distinct from SECRET_KEY in production'
+            )
+        if self.ADMIN_PASSWORD in {'admin123', 'admin', 'password', '123456'}:
+            raise ValueError('Insecure ADMIN_PASSWORD used in production')
+
         return self
 
 
@@ -429,6 +452,7 @@ def get_settings() -> BaseAppSettings:
         raise ValueError(f'Unsupported environment: {environment}')
 
     settings = settings_class()
+    settings.ENVIRONMENT = environment
 
     try:
         settings.DATABASE_URL = settings.build_database_url()
