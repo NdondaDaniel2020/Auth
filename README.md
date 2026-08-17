@@ -248,6 +248,29 @@ Guia para reaproveitar esta base em novos projetos (o que manter, o que
 adaptar, como adicionar entidades e rotas protegidas):
 [docs/boilerplate-guide.md](docs/boilerplate-guide.md).
 
+## Deploy na Vercel
+
+O projeto está pré-configurado para deploy Serverless na Vercel através dos arquivos `api/index.py` e `vercel.json`.
+
+### Passo a passo para o deploy:
+
+1. **Instalar a CLI da Vercel (opcional para deploy manual):**
+   ```bash
+   npm i -g vercel
+   ```
+
+2. **Deploy via CLI ou GitHub Integration:**
+   - Conecte o repositório no dashboard da Vercel ou execute `vercel --prod` na raiz do projeto.
+
+3. **Configuração de Variáveis de Ambiente:**
+   Cadastre as variáveis necessárias no painel da Vercel (**Project Settings -> Environment Variables**):
+   - `DATABASE_URL` (PostgreSQL em nuvem, ex: Supabase / Neon)
+   - `SECRET_KEY`
+   - `REFRESH_SECRET_KEY`
+   - DEMAIS variáveis listadas em `.env.example`
+
+---
+
 ## Contribuição
 
 - **Lint/formatação:** `uv run task lint` (ruff).
