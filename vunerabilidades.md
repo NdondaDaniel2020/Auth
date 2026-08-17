@@ -61,11 +61,12 @@ Este documento apresenta a análise técnica detalhada do projeto `Auth` em rela
 
 #### **4. Rate Limiter In-Memory Não Pronto para Produção (Multi-instâncias)**
 - **Localização:** [rate_limiter.py:19-22](file:///spot/NdDaniel/Code/Estudo/Auth/app/core/rate_limiter.py#L19-L22)
-- **Status:** **Verdadeiro**
+- **Status:** **Mitigado em Instância Única / Pendente para Multi-Instâncias**
 - **Cenário de Risco (Mesmo com .env configurado):** 
   Em uma arquitetura com múltiplas réplicas (Kubernetes, Docker Swarm ou instâncias com múltiplos workers Uvicorn), se o Redis não for utilizado, a memória in-memory é isolada por processo. Um atacante pode distribuir as requisições entre as réplicas via Load Balancer, multiplicando a taxa de tentativas permitidas pelo número de instâncias.
-- **Plano de Correção:**
-  - Tornar a presença do Redis mandatória para ambientes distribuídos de produção e invalidar a inicialização sem repositório centralizado de limite quando `ENVIRONMENT=production`.
+- **Plano de Correção / Mitigação Efetuada:**
+  - Implementado método de limpeza periódica de chaves expiradas (`prune_all_stale`) para evitar acúmulo de memória em execuções de instância única.
+  - Para ambientes distribuídos com múltiplas réplicas, a presença do Redis permanece sendo mandatória.
 
 #### **5. Ausência de Token Binding / Device Fingerprinting**
 - **Localização:** [security.py:58-78](file:///spot/NdDaniel/Code/Estudo/Auth/app/core/security.py#L58-L78)
@@ -113,11 +114,12 @@ Este documento apresenta a análise técnica detalhada do projeto `Auth` em rela
 
 #### **10. Token de Verificação de Email na URL (Query String)**
 - **Localização:** [auth_service.py:349](file:///spot/NdDaniel/Code/Estudo/Auth/app/services/auth_service.py#L349), [auth_service.py:199](file:///spot/NdDaniel/Code/Estudo/Auth/app/services/auth_service.py#L199)
-- **Status:** **Verdadeiro**
+- **Status:** **Mitigado (Janela Reduzida + Referrer-Policy)**
 - **Cenário de Risco:** 
   Ao enviar o token na URL em parâmetros de consulta (`?token=...`), ele pode ser registrado em logs de proxy/Nginx/CDN, histórico de navegadores e no cabeçalho `Referer` se o usuário clicar em links externos.
-- **Plano de Correção:**
-  - Configurar cabeçalho `Referrer-Policy: no-referrer` nas respostas e garantir que os tokens em URL possuam prazo de expiração curto e invalidação imediata após o primeiro uso.
+- **Plano de Correção / Mitigação Efetuada:**
+  - Reduzido o tempo de expiração do token de redefinição de senha de 30 para 15 minutos em `PASSWORD_RESET_TOKEN_EXPIRE_MINUTES`.
+  - Configurado o cabeçalho `Referrer-Policy: no-referrer` nas respostas HTTP para evitar o vazamento do token via cabeçalhos de navegação.
 
 #### **11. Sem Notificação de Lockout de Conta**
 - **Localização:** [user_service.py:110-118](file:///spot/NdDaniel/Code/Estudo/Auth/app/services/user_service.py#L110-L118)
