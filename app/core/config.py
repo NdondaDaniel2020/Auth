@@ -150,7 +150,7 @@ class BaseAppSettings(BaseSettings):
         alias='RATE_LIMIT_WEBSOCKET',
     )
     PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = Field(
-        default=30,
+        default=15,
         alias='PASSWORD_RESET_TOKEN_EXPIRE_MINUTES',
     )
     EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES: int = Field(
