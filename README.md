@@ -137,6 +137,29 @@ uv run python -m app.db.init_db   # idempotente
 Documentação completa do banco (migrações, seeds, testes):
 [docs/migrations-seeds-tests.md](docs/migrations-seeds-tests.md).
 
+### Simulação de ambiente de produção (`./scripts/env_run.sh`)
+
+Em ambientes de produção (como Vercel, Docker ou Kubernetes), as variáveis são injetadas diretamente no ambiente do sistema operacional (`os.environ`), e as configurações de produção (`ProductionSettings`) ignoram a leitura de arquivos `.env` locais por segurança.
+
+O utilitário [`./scripts/env_run.sh`](scripts/env_run.sh) exporta as variáveis de um arquivo `.env` diretamente para as variáveis do processo antes da execução, permitindo simular com precisão o comportamento de produção localmente (incluindo conexões remotas com Supabase e Upstash):
+
+```bash
+# Dar permissão de execução (se necessário)
+chmod +x scripts/env_run.sh
+
+# Executar migrações com variáveis exportadas no ambiente do SO
+./scripts/env_run.sh uv run alembic upgrade head
+
+# Executar seed inicial do banco de dados
+./scripts/env_run.sh uv run python -m app.db.init_db
+
+# Subir a aplicação simulando o ambiente de produção
+./scripts/env_run.sh uv run uvicorn app.main:app
+
+# Usar um arquivo específico de ambiente (opcional, padrão: .env)
+ENV_FILE=.env.production ./scripts/env_run.sh uv run uvicorn app.main:app
+```
+
 ### Documentação automática
 
 Com a aplicação a correr, acesse:
