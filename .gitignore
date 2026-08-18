@@ -33,7 +33,7 @@ htmlcov/
 .data
 .env
 architecture.md
-.env.template
+.env.*
 .coverage
 .agents
 secrets/

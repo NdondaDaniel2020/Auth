@@ -25,7 +25,10 @@ social com Google** — com testes, migrações e seeds prontos.
 | Framework | FastAPI (async) |
 | ORM | SQLAlchemy 2.0 (async) |
 | Migrações | Alembic |
-| Banco | PostgreSQL (produção) / SQLite (dev e testes) |
+| Banco de Dados | PostgreSQL (produção) / SQLite (dev e testes) |
+| Cache & Rate Limit | Redis (Upstash / Redis Cloud) |
+| Mensageria / Eventos | RabbitMQ (aio-pika) / Apache Kafka (aiokafka) |
+| Observabilidade | Prometheus (`/metrics`) + JSON Logger estruturado |
 | Validação | Pydantic v2 + pydantic-settings |
 | Contêineres | Docker / Docker Compose |
 | Gerenciador de dependências | `uv` |
@@ -244,6 +247,20 @@ Endpoints sob `/api/auth`:
 Documentação detalhada (diagramas, tokens, estados do utilizador, erros):
 [docs/authentication-flow.md](docs/authentication-flow.md).
 
+### Observabilidade e Tempo Real
+
+| Método | Rota | Autenticação | Descrição |
+|---|---|---|---|
+| `GET` | `/api/health` | — | Healthcheck de integridade (API, Banco e Redis) |
+| `GET` | `/metrics` | — | Métricas de performance no formato Prometheus |
+| `GET` | `/api/ws` | JWT via query (`?token=...`) | Conexão WebSocket para notificações e eventos em tempo real |
+
+Documentação detalhada:
+- [docs/websockets-notifications.md](docs/websockets-notifications.md) — arquitetura de WebSockets e tempo real
+- [docs/observability-health.md](docs/observability-health.md) — métricas Prometheus e healthcheck
+- [docs/message-broker-events.md](docs/message-broker-events.md) — eventos assíncronos (RabbitMQ e Kafka)
+- [docs/redis-cache.md](docs/redis-cache.md) — cache, rate limit distribuído e sessões
+
 ### Política de tokens
 
 TTLs, rotação, revogação e claims: [docs/token-policy.md](docs/token-policy.md).
@@ -287,7 +304,8 @@ O projeto está pré-configurado para deploy Serverless na Vercel através dos a
 
 3. **Configuração de Variáveis de Ambiente:**
    Cadastre as variáveis necessárias no painel da Vercel (**Project Settings -> Environment Variables**):
-   - `DATABASE_URL` (PostgreSQL em nuvem, ex: Supabase / Neon)
+   - `DATABASE_URL` (PostgreSQL em nuvem, ex: Supabase / Neon — use a URL do *Connection Pooler IPv4*)
+   - `REDIS_URL` (Redis gerenciado, ex: Upstash com prefixo `rediss://`)
    - `SECRET_KEY`
    - `REFRESH_SECRET_KEY`
    - DEMAIS variáveis listadas em `.env.example`
@@ -307,6 +325,10 @@ O projeto está pré-configurado para deploy Serverless na Vercel através dos a
 - Documentação automática: <http://localhost:8001/docs>
 - [docs/environment-variables.md](docs/environment-variables.md) — variáveis de ambiente
 - [docs/authentication-flow.md](docs/authentication-flow.md) — fluxo de autenticação
+- [docs/websockets-notifications.md](docs/websockets-notifications.md) — WebSockets e notificações em tempo real
+- [docs/message-broker-events.md](docs/message-broker-events.md) — mensageria e eventos (RabbitMQ e Kafka)
+- [docs/observability-health.md](docs/observability-health.md) — métricas Prometheus e healthcheck
+- [docs/redis-cache.md](docs/redis-cache.md) — cache, rate limit e sessões com Redis
 - [docs/token-policy.md](docs/token-policy.md) — política de tokens
 - [docs/rbac-model.md](docs/rbac-model.md) — modelo de roles e permissões
 - [docs/authorization-matrix.md](docs/authorization-matrix.md) — matriz de autorização
@@ -318,3 +340,4 @@ O projeto está pré-configurado para deploy Serverless na Vercel através dos a
 - [docs/migrations-seeds-tests.md](docs/migrations-seeds-tests.md) — migrações, seeds e testes
 - [docs/testing-conventions.md](docs/testing-conventions.md) — convenções de teste
 - [docs/boilerplate-guide.md](docs/boilerplate-guide.md) — extensibilidade
+
