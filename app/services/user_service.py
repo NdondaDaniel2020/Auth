@@ -31,12 +31,37 @@ from app.repositories.email_verification_repository import (
     EmailVerificationTokenRepository,
 )
 from app.repositories.user_repository import UserRepository
+from app.schemas.auth import UserRBACMetadata
 from app.schemas.pagination import PaginatedResponse
 from app.schemas.user import UserCreate, UserRead, UserUpdate
 from app.services import auth_service
 from app.services.audit_service import record_admin_action
 from app.utils.datetimes import utcnow
 from app.utils.tokens import generate_opaque_token
+
+
+def get_user_rbac_metadata(user: User) -> UserRBACMetadata:
+    """Extract RBAC roles and permissions metadata for a user."""
+    roles = sorted({role.name for role in (user.roles or [])})
+    permissions = sorted({
+        permission.code
+        for role in (user.roles or [])
+        for permission in (role.permissions or [])
+    })
+
+    if user.is_superuser and '*' not in permissions:
+        permissions.append('*')
+        permissions.sort()
+
+    return UserRBACMetadata(
+        id=user.id,
+        email=user.email,
+        full_name=user.full_name,
+        is_active=user.is_active,
+        is_superuser=user.is_superuser,
+        roles=roles,
+        permissions=permissions,
+    )
 
 
 async def register_user(db, data: UserCreate) -> User:

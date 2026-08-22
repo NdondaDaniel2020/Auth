@@ -5,10 +5,11 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 
-from app.api.dependencies.auth import oauth2_scheme
+from app.api.dependencies.auth import CurrentUserDep, oauth2_scheme
 from app.api.dependencies.database import SessionDep
 from app.api.dependencies.rate_limit import rate_limit
 from app.schemas.auth import (
+    AuthResponse,
     EmailVerificationConfirm,
     LoginRequest,
     PasswordResetConfirm,
@@ -16,6 +17,7 @@ from app.schemas.auth import (
     RefreshRequest,
     ResendVerificationRequest,
     Token,
+    UserRBACMetadata,
 )
 from app.schemas.user import UserCreate, UserRead
 from app.services import auth_service, user_service
@@ -34,8 +36,10 @@ async def register(data: UserCreate, db: SessionDep) -> UserRead:
     return UserRead.model_validate(user)
 
 
-@router.post('/login', response_model=Token)
-async def login(data: LoginRequest, request: Request, db: SessionDep) -> Token:
+@router.post('/login', response_model=AuthResponse)
+async def login(
+    data: LoginRequest, request: Request, db: SessionDep
+) -> AuthResponse:
     client_ip = request.client.host if request.client else None
     user = await user_service.authenticate_user(
         db,
@@ -43,15 +47,22 @@ async def login(data: LoginRequest, request: Request, db: SessionDep) -> Token:
         password=data.password,
         client_ip=client_ip,
     )
-    return await auth_service.create_token_pair(db, user)
+    tokens = await auth_service.create_token_pair(db, user)
+    user_metadata = user_service.get_user_rbac_metadata(user)
+    return AuthResponse(
+        access_token=tokens.access_token,
+        refresh_token=tokens.refresh_token,
+        token_type=tokens.token_type,
+        user=user_metadata,
+    )
 
 
-@router.post('/login-form', response_model=Token)
+@router.post('/login-form', response_model=AuthResponse)
 async def login_form(
     form: Annotated[OAuth2PasswordRequestForm, Depends()],
     request: Request,
     db: SessionDep,
-) -> Token:
+) -> AuthResponse:
     client_ip = request.client.host if request.client else None
     user = await user_service.authenticate_user(
         db,
@@ -59,7 +70,20 @@ async def login_form(
         password=form.password,
         client_ip=client_ip,
     )
-    return await auth_service.create_token_pair(db, user)
+    tokens = await auth_service.create_token_pair(db, user)
+    user_metadata = user_service.get_user_rbac_metadata(user)
+    return AuthResponse(
+        access_token=tokens.access_token,
+        refresh_token=tokens.refresh_token,
+        token_type=tokens.token_type,
+        user=user_metadata,
+    )
+
+
+@router.get('/me', response_model=UserRBACMetadata)
+async def get_auth_me(current_user: CurrentUserDep) -> UserRBACMetadata:
+    """Return authenticated user profile and RBAC metadata for frontend rehydration."""
+    return user_service.get_user_rbac_metadata(current_user)
 
 
 @router.post('/refresh', response_model=Token)
