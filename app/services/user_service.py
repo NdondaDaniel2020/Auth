@@ -24,7 +24,7 @@ from app.core.rate_limiter import (
     register_failed_login,
     reset_login_attempts,
 )
-from app.core.security import hash_password, verify_password
+from app.core.security import hash_password_async, verify_password_async
 from app.core.security_logger import log_security_event
 from app.models.user import User
 from app.repositories.email_verification_repository import (
@@ -53,7 +53,7 @@ async def register_user(db, data: UserCreate) -> User:
 
     user = await repository.create(
         email=data.email,
-        hashed_password=hash_password(data.password),
+        hashed_password=await hash_password_async(data.password),
         full_name=data.full_name,
     )
 
@@ -120,12 +120,13 @@ async def authenticate_user(
     repository = UserRepository(db)
     user = await repository.get_by_email(email)
 
-    if (
-        user is None
-        or not user.is_active
-        or user.hashed_password is None
-        or not verify_password(password, user.hashed_password)
-    ):
+    password_valid = (
+        await verify_password_async(password, user.hashed_password)
+        if user is not None and user.hashed_password is not None
+        else False
+    )
+
+    if user is None or not user.is_active or not password_valid:
         reason = (
             'account_inactive'
             if user is not None and not user.is_active
