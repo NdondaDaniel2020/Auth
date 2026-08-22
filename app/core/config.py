@@ -93,6 +93,18 @@ class BaseAppSettings(BaseSettings):
         default='argon2',
         alias='PASSWORD_HASH_SCHEME',
     )
+    ARGON2_TIME_COST: int = Field(
+        default=2,
+        alias='ARGON2_TIME_COST',
+    )
+    ARGON2_MEMORY_COST: int = Field(
+        default=65536,
+        alias='ARGON2_MEMORY_COST',
+    )
+    ARGON2_PARALLELISM: int = Field(
+        default=4,
+        alias='ARGON2_PARALLELISM',
+    )
     PASSWORD_MIN_LENGTH: int = Field(
         default=8,
         alias='PASSWORD_MIN_LENGTH',
@@ -378,6 +390,9 @@ class TestSettings(BaseAppSettings):
     CORS_ALLOWED_ORIGINS: str = Field(
         default='*', alias='CORS_ALLOWED_ORIGINS'
     )
+    ARGON2_TIME_COST: int = Field(default=1, alias='ARGON2_TIME_COST')
+    ARGON2_MEMORY_COST: int = Field(default=1024, alias='ARGON2_MEMORY_COST')
+    ARGON2_PARALLELISM: int = Field(default=1, alias='ARGON2_PARALLELISM')
     CORS_ALLOW_CREDENTIALS: bool = Field(
         default=False,
         alias='CORS_ALLOW_CREDENTIALS',

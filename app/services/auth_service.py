@@ -30,7 +30,7 @@ from app.core.security import (
     create_refresh_token,
     decode_access_token,
     decode_refresh_token,
-    hash_password,
+    hash_password_async,
 )
 from app.core.security_logger import log_security_event
 from app.models.user import User
@@ -262,7 +262,7 @@ async def reset_password(
     if user is None:
         raise InvalidOrExpiredTokenError()
 
-    user.hashed_password = hash_password(new_password)
+    user.hashed_password = await hash_password_async(new_password)
     await reset_repository.mark_used(record, used_at=now)
 
     await revoke_all_user_sessions(db, user.id)
