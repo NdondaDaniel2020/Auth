@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -9,8 +10,6 @@ from passlib.context import CryptContext
 
 from app.core.config import get_settings
 
-
-import asyncio
 
 def _get_pwd_context() -> CryptContext:
     settings = get_settings()
@@ -49,7 +48,9 @@ async def verify_password_async(
     plain_password: str, hashed_password: str
 ) -> bool:
     """Validate a password asynchronously in a worker thread (non-blocking)."""
-    return await asyncio.to_thread(verify_password, plain_password, hashed_password)
+    return await asyncio.to_thread(
+        verify_password, plain_password, hashed_password
+    )
 
 
 import uuid
