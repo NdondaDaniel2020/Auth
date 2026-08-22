@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import select, update
+from sqlalchemy import update
 
 from app.models.refresh_token import RefreshToken
 
@@ -71,6 +71,7 @@ async def test_refresh_reuse_outside_grace_period_revokes_all_sessions(
     # 3. Simulate passage of time outside grace period (> 10 seconds)
     # Update revoked_at for session_a's refresh token to 30 seconds ago
     from app.core.security import decode_refresh_token
+
     jti_a = decode_refresh_token(session_a['refresh_token'])['jti']
 
     async with isolated_session_factory() as db:
