@@ -32,27 +32,48 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 import uuid
 
-from app.core.redis import cache_get, cache_set
+from app.core.redis import cache_get, cache_set, get_redis_client
 
-_in_memory_token_blacklist: set[str] = set()
+_in_memory_token_blacklist: dict[str, float] = {}
+
+
+def _clean_expired_in_memory_blacklist() -> None:
+    now = datetime.now(UTC).timestamp()
+    expired_keys = [
+        jti for jti, exp in _in_memory_token_blacklist.items() if exp <= now
+    ]
+    for key in expired_keys:
+        _in_memory_token_blacklist.pop(key, None)
 
 
 async def blacklist_access_token(jti: str, ttl_seconds: int = 900) -> None:
-    """Blacklist an access token by its JTI (in Redis and in-memory)."""
+    """Blacklist an access token by its JTI.
+
+    Uses Redis if available; falls back to in-memory storage when Redis is disabled.
+    """
     if not jti:
         return
-    _in_memory_token_blacklist.add(jti)
-    await cache_set(f'blacklist:access_token:{jti}', True, ttl=ttl_seconds)
+
+    if get_redis_client() is not None:
+        await cache_set(f'blacklist:access_token:{jti}', True, ttl=ttl_seconds)
+        return
+
+    expire_at = datetime.now(UTC).timestamp() + ttl_seconds
+    _in_memory_token_blacklist[jti] = expire_at
+    _clean_expired_in_memory_blacklist()
 
 
 async def is_access_token_blacklisted(jti: str) -> bool:
     """Check if an access token JTI is blacklisted."""
     if not jti:
         return False
-    if jti in _in_memory_token_blacklist:
-        return True
-    redis_val = await cache_get(f'blacklist:access_token:{jti}')
-    return bool(redis_val)
+
+    if get_redis_client() is not None:
+        redis_val = await cache_get(f'blacklist:access_token:{jti}')
+        return bool(redis_val)
+
+    _clean_expired_in_memory_blacklist()
+    return jti in _in_memory_token_blacklist
 
 
 def create_access_token(
