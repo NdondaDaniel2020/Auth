@@ -81,6 +81,10 @@ class BaseAppSettings(BaseSettings):
         default=7,
         alias='JWT_REFRESH_DAYS',
     )
+    JWT_REFRESH_GRACE_PERIOD_SECONDS: int = Field(
+        default=10,
+        alias='JWT_REFRESH_GRACE_PERIOD_SECONDS',
+    )
     REFRESH_SECRET_KEY: str = Field(
         default='',
         alias='REFRESH_SECRET_KEY',

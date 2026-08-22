@@ -99,14 +99,29 @@ async def refresh_tokens(db: AsyncSession, refresh_token: str) -> Token:
         raise InvalidRefreshTokenError()
 
     refresh_repository = RefreshTokenRepository(db)
-    record = await refresh_repository.get_by_jti(jti)
+    record = await refresh_repository.get_by_jti_for_update(jti)
 
     if record is None:
         raise InvalidRefreshTokenError()
 
     if record.revoked:
-        await revoke_all_user_sessions(db, record.user_id)
-        await db.commit()
+        revoked_at = (
+            ensure_utc(record.revoked_at) if record.revoked_at else None
+        )
+        settings = get_settings()
+        grace_period = settings.JWT_REFRESH_GRACE_PERIOD_SECONDS
+
+        time_since_revocation = (
+            (utcnow() - revoked_at).total_seconds() if revoked_at else None
+        )
+
+        if (
+            time_since_revocation is None
+            or time_since_revocation > grace_period
+        ):
+            await revoke_all_user_sessions(db, record.user_id)
+            await db.commit()
+
         raise InvalidRefreshTokenError()
 
     if ensure_utc(record.expires_at) <= utcnow():

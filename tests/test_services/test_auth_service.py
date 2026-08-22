@@ -27,6 +27,7 @@ from app.repositories.password_reset_repository import (
 from app.repositories.refresh_token_repository import RefreshTokenRepository
 from app.repositories.user_repository import UserRepository
 from app.services import auth_service
+from app.utils.datetimes import utcnow
 
 PASSWORD = 'T3st!Passw0rd'
 
@@ -92,6 +93,11 @@ async def test_refresh_tokens_rejects_revoked_and_revokes_all(
 
         first_jti = decode_refresh_token(first['refresh_token'])['jti']
         await RefreshTokenRepository(session).revoke(first_jti)
+        first_record = await RefreshTokenRepository(session).get_by_jti(
+            first_jti
+        )
+        if first_record:
+            first_record.revoked_at = utcnow() - timedelta(seconds=30)
         await session.commit()
 
         with pytest.raises(InvalidRefreshTokenError):
