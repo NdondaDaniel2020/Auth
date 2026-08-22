@@ -18,6 +18,14 @@ class RefreshTokenRepository(BaseRepository[RefreshToken]):
         )
         return result.scalar_one_or_none()
 
+    async def get_by_jti_for_update(self, jti: str) -> RefreshToken | None:
+        result = await self.session.execute(
+            select(RefreshToken)
+            .where(RefreshToken.jti == jti)
+            .with_for_update()
+        )
+        return result.scalar_one_or_none()
+
     async def create(  # type: ignore[override]
         self,
         *,
