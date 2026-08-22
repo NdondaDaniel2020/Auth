@@ -10,8 +10,18 @@ from passlib.context import CryptContext
 from app.core.config import get_settings
 
 
+import asyncio
+
 def _get_pwd_context() -> CryptContext:
     settings = get_settings()
+    if settings.PASSWORD_HASH_SCHEME == 'argon2':
+        return CryptContext(
+            schemes=['argon2'],
+            argon2__time_cost=settings.ARGON2_TIME_COST,
+            argon2__memory_cost=settings.ARGON2_MEMORY_COST,
+            argon2__parallelism=settings.ARGON2_PARALLELISM,
+            deprecated='auto',
+        )
     return CryptContext(
         schemes=[settings.PASSWORD_HASH_SCHEME], deprecated='auto'
     )
@@ -28,6 +38,18 @@ def hash_password(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Validate a plain-text password against a stored hash."""
     return _get_pwd_context().verify(plain_password, hashed_password)
+
+
+async def hash_password_async(password: str) -> str:
+    """Generate a salted hash asynchronously in a worker thread (non-blocking)."""
+    return await asyncio.to_thread(hash_password, password)
+
+
+async def verify_password_async(
+    plain_password: str, hashed_password: str
+) -> bool:
+    """Validate a password asynchronously in a worker thread (non-blocking)."""
+    return await asyncio.to_thread(verify_password, plain_password, hashed_password)
 
 
 import uuid
