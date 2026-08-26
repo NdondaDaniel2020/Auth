@@ -132,3 +132,63 @@ def test_in_memory_rate_limiter_prune_all_stale() -> None:
         request_rate_limiter.prune_all_stale(window_seconds=60.0, now=200.0)
         == 1
     )
+
+
+@pytest.mark.asyncio
+async def test_password_reset_request_timing_mitigation_unknown_email(
+    isolated_session_factory,
+) -> None:
+    """Ensure password reset request for non-existent email returns gracefully without persisting tokens or sending emails."""
+    from sqlalchemy import select
+
+    from app.models.password_reset_token import PasswordResetToken
+
+    async with isolated_session_factory() as session:
+        mock_bus = AsyncMock()
+        with (
+            patch(
+                'app.services.auth_service.get_event_bus',
+                return_value=mock_bus,
+            ),
+            patch(
+                'app.services.email_service.send_password_reset_email',
+                new_callable=AsyncMock,
+            ) as mock_send_email,
+        ):
+            await auth_service.request_password_reset(
+                session, 'nonexistent@example.com'
+            )
+
+        assert not mock_send_email.called
+        assert not mock_bus.publish.called
+
+        tokens = (
+            (await session.execute(select(PasswordResetToken))).scalars().all()
+        )
+        assert tokens == []
+
+
+def test_password_reset_request_user_enumeration_responses_are_identical(
+    api_client,
+) -> None:
+    """Ensure responses for existing vs non-existing emails in password reset request are identical (anti-enumeration)."""
+    api_client.post(
+        '/auth/register',
+        json={'email': 'known@example.com', 'password': 'T3st!Password123'},
+    )
+
+    resp_known = api_client.post(
+        '/auth/password-reset/request',
+        json={'email': 'known@example.com'},
+    )
+    resp_unknown = api_client.post(
+        '/auth/password-reset/request',
+        json={'email': 'unknown@example.com'},
+    )
+
+    assert resp_known.status_code == 200
+    assert resp_unknown.status_code == 200
+    assert resp_known.json() == resp_unknown.json()
+    assert resp_known.json() == {
+        'message': 'If the e-mail is registered, a password reset link has been sent.'
+    }
