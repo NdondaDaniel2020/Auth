@@ -8,7 +8,7 @@
 # Exemplos:
 #   ./scripts/env_run.sh uv run alembic upgrade head
 #   ./scripts/env_run.sh uv run python -m app.db.init_db
-#   ./scripts/env_run.sh uv run uvicorn app.main:app
+#   ./scripts/env_run.sh uv run uvicorn app.main:create_app --factory --ws-ping-interval 20.0 --ws-ping-timeout 10.0
 
 set -euo pipefail
 

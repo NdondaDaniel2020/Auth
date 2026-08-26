@@ -95,7 +95,7 @@ pre_format = 'ruff check --fix'
 format = 'ruff format'
 
 run = 'fastapi dev app/main.py --host 0.0.0.0 --port 8000'
-runserver = 'uvicorn app.main:app --host 0.0.0.0 --reload --port 8000'
+runserver = 'uvicorn app.main:create_app --factory --host 0.0.0.0 --reload --port 8000 --ws-ping-interval 20.0 --ws-ping-timeout 10.0'
 seed = 'python -m app.db.init_db'
 
 pre_test = 'task lint'
