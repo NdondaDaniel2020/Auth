@@ -1,6 +1,7 @@
 from .audit_log import AuditLog
 from .email_verification_token import EmailVerificationToken
 from .mfa_method import MfaMethod
+from .notification import Notification
 from .password_reset_token import PasswordResetToken
 from .permission import Permission, role_permissions
 from .refresh_token import RefreshToken
@@ -11,6 +12,7 @@ __all__ = [
     'AuditLog',
     'EmailVerificationToken',
     'MfaMethod',
+    'Notification',
     'PasswordResetToken',
     'Permission',
     'RefreshToken',
@@ -19,3 +21,4 @@ __all__ = [
     'role_permissions',
     'user_roles',
 ]
+
