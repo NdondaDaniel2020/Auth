@@ -21,4 +21,3 @@ __all__ = [
     'role_permissions',
     'user_roles',
 ]
-

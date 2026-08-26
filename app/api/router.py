@@ -9,4 +9,3 @@ api_router.include_router(google_auth.router)
 api_router.include_router(notifications.router)
 api_router.include_router(users.router)
 api_router.include_router(websockets.router)
-

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import datetime
-
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -153,10 +151,10 @@ def test_sync_notifications_user_isolation(
     isolated_session_factory, isolated_db_path
 ) -> None:
     """Users can only see their own notifications during catch-up sync."""
-    user1_id, _ = _seed_user_and_notifications(
+    _user1_id, _ = _seed_user_and_notifications(
         isolated_db_path, email='u1@example.com', notification_count=2
     )
-    user2_id, n2_ids = _seed_user_and_notifications(
+    user2_id, _n2_ids = _seed_user_and_notifications(
         isolated_db_path, email='u2@example.com', notification_count=3
     )
 

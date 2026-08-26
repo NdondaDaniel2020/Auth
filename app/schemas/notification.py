@@ -247,4 +247,3 @@ class NotificationSyncResponse(BaseModel):
     total: int
     has_more: bool = False
     last_id: int | None = None
-
