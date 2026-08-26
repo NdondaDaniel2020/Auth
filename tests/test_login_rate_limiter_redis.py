@@ -27,8 +27,8 @@ def _clean_memory_rate_limiter():
 @pytest.mark.asyncio
 async def test_fallback_to_memory_when_redis_client_none() -> None:
     """When get_redis_client() is None, rate limiter falls back to in-memory implementation."""
-    key = "fallback_none@example.com"
-    with patch("app.core.rate_limiter.get_redis_client", return_value=None):
+    key = 'fallback_none@example.com'
+    with patch('app.core.rate_limiter.get_redis_client', return_value=None):
         for _ in range(4):
             await register_failed_login_async(key)
         assert await check_login_blocked_async(key) is None
@@ -80,18 +80,20 @@ async def test_redis_login_attempts_tracking_and_blocking() -> None:
     mock_redis.delete.side_effect = mock_delete
     mock_redis.expire = AsyncMock()
 
-    key = "redis_test@example.com"
-    blocked_key = f"{LOGIN_BLOCKED_PREFIX}{key}"
-    attempts_key = f"{LOGIN_ATTEMPTS_PREFIX}{key}"
+    key = 'redis_test@example.com'
+    blocked_key = f'{LOGIN_BLOCKED_PREFIX}{key}'
+    attempts_key = f'{LOGIN_ATTEMPTS_PREFIX}{key}'
 
-    with patch("app.core.rate_limiter.get_redis_client", return_value=mock_redis):
+    with patch(
+        'app.core.rate_limiter.get_redis_client', return_value=mock_redis
+    ):
         for _ in range(4):
             await register_failed_login_async(key)
         assert await check_login_blocked_async(key) is None
 
         # 5th attempt triggers block
         await register_failed_login_async(key)
-        mock_redis.setex.assert_called_with(blocked_key, 1800, "1")
+        mock_redis.setex.assert_called_with(blocked_key, 1800, '1')
 
         blocked = await check_login_blocked_async(key)
         assert blocked == 1800
@@ -105,13 +107,15 @@ async def test_redis_login_attempts_tracking_and_blocking() -> None:
 async def test_fallback_on_redis_error() -> None:
     """When Redis operations raise RedisError, fallback smoothly to in-memory state."""
     mock_redis = AsyncMock()
-    mock_redis.ttl.side_effect = RedisError("Connection lost")
-    mock_redis.incr.side_effect = RedisError("Connection lost")
-    mock_redis.delete.side_effect = RedisError("Connection lost")
+    mock_redis.ttl.side_effect = RedisError('Connection lost')
+    mock_redis.incr.side_effect = RedisError('Connection lost')
+    mock_redis.delete.side_effect = RedisError('Connection lost')
 
-    key = "redis_err@example.com"
+    key = 'redis_err@example.com'
 
-    with patch("app.core.rate_limiter.get_redis_client", return_value=mock_redis):
+    with patch(
+        'app.core.rate_limiter.get_redis_client', return_value=mock_redis
+    ):
         for _ in range(5):
             await register_failed_login_async(key)
 
