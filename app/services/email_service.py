@@ -132,3 +132,14 @@ async def send_account_locked_email(to_email: str, block_minutes: int) -> None:
         block_minutes=block_minutes,
     )
     await _send_via_smtp(to_email, subject, html_content)
+
+
+async def send_backup_code_used_email(
+    to_email: str, remaining_count: int
+) -> None:
+    subject = 'Security Alert: Recovery Code Used'
+    html_content = _render_template(
+        'backup_code_used.html',
+        remaining_count=remaining_count,
+    )
+    await _send_via_smtp(to_email, subject, html_content)
