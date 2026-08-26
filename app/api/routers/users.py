@@ -1,15 +1,13 @@
 from __future__ import annotations
 
 import uuid
-from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 
 from app.api.dependencies.auth import CurrentUserDep
 from app.api.dependencies.database import SessionDep
 from app.api.dependencies.pagination import PaginationParamsDep
-from app.api.dependencies.permissions import require_role
-from app.models.user import User
+from app.api.dependencies.permissions import AdminUserDep
 from app.schemas.pagination import PaginatedResponse
 from app.schemas.user import UserPublic, UserRead, UserRoleUpdate, UserUpdate
 from app.services.user_service import (
@@ -52,7 +50,7 @@ async def update_current_user(
 @router.get('', response_model=PaginatedResponse[UserRead])
 async def list_all_users(
     db: SessionDep,
-    admin_user: Annotated[User, Depends(require_role('admin'))],
+    admin_user: AdminUserDep,
     pagination: PaginationParamsDep,
 ) -> PaginatedResponse[UserRead]:
     """List all users with pagination (admin only).
@@ -70,7 +68,7 @@ async def list_all_users(
 @router.get('/{user_id}', response_model=UserRead)
 async def get_user_by_id(
     db: SessionDep,
-    admin_user: Annotated[User, Depends(require_role('admin'))],
+    admin_user: AdminUserDep,
     user_id: uuid.UUID,
 ) -> UserRead:
     """Return a single user by ``id`` (admin only).
@@ -84,7 +82,7 @@ async def get_user_by_id(
 @router.patch('/{user_id}/deactivate', response_model=UserRead)
 async def deactivate_user_account(
     db: SessionDep,
-    admin_user: Annotated[User, Depends(require_role('admin'))],
+    admin_user: AdminUserDep,
     user_id: uuid.UUID,
 ) -> UserRead:
     """Deactivate a user account (admin only).
@@ -99,7 +97,7 @@ async def deactivate_user_account(
 @router.patch('/{user_id}/activate', response_model=UserRead)
 async def activate_user_account(
     db: SessionDep,
-    admin_user: Annotated[User, Depends(require_role('admin'))],
+    admin_user: AdminUserDep,
     user_id: uuid.UUID,
 ) -> UserRead:
     """Reactivate a previously deactivated user account (admin only)."""
@@ -109,7 +107,7 @@ async def activate_user_account(
 @router.put('/{user_id}/roles', response_model=UserRead)
 async def replace_user_roles(
     db: SessionDep,
-    admin_user: Annotated[User, Depends(require_role('admin'))],
+    admin_user: AdminUserDep,
     user_id: uuid.UUID,
     data: UserRoleUpdate,
 ) -> UserRead:
