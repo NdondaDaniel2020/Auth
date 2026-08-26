@@ -16,8 +16,6 @@ from app.core.events import (
     UserEvents,
     get_event_bus,
 )
-from app.core.redis import get_redis_client
-
 from app.core.exceptions import (
     InvalidOrExpiredTokenError,
     InvalidRefreshTokenError,
@@ -30,6 +28,7 @@ from app.core.rate_limiter import (
     redis_reset,
     reset_login_attempts_async,
 )
+from app.core.redis import get_redis_client
 from app.core.security import (
     blacklist_access_token,
     create_access_token,
@@ -96,9 +95,11 @@ async def consume_ws_ticket(ticket: str) -> str | None:
 
     if redis_client:
         try:
-            user_id = await redis_client.getdel(key)
-            if user_id:
-                return user_id
+            res = await redis_client.getdel(key)
+            if res is not None:
+                return (
+                    res.decode('utf-8') if isinstance(res, bytes) else str(res)
+                )
         except Exception as e:  # noqa: BLE001
             logger.warning(
                 'Redis WS ticket getdel failed: %s; checking local fallback', e
@@ -116,7 +117,6 @@ async def consume_ws_ticket(ticket: str) -> str | None:
 async def create_token_pair(db: AsyncSession, user: User) -> Token:
     """Issue an access token and a persistable, revocable refresh token."""
     settings = get_settings()
-
 
     access_token = create_access_token({'sub': user.id})
 

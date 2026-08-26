@@ -91,4 +91,3 @@ class ResendVerificationRequest(BaseModel):
 class WSTicketResponse(BaseModel):
     ticket: str
     expires_in: int = 15
-

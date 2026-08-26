@@ -66,4 +66,3 @@ async def test_websocket_handshake_rate_limit_exceeded() -> None:
         client.websocket_connect(f'/ws/connect?ticket={ticket}'),
     ):
         pass
-

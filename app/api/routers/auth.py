@@ -179,4 +179,3 @@ async def request_ws_ticket(
     """Issue a short-lived (15s) single-use ticket for WebSocket authentication."""
     ticket = await auth_service.create_ws_ticket(current_user.id)
     return WSTicketResponse(ticket=ticket, expires_in=15)
-

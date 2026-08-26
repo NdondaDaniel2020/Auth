@@ -8,11 +8,9 @@ import logging
 from typing import Any
 
 from fastapi import WebSocket, WebSocketException, status
-from jwt import InvalidTokenError
 
 from app.core.events import get_event_bus
 from app.core.redis import get_redis_client
-from app.core.security import decode_access_token
 from app.db.session import get_session_factory
 from app.repositories.user_repository import UserRepository
 from app.services.auth_service import consume_ws_ticket
@@ -72,7 +70,6 @@ class WebSocketManager:
 
         logger.info('WebSocket connected: user_id=%s', user_id)
         return user_id
-
 
     def disconnect(self, user_id: str) -> None:
         """Disconnect and cleanup a WebSocket connection."""
@@ -187,7 +184,6 @@ async def authenticate_websocket(websocket: WebSocket, ticket: str) -> str:
             reason='Authentication failed',
         )
     return user_id
-
 
 
 # --- Event-driven WebSocket notifications ---

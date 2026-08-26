@@ -10,7 +10,6 @@ from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
 from app.core.security import create_access_token
-from app.db.session import get_db
 from app.models.user import User
 from app.services.auth_service import consume_ws_ticket, create_ws_ticket
 from tests.conftest import run_in_isolated_db
