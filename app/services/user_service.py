@@ -20,9 +20,9 @@ from app.core.exceptions import (
 )
 from app.core.rate_limiter import (
     build_login_key,
-    check_login_blocked,
-    register_failed_login,
-    reset_login_attempts,
+    check_login_blocked_async,
+    register_failed_login_async,
+    reset_login_attempts_async,
 )
 from app.core.security import hash_password_async, verify_password_async
 from app.core.security_logger import log_security_event
@@ -132,7 +132,7 @@ async def authenticate_user(
     """
     login_key = build_login_key(email, client_ip)
 
-    blocked_seconds = check_login_blocked(login_key)
+    blocked_seconds = await check_login_blocked_async(login_key)
     if blocked_seconds is not None:
         log_security_event(
             'LOGIN_RATE_LIMITED',
@@ -164,7 +164,7 @@ async def authenticate_user(
             metadata={'email': email, 'reason': reason},
             level=logging.WARNING,
         )
-        register_failed_login(login_key)
+        await register_failed_login_async(login_key)
         raise InvalidCredentialsError()
 
     # MFA_HOOK: verificação de segundo fator entraria aqui, após a senha ter
@@ -172,7 +172,7 @@ async def authenticate_user(
     # ativado (ver docs/mfa-readiness.md), este ponto emitiria um token
     # intermediário de curta duração e retornaria um desafio pendente em vez
     # de seguir direto para a emissão do token.
-    reset_login_attempts(login_key)
+    await reset_login_attempts_async(login_key)
     log_security_event('LOGIN_SUCCESS', user_id=user.id, ip=client_ip)
     return user
 
