@@ -208,7 +208,10 @@ async def test_websocket_force_disconnect_closes_socket_with_code_4001() -> (
 
     assert manager.is_connected(user_id)
 
-    msg = {'type': 'user.deactivated', 'data': {'reason': 'Account deactivated'}}
+    msg = {
+        'type': 'user.deactivated',
+        'data': {'reason': 'Account deactivated'},
+    }
     success = await manager._send_personal_message_local(
         user_id, msg, force_disconnect=True
     )
@@ -237,13 +240,11 @@ async def test_redis_ws_listener_handles_force_disconnect(
 
     pubsub_msg = {
         'type': 'message',
-        'data': json.dumps(
-            {
-                'target_user_id': user_id,
-                'message': {'type': 'user.password_changed'},
-                'force_disconnect': True,
-            }
-        ),
+        'data': json.dumps({
+            'target_user_id': user_id,
+            'message': {'type': 'user.password_changed'},
+            'force_disconnect': True,
+        }),
     }
 
     async def mock_listen():
@@ -277,13 +278,11 @@ async def test_ws_event_handlers_publish_force_disconnect(
     published_events = []
 
     async def mock_publish(user_id, message, force_disconnect=False):
-        published_events.append(
-            {
-                'user_id': user_id,
-                'message': message,
-                'force_disconnect': force_disconnect,
-            }
-        )
+        published_events.append({
+            'user_id': user_id,
+            'message': message,
+            'force_disconnect': force_disconnect,
+        })
         return True
 
     manager = AsyncMock()
@@ -325,4 +324,3 @@ async def test_ws_event_handlers_publish_force_disconnect(
 
     assert published_events[2]['user_id'] == 'user-3'
     assert published_events[2]['force_disconnect'] is True
-
