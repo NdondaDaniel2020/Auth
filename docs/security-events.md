@@ -33,6 +33,7 @@ Nível por evento: sucesso → `INFO`; falha/bloqueio → `WARNING`.
 | `LOGIN_SUCCESS`            | Autenticação bem-sucedida                                       | `INFO`   |
 | `LOGIN_FAILED`             | Credenciais inválidas ou conta inativa (motivo genérico em `reason`) | `WARNING` |
 | `LOGIN_RATE_LIMITED`       | Identificador bloqueado por excesso de tentativas               | `WARNING` |
+| `ACCOUNT_TEMPORARILY_LOCKED` | Bloqueio temporário da conta devido a múltiplas tentativas falhas | `WARNING` |
 | `LOGOUT`                   | Refresh token revogado no logout                                | `INFO`   |
 | `PASSWORD_RESET_REQUESTED` | Link de redefinição de senha gerado (usuário existente)         | `INFO`   |
 | `PASSWORD_RESET_COMPLETED` | Senha redefinida com sucesso                                    | `INFO`   |

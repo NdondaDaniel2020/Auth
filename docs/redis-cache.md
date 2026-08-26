@@ -19,7 +19,10 @@ graph TD
 ```
 
 1. **Cache de Dados:** Métodos utilitários assíncronos (`cache_get`, `cache_set`, `cache_delete`, `cache_delete_pattern`) com expiração automática (TTL).
-2. **Rate Limiting Distribuído:** Controle de taxa de requisições compartilhado entre todos os nós da aplicação via algoritmo de *Sliding Window Counter*.
+2. **Rate Limiting Distribuído e Dual-Key Account Lockout:** Controle de taxa de requisições e proteção contra força bruta distribuída. As tentativas de login falhas são contabilizadas via chaves isoladas no Redis:
+   - **Chave por IP (`login_attempts:ip:{client_ip}`):** Protege contra ataques originados por um único endereço IP.
+   - **Chave por E-mail (`login_attempts:email:{email}`):** Bloqueia a conta temporariamente (**Account Lockout**) após $N$ tentativas falhas, independente de quais IPs efetuaram as requisições.
+
 3. **Gerenciamento de Sessões:** Persistência temporária de sessões e revogação em lote de dispositivos (`session_delete_user_sessions`).
 4. **Pub/Sub para WebSockets:** Canal de broadcast `ws:events` para entrega de mensagens em tempo real entre servidores.
 
