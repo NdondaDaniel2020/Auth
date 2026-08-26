@@ -192,7 +192,7 @@ async def request_password_reset(
 
     user_repository = UserRepository(db)
     user = await user_repository.get_by_email(email)
-    if user is None:
+    if user is None or not user.is_active:
         return
 
     token = generate_opaque_token()
@@ -368,7 +368,7 @@ async def resend_verification_email(db: AsyncSession, email: str) -> None:
     """Send a fresh verification link to a registered, unverified user."""
     user_repository = UserRepository(db)
     user = await user_repository.get_by_email(email)
-    if user is None or user.is_verified:
+    if user is None or user.is_verified or not user.is_active:
         return
 
     await send_verification_email_for_user(db, user)

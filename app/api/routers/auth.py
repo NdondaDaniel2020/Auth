@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, Response, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    Request,
+    Response,
+    status,
+)
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.api.dependencies.auth import CurrentUserDep, oauth2_scheme
@@ -110,11 +117,17 @@ async def logout(
     dependencies=[Depends(rate_limit('RATE_LIMIT_PASSWORD_RESET'))],
 )
 async def request_password_reset(
-    data: PasswordResetRequest, request: Request, db: SessionDep
+    data: PasswordResetRequest,
+    request: Request,
+    db: SessionDep,
+    background_tasks: BackgroundTasks,
 ) -> dict[str, str]:
     client_ip = request.client.host if request.client else None
-    await auth_service.request_password_reset(
-        db, data.email, client_ip=client_ip
+    background_tasks.add_task(
+        auth_service.request_password_reset,
+        db,
+        data.email,
+        client_ip=client_ip,
     )
     return {
         'message': 'If the e-mail is registered, a password reset link has been sent.'
@@ -146,9 +159,13 @@ async def verify_email(
     dependencies=[Depends(rate_limit('RATE_LIMIT_EMAIL_RESEND'))],
 )
 async def resend_verification(
-    data: ResendVerificationRequest, db: SessionDep
+    data: ResendVerificationRequest,
+    db: SessionDep,
+    background_tasks: BackgroundTasks,
 ) -> dict[str, str]:
-    await auth_service.resend_verification_email(db, data.email)
+    background_tasks.add_task(
+        auth_service.resend_verification_email, db, data.email
+    )
     return {
         'message': 'If the e-mail is registered and unverified, a new link has been sent.'
     }
