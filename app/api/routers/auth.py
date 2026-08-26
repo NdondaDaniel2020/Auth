@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
+import jwt
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -118,7 +119,7 @@ async def login_mfa_challenge(
     """Valida o token intermediário mfa_pending e o código TOTP ou de backup, emitindo o par final de tokens JWT."""
     try:
         payload = security.decode_mfa_pending_token(data.mfa_pending_token)
-    except Exception:
+    except jwt.PyJWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail='Token MFA expirado ou inválido.',
@@ -177,9 +178,7 @@ async def login_mfa_challenge(
             detail='Código TOTP ou código de backup inválido.',
         )
 
-    tokens = await auth_service.create_token_pair(
-        db, user, amr=['pwd', 'mfa']
-    )
+    tokens = await auth_service.create_token_pair(db, user, amr=['pwd', 'mfa'])
     log_security_event(
         'LOGIN_SUCCESS', user_id=user.id, metadata={'mfa': True}
     )

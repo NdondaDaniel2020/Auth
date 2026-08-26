@@ -106,4 +106,3 @@ def test_access_token_amr_claim() -> None:
     token_mfa = create_access_token({'sub': 'user-1', 'amr': ['pwd', 'mfa']})
     payload_mfa = decode_access_token(token_mfa)
     assert payload_mfa['amr'] == ['pwd', 'mfa']
-

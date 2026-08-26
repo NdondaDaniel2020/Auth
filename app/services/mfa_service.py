@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import secrets
 import string
-from typing import Any
 
 import pyotp
 
@@ -59,7 +58,7 @@ class MfaService:
             raw = ''.join(secrets.choice(safe_alphabet) for _ in range(10))
             formatted = f'{raw[:5]}-{raw[5:]}'
             codes.add(formatted)
-        return sorted(list(codes))
+        return sorted(codes)
 
     @staticmethod
     def hash_backup_codes(codes: list[str]) -> list[str]:
@@ -86,9 +85,7 @@ class MfaService:
 
         for idx, hashed_code in enumerate(hashed_codes):
             if verify_password(cleaned_input, hashed_code):
-                remaining = (
-                    hashed_codes[:idx] + hashed_codes[idx + 1 :]
-                )
+                remaining = hashed_codes[:idx] + hashed_codes[idx + 1 :]
                 return True, remaining
 
         return False, hashed_codes

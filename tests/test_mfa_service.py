@@ -15,7 +15,9 @@ def test_mfa_service_generate_secret_and_uri():
     assert isinstance(secret, str)
     assert len(secret) == 32
 
-    uri = MfaService.get_totp_uri('user@example.com', secret, issuer_name='TestApp')
+    uri = MfaService.get_totp_uri(
+        'user@example.com', secret, issuer_name='TestApp'
+    )
     assert uri.startswith('otpauth://totp/TestApp:user')
     assert f'secret={secret}' in uri
     assert 'issuer=TestApp' in uri
@@ -47,24 +49,32 @@ def test_mfa_service_backup_codes():
 
     # Verify and consume the first code
     first_code = codes[0]
-    valid, remaining = MfaService.verify_and_consume_backup_code(first_code, hashed)
+    valid, remaining = MfaService.verify_and_consume_backup_code(
+        first_code, hashed
+    )
     assert valid is True
     assert len(remaining) == 7
 
     # Trying to reuse the same code should fail
-    valid_again, remaining_again = MfaService.verify_and_consume_backup_code(first_code, remaining)
+    valid_again, remaining_again = MfaService.verify_and_consume_backup_code(
+        first_code, remaining
+    )
     assert valid_again is False
     assert len(remaining_again) == 7
 
     # Verify input formatting (without hyphen)
     second_code_no_hyphen = codes[1].replace('-', '')
-    valid_second, remaining_second = MfaService.verify_and_consume_backup_code(second_code_no_hyphen, remaining)
+    valid_second, remaining_second = MfaService.verify_and_consume_backup_code(
+        second_code_no_hyphen, remaining
+    )
     assert valid_second is True
     assert len(remaining_second) == 6
 
 
 def test_mfa_schemas_instantiation():
-    setup = MfaSetupResponse(secret='JBSWY3DPEHPK3PXP', otpauth_uri='otpauth://totp/...')
+    setup = MfaSetupResponse(
+        secret='JBSWY3DPEHPK3PXP', otpauth_uri='otpauth://totp/...'
+    )
     assert setup.secret == 'JBSWY3DPEHPK3PXP'
 
     enable_req = MfaEnableRequest(code='123456')
@@ -76,5 +86,7 @@ def test_mfa_schemas_instantiation():
     disable_req = MfaDisableRequest(password='secret123', code='123456')
     assert disable_req.password == 'secret123'
 
-    challenge_req = MfaChallengeRequest(mfa_pending_token='jwt.token.here', code='123456')
+    challenge_req = MfaChallengeRequest(
+        mfa_pending_token='jwt.token.here', code='123456'
+    )
     assert challenge_req.mfa_pending_token == 'jwt.token.here'
