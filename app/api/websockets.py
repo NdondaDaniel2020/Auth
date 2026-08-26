@@ -15,6 +15,7 @@ from app.core.redis import get_redis_client
 from app.core.security import decode_access_token
 from app.db.session import get_session_factory
 from app.repositories.user_repository import UserRepository
+from app.services.auth_service import consume_ws_ticket
 
 logger = logging.getLogger(__name__)
 
@@ -34,22 +35,18 @@ class WebSocketManager:
     async def connect(
         self,
         websocket: WebSocket,
-        token: str,
+        ticket: str,
     ) -> str | None:
         """
-        Authenticate and register a WebSocket connection.
+        Authenticate and register a WebSocket connection using a single-use ticket.
 
         Returns user_id on success, None on failure.
         """
-        try:
-            payload = decode_access_token(token)
-        except InvalidTokenError as e:
-            logger.warning('WebSocket auth failed: invalid token: %s', e)
-            return None
-
-        user_id = payload.get('sub')
+        user_id = await consume_ws_ticket(ticket)
         if not user_id:
-            logger.warning('WebSocket auth failed: no subject in token')
+            logger.warning(
+                'WebSocket auth failed: invalid, expired or reused ticket'
+            )
             return None
 
         # Verify user exists and is active
@@ -71,11 +68,11 @@ class WebSocketManager:
         self._connections[user_id] = websocket
         self._user_data[user_id] = {
             'socket': websocket,
-            'connected_at': payload.get('iat'),
         }
 
         logger.info('WebSocket connected: user_id=%s', user_id)
         return user_id
+
 
     def disconnect(self, user_id: str) -> None:
         """Disconnect and cleanup a WebSocket connection."""
@@ -175,7 +172,7 @@ def get_ws_manager() -> WebSocketManager:
     return _ws_manager
 
 
-async def authenticate_websocket(websocket: WebSocket, token: str) -> str:
+async def authenticate_websocket(websocket: WebSocket, ticket: str) -> str:
     """
     FastAPI dependency for WebSocket authentication.
 
@@ -183,13 +180,14 @@ async def authenticate_websocket(websocket: WebSocket, token: str) -> str:
     Returns user_id on success.
     """
     manager = get_ws_manager()
-    user_id = await manager.connect(websocket, token)
+    user_id = await manager.connect(websocket, ticket)
     if user_id is None:
         raise WebSocketException(
             code=status.WS_1008_POLICY_VIOLATION,
             reason='Authentication failed',
         )
     return user_id
+
 
 
 # --- Event-driven WebSocket notifications ---
