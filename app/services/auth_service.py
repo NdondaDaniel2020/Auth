@@ -114,11 +114,19 @@ async def consume_ws_ticket(ticket: str) -> str | None:
     return None
 
 
-async def create_token_pair(db: AsyncSession, user: User) -> Token:
+async def create_token_pair(
+    db: AsyncSession,
+    user: User,
+    amr: list[str] | None = None,
+) -> Token:
     """Issue an access token and a persistable, revocable refresh token."""
     settings = get_settings()
 
-    access_token = create_access_token({'sub': user.id})
+    access_data: dict[str, Any] = {'sub': user.id}
+    if amr:
+        access_data['amr'] = amr
+
+    access_token = create_access_token(access_data)
 
     jti = str(uuid4())
     expires_at = utcnow() + timedelta(days=settings.JWT_REFRESH_DAYS)
