@@ -158,3 +158,35 @@ async def test_websocket_connection_invalid_ticket_fails() -> None:
         test_client.websocket_connect(f'/ws/connect?ticket={invalid_ticket}'),
     ):
         pass
+
+
+@pytest.mark.asyncio
+async def test_websocket_disconnect_cleans_up_manager(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """WebSocket disconnection cleanly removes user connection from WebSocketManager."""
+    from app.api.websockets import get_ws_manager
+
+    mock_user = MagicMock()
+    mock_user.id = 'ws-cleanup-user'
+    mock_user.is_active = True
+
+    monkeypatch.setattr(
+        'app.api.websockets.UserRepository.get_by_id',
+        AsyncMock(return_value=mock_user),
+    )
+
+    app = _make_ws_app()
+    ticket = await create_ws_ticket('ws-cleanup-user')
+    manager = get_ws_manager()
+
+    with (
+        TestClient(app) as test_client,
+        test_client.websocket_connect(f'/ws/connect?ticket={ticket}') as ws,
+    ):
+        assert manager.is_connected('ws-cleanup-user')
+        ws.send_json({'msg': 'ping'})
+        ws.receive_json()
+
+    # After exiting context (connection closed), user must be disconnected
+    assert not manager.is_connected('ws-cleanup-user')
