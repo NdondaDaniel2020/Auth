@@ -114,12 +114,31 @@ def create_access_token(
     payload['exp'] = expire
     payload['iat'] = now
     payload['type'] = 'access'
+    if 'amr' not in payload:
+        payload['amr'] = ['pwd']
     if 'jti' not in payload:
         payload['jti'] = uuid.uuid4().hex
 
     return jwt.encode(
         payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM
     )
+
+
+def create_mfa_pending_token(
+    user_id: str,
+    expires_delta: timedelta | None = None,
+) -> str:
+    """Create a short-lived intermediate JWT token for pending MFA verification."""
+    return create_signed_token(
+        {'sub': user_id},
+        token_type='mfa_pending',
+        expires_delta=expires_delta or timedelta(minutes=3),
+    )
+
+
+def decode_mfa_pending_token(token: str) -> dict[str, Any]:
+    """Decode and validate an intermediate mfa_pending JWT token."""
+    return decode_token(token, expected_type='mfa_pending')
 
 
 def create_refresh_token(
