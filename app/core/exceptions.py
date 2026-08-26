@@ -389,3 +389,31 @@ class InvalidMfaChallengeError(AppError):
             payload=payload,
             code='INVALID_MFA_CHALLENGE',
         )
+
+
+class MfaBackupCodeAlreadyUsedError(AppError):
+    def __init__(
+        self,
+        message: str = 'Este código de backup já foi utilizado.',
+        payload: dict[str, Any] | None = None,
+    ):
+        super().__init__(
+            message=message,
+            status_code=400,
+            payload=payload,
+            code='MFA_BACKUP_CODE_ALREADY_USED',
+        )
+
+
+class InvalidMfaPasswordError(AppError):
+    def __init__(
+        self,
+        message: str = 'Senha incorreta para operações de MFA.',
+        payload: dict[str, Any] | None = None,
+    ):
+        super().__init__(
+            message=message,
+            status_code=400,
+            payload=payload,
+            code='INVALID_MFA_PASSWORD',
+        )
