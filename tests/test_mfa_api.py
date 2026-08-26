@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from uuid import uuid4
+
 import pyotp
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -21,8 +23,8 @@ async def test_full_mfa_flow(app, isolated_session_factory):
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url='http://test'
     ) as client:
-        # 1. Register a user
-        email = 'mfauser@example.com'
+        # 1. Register a user with unique email
+        email = f'mfauser_{uuid4().hex[:8]}@example.com'
         reg_res = await client.post(
             '/api/auth/register',
             json={'email': email, 'password': PASSWORD},
