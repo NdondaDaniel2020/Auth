@@ -190,3 +190,137 @@ async def test_websocket_disconnect_cleans_up_manager(
 
     # After exiting context (connection closed), user must be disconnected
     assert not manager.is_connected('ws-cleanup-user')
+
+
+@pytest.mark.asyncio
+async def test_websocket_force_disconnect_closes_socket_with_code_4001() -> (
+    None
+):
+    """Test that force_disconnect=True sends code 4001 and cleans up connection."""
+    from app.api.websockets import WebSocketManager
+
+    manager = WebSocketManager()
+    mock_ws = AsyncMock()
+    user_id = 'test-force-disconnect-user'
+
+    manager._connections[user_id] = mock_ws
+    manager._user_data[user_id] = {'socket': mock_ws}
+
+    assert manager.is_connected(user_id)
+
+    msg = {
+        'type': 'user.deactivated',
+        'data': {'reason': 'Account deactivated'},
+    }
+    success = await manager._send_personal_message_local(
+        user_id, msg, force_disconnect=True
+    )
+
+    assert success is True
+    mock_ws.send_json.assert_called_once_with(msg)
+    mock_ws.close.assert_called_once_with(code=4001)
+    assert not manager.is_connected(user_id)
+
+
+@pytest.mark.asyncio
+async def test_redis_ws_listener_handles_force_disconnect(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test Redis WS listener receiving a message with force_disconnect=True."""
+    import json
+
+    from app.api.websockets import WebSocketManager, start_redis_ws_listener
+
+    manager = WebSocketManager()
+    mock_ws = AsyncMock()
+    user_id = 'redis-force-user'
+
+    manager._connections[user_id] = mock_ws
+    manager._user_data[user_id] = {'socket': mock_ws}
+
+    pubsub_msg = {
+        'type': 'message',
+        'data': json.dumps({
+            'target_user_id': user_id,
+            'message': {'type': 'user.password_changed'},
+            'force_disconnect': True,
+        }),
+    }
+
+    async def mock_listen():
+        yield pubsub_msg
+
+    mock_pubsub = MagicMock()
+    mock_pubsub.subscribe = AsyncMock()
+    mock_pubsub.listen = mock_listen
+
+    mock_redis = MagicMock()
+    mock_redis.pubsub.return_value = mock_pubsub
+
+    monkeypatch.setattr(
+        'app.api.websockets.get_redis_client', lambda: mock_redis
+    )
+
+    await start_redis_ws_listener(manager)
+
+    mock_ws.close.assert_called_once_with(code=4001)
+    assert not manager.is_connected(user_id)
+
+
+@pytest.mark.asyncio
+async def test_ws_event_handlers_publish_force_disconnect(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test event handlers for DEACTIVATED, PASSWORD_CHANGED, and ROLES_CHANGED."""
+    from app.api.websockets import setup_ws_event_handlers
+    from app.core.events import Event, UserEvents, get_event_bus
+
+    published_events = []
+
+    async def mock_publish(user_id, message, force_disconnect=False):
+        published_events.append({
+            'user_id': user_id,
+            'message': message,
+            'force_disconnect': force_disconnect,
+        })
+        return True
+
+    manager = AsyncMock()
+    manager.publish_message = mock_publish
+    monkeypatch.setattr('app.api.websockets.get_ws_manager', lambda: manager)
+    monkeypatch.setattr(
+        'app.api.websockets.start_redis_ws_listener', AsyncMock()
+    )
+
+    await setup_ws_event_handlers()
+    bus = get_event_bus()
+
+    # Trigger DEACTIVATED
+    await bus.publish(
+        Event(type=UserEvents.DEACTIVATED, payload={'user_id': 'user-1'})
+    )
+    # Trigger PASSWORD_CHANGED
+    await bus.publish(
+        Event(type=UserEvents.PASSWORD_CHANGED, payload={'user_id': 'user-2'})
+    )
+    # Trigger ROLES_CHANGED with admin role removed
+    await bus.publish(
+        Event(
+            type=UserEvents.ROLES_CHANGED,
+            payload={
+                'user_id': 'user-3',
+                'old_roles': ['admin', 'user'],
+                'new_roles': ['user'],
+            },
+        )
+    )
+
+    assert len(published_events) == 3
+    assert published_events[0]['user_id'] == 'user-1'
+    assert published_events[0]['force_disconnect'] is True
+
+    assert published_events[1]['user_id'] == 'user-2'
+    assert published_events[1]['force_disconnect'] is True
+
+    assert published_events[2]['user_id'] == 'user-3'
+    assert published_events[2]['force_disconnect'] is True
