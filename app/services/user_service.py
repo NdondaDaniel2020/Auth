@@ -19,6 +19,8 @@ from app.core.exceptions import (
     UserNotFoundError,
 )
 from app.core.rate_limiter import (
+    build_email_login_key,
+    build_ip_login_key,
     build_login_key,
     check_login_blocked_async,
     register_failed_login_async,
@@ -36,6 +38,7 @@ from app.schemas.pagination import PaginatedResponse
 from app.schemas.user import UserCreate, UserRead, UserUpdate
 from app.services import auth_service
 from app.services.audit_service import record_admin_action
+from app.services.email_service import send_account_locked_email
 from app.utils.datetimes import utcnow
 from app.utils.tokens import generate_opaque_token
 
@@ -126,18 +129,26 @@ async def authenticate_user(
 ) -> User:
     """Authenticate a user with e-mail/password.
 
-    Failed attempts are counted per identifier (e-mail/IP). When the limit is
-    reached the identifier is temporarily blocked and a 429 is returned,
-    without revealing whether the credentials themselves were wrong.
+    Failed attempts are counted per identifier (e-mail and IP separately). When the
+    limit is reached for either identifier, access is temporarily blocked and a 429
+    is returned, without revealing whether the credentials themselves were wrong.
     """
-    login_key = build_login_key(email, client_ip)
+    email_key = build_email_login_key(email)
+    ip_key = build_ip_login_key(client_ip) if client_ip else None
 
-    blocked_seconds = await check_login_blocked_async(login_key)
-    if blocked_seconds is not None:
+    email_blocked = await check_login_blocked_async(email_key)
+    ip_blocked = await check_login_blocked_async(ip_key) if ip_key else None
+
+    if email_blocked is not None or ip_blocked is not None:
+        blocked_seconds = max(email_blocked or 0, ip_blocked or 0)
         log_security_event(
             'LOGIN_RATE_LIMITED',
             ip=client_ip,
-            metadata={'email': email},
+            metadata={
+                'email': email,
+                'email_blocked': email_blocked is not None,
+                'ip_blocked': ip_blocked is not None,
+            },
             level=logging.WARNING,
         )
         raise TooManyLoginAttemptsError(retry_after=blocked_seconds)
@@ -164,7 +175,21 @@ async def authenticate_user(
             metadata={'email': email, 'reason': reason},
             level=logging.WARNING,
         )
-        await register_failed_login_async(login_key)
+        if ip_key:
+            await register_failed_login_async(ip_key)
+        email_just_locked = await register_failed_login_async(email_key)
+        if email_just_locked:
+            log_security_event(
+                'ACCOUNT_TEMPORARILY_LOCKED',
+                user_id=user.id if user is not None else None,
+                ip=client_ip,
+                metadata={'email': email},
+                level=logging.WARNING,
+            )
+            settings = get_settings()
+            await send_account_locked_email(
+                email, settings.LOGIN_BLOCK_DURATION_MINUTES
+            )
         raise InvalidCredentialsError()
 
     # MFA_HOOK: verificação de segundo fator entraria aqui, após a senha ter
@@ -172,7 +197,9 @@ async def authenticate_user(
     # ativado (ver docs/mfa-readiness.md), este ponto emitiria um token
     # intermediário de curta duração e retornaria um desafio pendente em vez
     # de seguir direto para a emissão do token.
-    await reset_login_attempts_async(login_key)
+    await reset_login_attempts_async(email_key)
+    if ip_key:
+        await reset_login_attempts_async(ip_key)
     log_security_event('LOGIN_SUCCESS', user_id=user.id, ip=client_ip)
     return user
 
