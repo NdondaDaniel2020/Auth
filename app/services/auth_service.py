@@ -20,6 +20,8 @@ from app.core.exceptions import (
     TokenAlreadyUsedError,
 )
 from app.core.rate_limiter import (
+    build_email_login_key,
+    build_ip_login_key,
     build_login_key,
     redis_reset,
     reset_login_attempts_async,
@@ -268,16 +270,24 @@ async def reset_password(
     await revoke_all_user_sessions(db, user.id)
 
     # Clear rate limiter keys for user's email and client IP
-    login_key_email = build_login_key(user.email, None)
-    await reset_login_attempts_async(login_key_email)
-    await redis_reset(login_key_email)
-    await redis_reset(f'rate_limit:{login_key_email}')
+    email_key = build_email_login_key(user.email)
+    await reset_login_attempts_async(email_key)
+    await redis_reset(email_key)
+    await redis_reset(f'rate_limit:{email_key}')
+
+    legacy_email_key = build_login_key(user.email, None)
+    await reset_login_attempts_async(legacy_email_key)
+    await redis_reset(legacy_email_key)
 
     if client_ip:
-        login_key_ip = build_login_key(user.email, client_ip)
-        await reset_login_attempts_async(login_key_ip)
-        await redis_reset(login_key_ip)
-        await redis_reset(f'rate_limit:{login_key_ip}')
+        ip_key = build_ip_login_key(client_ip)
+        await reset_login_attempts_async(ip_key)
+        await redis_reset(ip_key)
+        await redis_reset(f'rate_limit:{ip_key}')
+
+        legacy_ip_key = build_login_key(user.email, client_ip)
+        await reset_login_attempts_async(legacy_ip_key)
+        await redis_reset(legacy_ip_key)
 
     await db.commit()
 

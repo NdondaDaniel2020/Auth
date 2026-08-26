@@ -70,16 +70,22 @@ class _LoginRateLimiter:
 
     def register_failed_attempt(
         self, key: str, now: float | None = None
-    ) -> None:
+    ) -> bool:
         now = time.monotonic() if now is None else now
         with self._lock:
             attempts = self._state.setdefault(key, deque())
+            was_already_blocked = (
+                key in self._blocked_until and now < self._blocked_until[key]
+            )
             attempts.append(now)
             settings = get_settings()
+            self._prune(key, now)
             if len(attempts) >= settings.LOGIN_MAX_ATTEMPTS:
                 self._blocked_until[key] = (
                     now + settings.LOGIN_BLOCK_DURATION_MINUTES * 60.0
                 )
+                return not was_already_blocked
+            return False
 
     def reset_attempts(self, key: str) -> None:
         with self._lock:
@@ -109,6 +115,14 @@ class _LoginRateLimiter:
 rate_limiter = _LoginRateLimiter()
 
 
+def build_email_login_key(email: str) -> str:
+    return f'email:{email.strip().lower()}'
+
+
+def build_ip_login_key(client_ip: str) -> str:
+    return f'ip:{client_ip.strip()}'
+
+
 def build_login_key(email: str, client_ip: str | None = None) -> str:
     identifier = email.strip().lower()
     if client_ip:
@@ -120,8 +134,8 @@ def check_login_blocked(key: str, now: float | None = None) -> int | None:
     return rate_limiter.check_blocked(key, now)
 
 
-def register_failed_login(key: str, now: float | None = None) -> None:
-    rate_limiter.register_failed_attempt(key, now)
+def register_failed_login(key: str, now: float | None = None) -> bool:
+    return rate_limiter.register_failed_attempt(key, now)
 
 
 def reset_login_attempts(key: str) -> None:
@@ -163,12 +177,13 @@ async def check_login_blocked_async(
 
 async def register_failed_login_async(
     key: str, now: float | None = None
-) -> None:
+) -> bool:
     """Register a failed login attempt for key.
 
+    Returns True if this failed attempt just triggered a new lockout.
     Updates Redis if configured, and updates in-memory fallback state.
     """
-    rate_limiter.register_failed_attempt(key, now)
+    mem_just_locked = rate_limiter.register_failed_attempt(key, now)
 
     client = get_redis_client()
     if client:
@@ -186,11 +201,16 @@ async def register_failed_login_async(
 
             if count >= settings.LOGIN_MAX_ATTEMPTS:
                 blocked_key = f'{LOGIN_BLOCKED_PREFIX}{key}'
+                already_blocked = await client.get(blocked_key) is not None
                 await client.setex(blocked_key, block_duration_seconds, '1')
+                return not already_blocked
         except RedisError as e:
             logger.warning(
                 'Redis register failed login failed for %s: %s', key, e
             )
+            return mem_just_locked
+
+    return mem_just_locked
 
 
 async def reset_login_attempts_async(key: str) -> None:
