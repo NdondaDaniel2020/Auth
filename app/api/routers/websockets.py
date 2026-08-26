@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
 
@@ -24,10 +24,10 @@ logger = logging.getLogger(__name__)
 )
 async def websocket_endpoint(
     websocket: WebSocket,
-    ticket: str = Query(
-        ..., description='One-time WebSocket authentication ticket'
-    ),
-    user_id: str = Depends(authenticate_websocket),
+    ticket: Annotated[
+        str, Query(description='One-time WebSocket authentication ticket')
+    ],
+    user_id: Annotated[str, Depends(authenticate_websocket)],
 ) -> None:
     """
     WebSocket connection endpoint.

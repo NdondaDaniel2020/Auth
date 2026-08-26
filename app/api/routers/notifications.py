@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 
@@ -23,20 +24,26 @@ router = APIRouter(prefix='/notifications', tags=['notifications'])
 async def sync_notifications(
     user: CurrentUserDep,
     db: SessionDep,
-    since_id: int | None = Query(
-        None,
-        description='Last known notification ID processed by the client',
-    ),
-    since_timestamp: datetime | None = Query(
-        None,
-        description='UTC timestamp of the last client synchronization',
-    ),
-    limit: int = Query(
-        50,
-        ge=1,
-        le=100,
-        description='Maximum number of notifications to return (1-100)',
-    ),
+    since_id: Annotated[
+        int | None,
+        Query(
+            description='Last known notification ID processed by the client',
+        ),
+    ] = None,
+    since_timestamp: Annotated[
+        datetime | None,
+        Query(
+            description='UTC timestamp of the last client synchronization',
+        ),
+    ] = None,
+    limit: Annotated[
+        int,
+        Query(
+            ge=1,
+            le=100,
+            description='Maximum number of notifications to return (1-100)',
+        ),
+    ] = 50,
 ) -> NotificationSyncResponse:
     """Fetch missed notifications and events for REST Catch-Up synchronization.
 

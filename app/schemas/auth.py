@@ -36,10 +36,12 @@ class UserRBACMetadata(BaseModel):
 
 
 class AuthResponse(BaseModel):
-    access_token: str
-    refresh_token: str
+    mfa_required: bool = False
+    mfa_pending_token: str | None = None
+    access_token: str | None = None
+    refresh_token: str | None = None
     token_type: str = 'bearer'
-    user: UserRBACMetadata
+    user: UserRBACMetadata | None = None
 
 
 class RefreshRequest(BaseModel):

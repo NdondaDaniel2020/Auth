@@ -319,3 +319,73 @@ class GoogleAuthError(AppError):
             payload=payload,
             code='GOOGLE_AUTH_ERROR',
         )
+
+
+class MfaNotSetupError(AppError):
+    def __init__(
+        self,
+        message: str = 'Configuração de MFA não iniciada. Execute /setup primeiro.',
+        payload: dict[str, Any] | None = None,
+    ):
+        super().__init__(
+            message=message,
+            status_code=400,
+            payload=payload,
+            code='MFA_NOT_SETUP',
+        )
+
+
+class InvalidTotpCodeError(AppError):
+    def __init__(
+        self,
+        message: str = 'Código TOTP inválido ou expirado.',
+        payload: dict[str, Any] | None = None,
+    ):
+        super().__init__(
+            message=message,
+            status_code=400,
+            payload=payload,
+            code='INVALID_TOTP_CODE',
+        )
+
+
+class MfaNotActiveError(AppError):
+    def __init__(
+        self,
+        message: str = 'MFA não está ativado.',
+        payload: dict[str, Any] | None = None,
+    ):
+        super().__init__(
+            message=message,
+            status_code=400,
+            payload=payload,
+            code='MFA_NOT_ACTIVE',
+        )
+
+
+class InvalidMfaConfirmationError(AppError):
+    def __init__(
+        self,
+        message: str = 'Código de confirmação inválido.',
+        payload: dict[str, Any] | None = None,
+    ):
+        super().__init__(
+            message=message,
+            status_code=400,
+            payload=payload,
+            code='INVALID_MFA_CONFIRMATION',
+        )
+
+
+class InvalidMfaChallengeError(AppError):
+    def __init__(
+        self,
+        message: str = 'Código TOTP ou código de backup inválido.',
+        payload: dict[str, Any] | None = None,
+    ):
+        super().__init__(
+            message=message,
+            status_code=401,
+            payload=payload,
+            code='INVALID_MFA_CHALLENGE',
+        )

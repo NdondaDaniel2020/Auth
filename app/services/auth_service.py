@@ -4,9 +4,11 @@ import contextlib
 import logging
 import time
 from datetime import timedelta
+from typing import Any
 from uuid import uuid4
 
 import jwt as pyjwt
+from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -34,6 +36,7 @@ from app.core.security import (
     create_access_token,
     create_refresh_token,
     decode_access_token,
+    decode_mfa_pending_token,
     decode_refresh_token,
     hash_password_async,
 )
@@ -42,6 +45,7 @@ from app.models.user import User
 from app.repositories.email_verification_repository import (
     EmailVerificationTokenRepository,
 )
+from app.repositories.mfa_repository import MfaRepository
 from app.repositories.password_reset_repository import (
     PasswordResetTokenRepository,
 )
@@ -49,6 +53,7 @@ from app.repositories.refresh_token_repository import RefreshTokenRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth import Token
 from app.services import email_service
+from app.services.mfa_service import MfaService
 from app.utils.datetimes import ensure_utc, utcnow
 from app.utils.tokens import generate_opaque_token
 
@@ -114,11 +119,19 @@ async def consume_ws_ticket(ticket: str) -> str | None:
     return None
 
 
-async def create_token_pair(db: AsyncSession, user: User) -> Token:
+async def create_token_pair(
+    db: AsyncSession,
+    user: User,
+    amr: list[str] | None = None,
+) -> Token:
     """Issue an access token and a persistable, revocable refresh token."""
     settings = get_settings()
 
-    access_token = create_access_token({'sub': user.id})
+    access_data: dict[str, Any] = {'sub': user.id}
+    if amr:
+        access_data['amr'] = amr
+
+    access_token = create_access_token(access_data)
 
     jti = str(uuid4())
     expires_at = utcnow() + timedelta(days=settings.JWT_REFRESH_DAYS)
@@ -134,6 +147,83 @@ async def create_token_pair(db: AsyncSession, user: User) -> Token:
 
     await db.commit()
     return Token(access_token=access_token, refresh_token=refresh_token)
+
+
+async def authenticate_mfa_challenge(
+    db: AsyncSession,
+    *,
+    mfa_pending_token: str,
+    code: str,
+) -> tuple[Token, User]:
+    """Validate an intermediate mfa_pending token and TOTP or backup code.
+
+    On success, issues the final token pair with claim ``amr: ["pwd", "mfa"]``
+    and returns both ``(Token, User)``.
+    """
+    try:
+        payload = decode_mfa_pending_token(mfa_pending_token)
+    except pyjwt.PyJWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail='Token MFA expirado ou inválido.',
+        )
+
+    user_id = payload.get('sub')
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail='Token MFA inválido.',
+        )
+
+    repository = UserRepository(db)
+    user = await repository.get_by_id(user_id)
+    if not user or not user.is_active or not user.mfa_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail='Usuário inválido ou MFA não ativado.',
+        )
+
+    mfa_repo = MfaRepository(db)
+    mfa_method = await mfa_repo.get_active_by_user_and_type(
+        user.id, type='totp'
+    )
+
+    if not mfa_method:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail='Método MFA não configurado.',
+        )
+
+    totp_valid = (
+        MfaService.verify_totp_code(mfa_method.secret, code)
+        if mfa_method.secret
+        else False
+    )
+
+    backup_valid = False
+    if not totp_valid and mfa_method.data:
+        hashed_codes = mfa_method.data.get('backup_codes', [])
+        backup_valid, remaining_codes = (
+            MfaService.verify_and_consume_backup_code(code, hashed_codes)
+        )
+        if backup_valid:
+            mfa_method.data = {'backup_codes': remaining_codes}
+            log_security_event('MFA_BACKUP_CODE_USED', user_id=user.id)
+            await db.commit()
+
+    if not totp_valid and not backup_valid:
+        log_security_event('LOGIN_MFA_FAILED', user_id=user.id)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail='Código TOTP ou código de backup inválido.',
+        )
+
+    tokens = await create_token_pair(db, user, amr=['pwd', 'mfa'])
+    log_security_event(
+        'LOGIN_SUCCESS', user_id=user.id, metadata={'mfa': True}
+    )
+
+    return tokens, user
 
 
 async def revoke_all_user_sessions(db: AsyncSession, user_id: str) -> None:

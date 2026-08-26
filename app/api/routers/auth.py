@@ -15,6 +15,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from app.api.dependencies.auth import CurrentUserDep, oauth2_scheme
 from app.api.dependencies.database import SessionDep
 from app.api.dependencies.rate_limit import rate_limit
+from app.core import security
 from app.schemas.auth import (
     AuthResponse,
     EmailVerificationConfirm,
@@ -27,6 +28,7 @@ from app.schemas.auth import (
     UserRBACMetadata,
     WSTicketResponse,
 )
+from app.schemas.mfa import MfaChallengeRequest
 from app.schemas.user import UserCreate, UserRead
 from app.services import auth_service, user_service
 
@@ -55,6 +57,13 @@ async def login(
         password=data.password,
         client_ip=client_ip,
     )
+    if user.mfa_enabled:
+        pending_token = security.create_mfa_pending_token(user.id)
+        return AuthResponse(
+            mfa_required=True,
+            mfa_pending_token=pending_token,
+        )
+
     tokens = await auth_service.create_token_pair(db, user)
     user_metadata = user_service.get_user_rbac_metadata(user)
     return AuthResponse(
@@ -78,7 +87,34 @@ async def login_form(
         password=form.password,
         client_ip=client_ip,
     )
+    if user.mfa_enabled:
+        pending_token = security.create_mfa_pending_token(user.id)
+        return AuthResponse(
+            mfa_required=True,
+            mfa_pending_token=pending_token,
+        )
+
     tokens = await auth_service.create_token_pair(db, user)
+    user_metadata = user_service.get_user_rbac_metadata(user)
+    return AuthResponse(
+        access_token=tokens.access_token,
+        refresh_token=tokens.refresh_token,
+        token_type=tokens.token_type,
+        user=user_metadata,
+    )
+
+
+@router.post('/login/mfa-challenge', response_model=AuthResponse)
+async def login_mfa_challenge(
+    data: MfaChallengeRequest,
+    db: SessionDep,
+) -> AuthResponse:
+    """Valida o token intermediário mfa_pending e o código TOTP ou de backup, emitindo o par final de tokens JWT."""
+    tokens, user = await auth_service.authenticate_mfa_challenge(
+        db,
+        mfa_pending_token=data.mfa_pending_token,
+        code=data.code,
+    )
     user_metadata = user_service.get_user_rbac_metadata(user)
     return AuthResponse(
         access_token=tokens.access_token,
@@ -104,7 +140,7 @@ async def logout(
     data: RefreshRequest,
     request: Request,
     db: SessionDep,
-    access_token: str | None = Depends(oauth2_scheme),
+    access_token: Annotated[str | None, Depends(oauth2_scheme)],
 ) -> Response:
     client_ip = request.client.host if request.client else None
     await auth_service.logout(

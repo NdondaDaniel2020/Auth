@@ -28,6 +28,7 @@ dependencies = [
     "python-multipart>=0.0.32",
     "slowapi>=0.1.10",
     "sqlalchemy[asyncio]>=2.0.51",
+    "pyotp>=2.9.0",
     "uvicorn[standard]>=0.52.0",
 ]
 

@@ -1,4 +1,6 @@
-from __future__ import annotations
+from typing import Annotated
+
+from fastapi import Depends
 
 from app.api.dependencies.auth import CurrentUserDep
 from app.core.exceptions import PermissionDeniedError
@@ -50,3 +52,6 @@ def check_permission(required_code: str):
         return current_user
 
     return _permission_checker
+
+
+AdminUserDep = Annotated[User, Depends(require_role('admin'))]

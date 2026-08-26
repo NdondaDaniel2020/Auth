@@ -81,3 +81,28 @@ def test_refresh_token_cannot_be_used_as_access() -> None:
     refresh = create_refresh_token({'sub': 'user-123', 'jti': 'jti-1'})
     with pytest.raises(jwt.InvalidTokenError):
         decode_access_token(refresh)
+
+
+def test_mfa_pending_token_roundtrip() -> None:
+    from app.core.security import (
+        create_mfa_pending_token,
+        decode_mfa_pending_token,
+    )
+
+    token = create_mfa_pending_token('user-999')
+    payload = decode_mfa_pending_token(token)
+    assert payload['sub'] == 'user-999'
+    assert payload['type'] == 'mfa_pending'
+
+    with pytest.raises(jwt.InvalidTokenError):
+        decode_access_token(token)
+
+
+def test_access_token_amr_claim() -> None:
+    token_default = create_access_token({'sub': 'user-1'})
+    payload_default = decode_access_token(token_default)
+    assert payload_default['amr'] == ['pwd']
+
+    token_mfa = create_access_token({'sub': 'user-1', 'amr': ['pwd', 'mfa']})
+    payload_mfa = decode_access_token(token_mfa)
+    assert payload_mfa['amr'] == ['pwd', 'mfa']
