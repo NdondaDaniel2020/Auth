@@ -278,7 +278,6 @@ class AuthEvents:
     ACCOUNT_TEMPORARILY_LOCKED = 'auth.account_temporarily_locked'
 
 
-
 class NotificationEvents:
     EMAIL_SEND = 'notification.email.send'
     PUSH_SEND = 'notification.push.send'

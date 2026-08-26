@@ -21,7 +21,6 @@ from app.core.exceptions import (
 from app.core.rate_limiter import (
     build_email_login_key,
     build_ip_login_key,
-    build_login_key,
     check_login_blocked_async,
     register_failed_login_async,
     reset_login_attempts_async,

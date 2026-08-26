@@ -125,13 +125,10 @@ async def send_verification_email(to_email: str, verify_link: str) -> None:
     await _send_via_smtp(to_email, subject, html_content)
 
 
-async def send_account_locked_email(
-    to_email: str, block_minutes: int
-) -> None:
+async def send_account_locked_email(to_email: str, block_minutes: int) -> None:
     subject = 'Security Alert: Account Temporarily Locked'
     html_content = _render_template(
         'account_locked.html',
         block_minutes=block_minutes,
     )
     await _send_via_smtp(to_email, subject, html_content)
-
