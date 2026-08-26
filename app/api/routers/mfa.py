@@ -8,6 +8,7 @@ from app.schemas.mfa import (
     MfaDisableRequest,
     MfaEnableRequest,
     MfaEnableResponse,
+    MfaRegenerateRequest,
     MfaSetupResponse,
 )
 from app.services.mfa_service import MfaService
@@ -40,6 +41,20 @@ async def enable_totp_mfa(
 ) -> MfaEnableResponse:
     """Valida o código TOTP fornecido, ativa o MFA e retorna os códigos de backup."""
     return await MfaService.enable_totp(db, user, data.code)
+
+
+@router.post(
+    '/totp/backup-codes/regenerate',
+    response_model=MfaEnableResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def regenerate_backup_codes(
+    user: CurrentUserDep,
+    db: SessionDep,
+    data: MfaRegenerateRequest,
+) -> MfaEnableResponse:
+    """Invalida os códigos de backup antigos e gera um novo lote mediante confirmação de senha."""
+    return await MfaService.regenerate_backup_codes(db, user, data.password)
 
 
 @router.delete(
