@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query, WebSocket
+from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
 
 from app.api.dependencies.rate_limit import rate_limit
 from app.api.websockets import (
@@ -43,9 +43,17 @@ async def websocket_endpoint(
                 'type': 'echo',
                 'data': data,
             })
-    except Exception:  # noqa: BLE001
-        # Connection closed by client or network error - expected during disconnect
-        logger.debug('WebSocket connection closed for user %s', user_id)
+    except WebSocketDisconnect:
+        logger.info(
+            'WebSocket disconnected naturally or via heartbeat ping/pong timeout for user %s',
+            user_id,
+        )
+    except Exception as e:  # noqa: BLE001
+        logger.warning(
+            'WebSocket connection terminated with error for user %s: %s',
+            user_id,
+            e,
+        )
     finally:
         manager.disconnect(user_id)
 

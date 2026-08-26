@@ -72,12 +72,14 @@ class WebSocketManager:
         return user_id
 
     def disconnect(self, user_id: str) -> None:
-        """Disconnect and cleanup a WebSocket connection."""
+        """Disconnect and cleanup a WebSocket connection (natural, forced or ping/pong timeout)."""
         if user_id in self._connections:
             del self._connections[user_id]
         if user_id in self._user_data:
             del self._user_data[user_id]
-        logger.info('WebSocket disconnected: user_id=%s', user_id)
+        logger.info(
+            'WebSocket disconnected and cleaned up: user_id=%s', user_id
+        )
 
     def is_connected(self, user_id: str) -> bool:
         """Check if a user has an active WebSocket connection locally."""
