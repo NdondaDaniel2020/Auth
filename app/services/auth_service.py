@@ -9,7 +9,6 @@ from uuid import uuid4
 
 import jwt as pyjwt
 from fastapi import HTTPException, status
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -42,11 +41,11 @@ from app.core.security import (
     hash_password_async,
 )
 from app.core.security_logger import log_security_event
-from app.models.mfa_method import MfaMethod
 from app.models.user import User
 from app.repositories.email_verification_repository import (
     EmailVerificationTokenRepository,
 )
+from app.repositories.mfa_repository import MfaRepository
 from app.repositories.password_reset_repository import (
     PasswordResetTokenRepository,
 )
@@ -184,13 +183,10 @@ async def authenticate_mfa_challenge(
             detail='Usuário inválido ou MFA não ativado.',
         )
 
-    stmt = select(MfaMethod).where(
-        MfaMethod.user_id == user.id,
-        MfaMethod.type == 'totp',
-        MfaMethod.is_active == True,
+    mfa_repo = MfaRepository(db)
+    mfa_method = await mfa_repo.get_active_by_user_and_type(
+        user.id, type='totp'
     )
-    result = await db.execute(stmt)
-    mfa_method = result.scalar_one_or_none()
 
     if not mfa_method:
         raise HTTPException(

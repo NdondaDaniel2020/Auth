@@ -4,9 +4,25 @@ import secrets
 import string
 
 import pyotp
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
-from app.core.security import hash_password, verify_password
+from app.core.exceptions import (
+    InvalidCredentialsError,
+    InvalidMfaConfirmationError,
+    InvalidTotpCodeError,
+    MfaNotActiveError,
+    MfaNotSetupError,
+)
+from app.core.security import (
+    hash_password,
+    verify_password,
+    verify_password_async,
+)
+from app.core.security_logger import log_security_event
+from app.models.user import User
+from app.repositories.mfa_repository import MfaRepository
+from app.schemas.mfa import MfaEnableResponse, MfaSetupResponse
 
 
 class MfaService:
@@ -89,3 +105,98 @@ class MfaService:
                 return True, remaining
 
         return False, hashed_codes
+
+    @classmethod
+    async def setup_totp(
+        cls,
+        db: AsyncSession,
+        user: User,
+    ) -> MfaSetupResponse:
+        """Inicia a configuração do MFA gerando o segredo temporário TOTP e a URI otpauth."""
+        secret = cls.generate_totp_secret()
+        otpauth_uri = cls.get_totp_uri(user.email, secret)
+
+        mfa_repo = MfaRepository(db)
+        await mfa_repo.upsert_pending_secret(user.id, secret, type='totp')
+        await db.commit()
+
+        return MfaSetupResponse(secret=secret, otpauth_uri=otpauth_uri)
+
+    @classmethod
+    async def enable_totp(
+        cls,
+        db: AsyncSession,
+        user: User,
+        code: str,
+    ) -> MfaEnableResponse:
+        """Valida o primeiro código TOTP, ativa o MFA no usuário e retorna os códigos de backup."""
+        mfa_repo = MfaRepository(db)
+        mfa_method = await mfa_repo.get_by_user_and_type(user.id, type='totp')
+
+        if not mfa_method or not mfa_method.secret:
+            raise MfaNotSetupError()
+
+        if not cls.verify_totp_code(mfa_method.secret, code):
+            raise InvalidTotpCodeError()
+
+        plain_backup_codes = cls.generate_backup_codes(count=8)
+        hashed_backup_codes = cls.hash_backup_codes(plain_backup_codes)
+
+        await mfa_repo.activate_method(
+            mfa_method, data={'backup_codes': hashed_backup_codes}
+        )
+
+        user.mfa_enabled = True
+        user.mfa_type = 'totp'
+
+        log_security_event('MFA_ENABLED', user_id=user.id)
+        await db.commit()
+
+        return MfaEnableResponse(
+            message='MFA ativado com sucesso',
+            backup_codes=plain_backup_codes,
+        )
+
+    @classmethod
+    async def disable_totp(
+        cls,
+        db: AsyncSession,
+        user: User,
+        password: str,
+        code: str,
+    ) -> None:
+        """Desativa o MFA do usuário mediante confirmação da senha atual e código TOTP ou de backup."""
+        if not user.hashed_password or not await verify_password_async(
+            password, user.hashed_password
+        ):
+            raise InvalidCredentialsError(message='Senha incorreta.')
+
+        mfa_repo = MfaRepository(db)
+        mfa_method = await mfa_repo.get_by_user_and_type(user.id, type='totp')
+
+        if not user.mfa_enabled or not mfa_method or not mfa_method.is_active:
+            raise MfaNotActiveError()
+
+        totp_valid = (
+            cls.verify_totp_code(mfa_method.secret, code)
+            if mfa_method.secret
+            else False
+        )
+
+        backup_valid = False
+        if not totp_valid and mfa_method.data:
+            hashed_codes = mfa_method.data.get('backup_codes', [])
+            backup_valid, _ = cls.verify_and_consume_backup_code(
+                code, hashed_codes
+            )
+
+        if not totp_valid and not backup_valid:
+            raise InvalidMfaConfirmationError()
+
+        await mfa_repo.deactivate_method(mfa_method)
+
+        user.mfa_enabled = False
+        user.mfa_type = None
+
+        log_security_event('MFA_DISABLED', user_id=user.id)
+        await db.commit()
