@@ -216,3 +216,34 @@ class PasswordResetCompletedPayload(BaseModel):
 NotificationPayload = (
     EmailNotification | PushNotification | InAppNotification | SMSNotification
 )
+
+
+# --- REST Catch-Up Sync schemas ---
+
+
+class NotificationRead(BaseModel):
+    """Notification item representation for Catch-Up sync."""
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_encoders={datetime: lambda v: v.isoformat()},
+    )
+
+    id: int
+    user_id: str
+    channel: str = 'in_app'
+    event_type: str
+    title: str
+    message: str
+    read: bool = False
+    details: dict[str, Any] | None = None
+    created_at: datetime
+
+
+class NotificationSyncResponse(BaseModel):
+    """Response payload for REST Catch-Up notification sync."""
+
+    events: list[NotificationRead]
+    total: int
+    has_more: bool = False
+    last_id: int | None = None
