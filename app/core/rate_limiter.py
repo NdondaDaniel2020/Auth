@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import logging
 import threading
 import time
 from collections import deque
 
 from app.core.config import get_settings
 from app.core.redis import RedisError, get_redis_client, rate_limit_check
+
+logger = logging.getLogger(__name__)
+
+LOGIN_ATTEMPTS_PREFIX = 'login_attempts:'
+LOGIN_BLOCKED_PREFIX = 'login_blocked:'
 
 
 class _LoginRateLimiter:
@@ -120,6 +126,87 @@ def register_failed_login(key: str, now: float | None = None) -> None:
 
 def reset_login_attempts(key: str) -> None:
     rate_limiter.reset_attempts(key)
+
+
+async def check_login_blocked_async(
+    key: str, now: float | None = None
+) -> int | None:
+    """Return remaining blocked seconds for the key, or None if allowed.
+
+    Checks Redis first if configured; falls back to in-memory limiter on failure
+    or if Redis is not active.
+    """
+    client = get_redis_client()
+    if client:
+        try:
+            blocked_key = f'{LOGIN_BLOCKED_PREFIX}{key}'
+            ttl = await client.ttl(blocked_key)
+            if ttl > 0:
+                return ttl
+
+            attempts_key = f'{LOGIN_ATTEMPTS_PREFIX}{key}'
+            raw_attempts = await client.get(attempts_key)
+            if raw_attempts is not None:
+                settings = get_settings()
+                if int(raw_attempts) >= settings.LOGIN_MAX_ATTEMPTS:
+                    block_ttl = int(settings.LOGIN_BLOCK_DURATION_MINUTES * 60)
+                    await client.setex(blocked_key, block_ttl, '1')
+                    return block_ttl
+            return None
+        except RedisError as e:
+            logger.warning(
+                'Redis login rate limit check failed for %s: %s', key, e
+            )
+
+    return rate_limiter.check_blocked(key, now)
+
+
+async def register_failed_login_async(
+    key: str, now: float | None = None
+) -> None:
+    """Register a failed login attempt for key.
+
+    Updates Redis if configured, and updates in-memory fallback state.
+    """
+    rate_limiter.register_failed_attempt(key, now)
+
+    client = get_redis_client()
+    if client:
+        try:
+            settings = get_settings()
+            window_seconds = int(settings.LOGIN_ATTEMPT_WINDOW_MINUTES * 60)
+            block_duration_seconds = int(
+                settings.LOGIN_BLOCK_DURATION_MINUTES * 60
+            )
+
+            attempts_key = f'{LOGIN_ATTEMPTS_PREFIX}{key}'
+            count = await client.incr(attempts_key)
+            if count == 1:
+                await client.expire(attempts_key, window_seconds)
+
+            if count >= settings.LOGIN_MAX_ATTEMPTS:
+                blocked_key = f'{LOGIN_BLOCKED_PREFIX}{key}'
+                await client.setex(blocked_key, block_duration_seconds, '1')
+        except RedisError as e:
+            logger.warning(
+                'Redis register failed login failed for %s: %s', key, e
+            )
+
+
+async def reset_login_attempts_async(key: str) -> None:
+    """Reset failed login attempts and unblock key in Redis and in-memory."""
+    rate_limiter.reset_attempts(key)
+
+    client = get_redis_client()
+    if client:
+        try:
+            attempts_key = f'{LOGIN_ATTEMPTS_PREFIX}{key}'
+            blocked_key = f'{LOGIN_BLOCKED_PREFIX}{key}'
+            await client.delete(attempts_key, blocked_key)
+        except RedisError as e:
+            logger.warning(
+                'Redis reset login attempts failed for %s: %s', key, e
+            )
 
 
 class _RequestRateLimiter:
