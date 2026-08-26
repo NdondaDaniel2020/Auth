@@ -129,6 +129,14 @@ class WebSocketManager:
         try:
             await websocket.send_json(message)
             if force_disconnect:
+                try:
+                    await websocket.close(code=4001)
+                except Exception as e:  # noqa: BLE001
+                    logger.warning(
+                        'Failed to close websocket frame for user %s: %s',
+                        user_id,
+                        e,
+                    )
                 self.disconnect(user_id)
             return True
         except Exception as e:  # noqa: BLE001
