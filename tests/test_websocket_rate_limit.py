@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
 from app.core.rate_limiter import request_rate_limiter
-from app.core.security import create_access_token
+from app.services.auth_service import create_ws_ticket
 
 
 def _make_ws_app() -> FastAPI:
@@ -23,7 +23,8 @@ def _make_ws_app() -> FastAPI:
     return app
 
 
-def test_websocket_connection_within_rate_limit(
+@pytest.mark.asyncio
+async def test_websocket_connection_within_rate_limit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     mock_user = MagicMock()
@@ -36,11 +37,11 @@ def test_websocket_connection_within_rate_limit(
     )
 
     app = _make_ws_app()
-    token = create_access_token({'sub': 'ws-user-1'})
+    ticket = await create_ws_ticket('ws-user-1')
 
     with (
         TestClient(app) as client,
-        client.websocket_connect(f'/ws/connect?token={token}') as ws,
+        client.websocket_connect(f'/ws/connect?ticket={ticket}') as ws,
     ):
         ws.send_json({'ping': 'hello'})
         data = ws.receive_json()
@@ -48,9 +49,10 @@ def test_websocket_connection_within_rate_limit(
         assert data['data'] == {'ping': 'hello'}
 
 
-def test_websocket_handshake_rate_limit_exceeded() -> None:
+@pytest.mark.asyncio
+async def test_websocket_handshake_rate_limit_exceeded() -> None:
     app = _make_ws_app()
-    token = create_access_token({'sub': 'ws-user-2'})
+    ticket = await create_ws_ticket('ws-user-2')
 
     # Fill rate limit slots (30 per minute default) for testclient IP
     key = 'RATE_LIMIT_WEBSOCKET:testclient'
@@ -61,6 +63,6 @@ def test_websocket_handshake_rate_limit_exceeded() -> None:
     with (
         TestClient(app) as client,
         pytest.raises((Exception, WebSocketDisconnect)),
-        client.websocket_connect(f'/ws/connect?token={token}'),
+        client.websocket_connect(f'/ws/connect?ticket={ticket}'),
     ):
         pass

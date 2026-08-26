@@ -24,13 +24,15 @@ logger = logging.getLogger(__name__)
 )
 async def websocket_endpoint(
     websocket: WebSocket,
-    token: str = Query(..., description='JWT access token'),
+    ticket: str = Query(
+        ..., description='One-time WebSocket authentication ticket'
+    ),
     user_id: str = Depends(authenticate_websocket),
 ) -> None:
     """
     WebSocket connection endpoint.
 
-    Requires a valid JWT access token as query parameter: `?token=<jwt>`
+    Requires a valid one-time authentication ticket as query parameter: `?ticket=<ws_tkt_...>`
     """
     manager = get_ws_manager()
     try:

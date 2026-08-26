@@ -86,3 +86,8 @@ class ResendVerificationRequest(BaseModel):
     @classmethod
     def normalize_email(cls, value: str) -> str:
         return value.strip().lower()
+
+
+class WSTicketResponse(BaseModel):
+    ticket: str
+    expires_in: int = 15

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import contextlib
+import logging
+import time
 from datetime import timedelta
 from uuid import uuid4
 
@@ -26,6 +28,7 @@ from app.core.rate_limiter import (
     redis_reset,
     reset_login_attempts_async,
 )
+from app.core.redis import get_redis_client
 from app.core.security import (
     blacklist_access_token,
     create_access_token,
@@ -48,6 +51,67 @@ from app.schemas.auth import Token
 from app.services import email_service
 from app.utils.datetimes import ensure_utc, utcnow
 from app.utils.tokens import generate_opaque_token
+
+logger = logging.getLogger(__name__)
+
+WS_TICKET_PREFIX = 'ws_ticket:'
+WS_TICKET_TTL = 15  # seconds
+_fallback_ws_tickets: dict[str, tuple[str, float]] = {}
+
+
+async def create_ws_ticket(user_id: str) -> str:
+    """Generate a one-time WebSocket authentication ticket valid for 15 seconds."""
+    ticket = f'ws_tkt_{generate_opaque_token()}'
+    key = f'{WS_TICKET_PREFIX}{ticket}'
+    redis_client = get_redis_client()
+
+    if redis_client:
+        try:
+            await redis_client.setex(key, WS_TICKET_TTL, user_id)
+            return ticket
+        except Exception as e:  # noqa: BLE001
+            logger.warning(
+                'Redis WS ticket setex failed: %s; using local fallback', e
+            )
+
+    now = time.monotonic()
+    expired_keys = [
+        k for k, (_, exp) in _fallback_ws_tickets.items() if exp < now
+    ]
+    for k in expired_keys:
+        _fallback_ws_tickets.pop(k, None)
+
+    _fallback_ws_tickets[ticket] = (user_id, now + WS_TICKET_TTL)
+    return ticket
+
+
+async def consume_ws_ticket(ticket: str) -> str | None:
+    """Atomically consume a one-time WebSocket ticket and return user_id if valid."""
+    if not ticket:
+        return None
+
+    key = f'{WS_TICKET_PREFIX}{ticket}'
+    redis_client = get_redis_client()
+
+    if redis_client:
+        try:
+            res = await redis_client.getdel(key)
+            if res is not None:
+                return (
+                    res.decode('utf-8') if isinstance(res, bytes) else str(res)
+                )
+        except Exception as e:  # noqa: BLE001
+            logger.warning(
+                'Redis WS ticket getdel failed: %s; checking local fallback', e
+            )
+
+    now = time.monotonic()
+    data = _fallback_ws_tickets.pop(ticket, None)
+    if data:
+        stored_user_id, expires_at = data
+        if now <= expires_at:
+            return stored_user_id
+    return None
 
 
 async def create_token_pair(db: AsyncSession, user: User) -> Token:

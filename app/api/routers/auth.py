@@ -25,6 +25,7 @@ from app.schemas.auth import (
     ResendVerificationRequest,
     Token,
     UserRBACMetadata,
+    WSTicketResponse,
 )
 from app.schemas.user import UserCreate, UserRead
 from app.services import auth_service, user_service
@@ -169,3 +170,12 @@ async def resend_verification(
     return {
         'message': 'If the e-mail is registered and unverified, a new link has been sent.'
     }
+
+
+@router.post('/ws-ticket', response_model=WSTicketResponse)
+async def request_ws_ticket(
+    current_user: CurrentUserDep,
+) -> WSTicketResponse:
+    """Issue a short-lived (15s) single-use ticket for WebSocket authentication."""
+    ticket = await auth_service.create_ws_ticket(current_user.id)
+    return WSTicketResponse(ticket=ticket, expires_in=15)
