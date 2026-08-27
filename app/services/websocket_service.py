@@ -1,4 +1,4 @@
-"""WebSocket authentication and connection management."""
+"""WebSocket connection management, Redis Pub/Sub, and event bus integrations."""
 
 from __future__ import annotations
 
@@ -7,9 +7,9 @@ import json
 import logging
 from typing import Any
 
-from fastapi import WebSocket, WebSocketException, status
+from fastapi import WebSocket
 
-from app.core.events import get_event_bus
+from app.core.events import UserEvents, get_event_bus
 from app.core.redis import get_redis_client
 from app.db.session import get_session_factory
 from app.repositories.user_repository import UserRepository
@@ -35,8 +35,7 @@ class WebSocketManager:
         websocket: WebSocket,
         ticket: str,
     ) -> str | None:
-        """
-        Authenticate and register a WebSocket connection using a single-use ticket.
+        """Authenticate and register a WebSocket connection using a single-use ticket.
 
         Returns user_id on success, None on failure.
         """
@@ -179,26 +178,6 @@ def get_ws_manager() -> WebSocketManager:
     return _ws_manager
 
 
-async def authenticate_websocket(websocket: WebSocket, ticket: str) -> str:
-    """
-    FastAPI dependency for WebSocket authentication.
-
-    Raises WebSocketException on authentication failure.
-    Returns user_id on success.
-    """
-    manager = get_ws_manager()
-    user_id = await manager.connect(websocket, ticket)
-    if user_id is None:
-        raise WebSocketException(
-            code=status.WS_1008_POLICY_VIOLATION,
-            reason='Authentication failed',
-        )
-    return user_id
-
-
-# --- Event-driven WebSocket notifications ---
-
-
 async def start_redis_ws_listener(manager: WebSocketManager) -> None:
     """Subscribe to Redis WS channel and deliver messages to local sockets."""
     redis_client = get_redis_client()
@@ -299,8 +278,6 @@ async def setup_ws_event_handlers() -> None:
         )
 
     # Subscribe to relevant events
-    from app.core.events import UserEvents
-
     await bus.subscribe(UserEvents.UPDATED, handle_user_updated)
     await bus.subscribe(UserEvents.DEACTIVATED, handle_user_deactivated)
     await bus.subscribe(UserEvents.ROLES_CHANGED, handle_roles_changed)

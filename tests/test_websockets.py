@@ -95,7 +95,7 @@ async def test_websocket_connection_success(
     mock_user.is_active = True
 
     monkeypatch.setattr(
-        'app.api.websockets.UserRepository.get_by_id',
+        'app.services.websocket_service.UserRepository.get_by_id',
         AsyncMock(return_value=mock_user),
     )
 
@@ -122,7 +122,7 @@ async def test_websocket_connection_ticket_reuse_fails(
     mock_user.is_active = True
 
     monkeypatch.setattr(
-        'app.api.websockets.UserRepository.get_by_id',
+        'app.services.websocket_service.UserRepository.get_by_id',
         AsyncMock(return_value=mock_user),
     )
 
@@ -165,14 +165,14 @@ async def test_websocket_disconnect_cleans_up_manager(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """WebSocket disconnection cleanly removes user connection from WebSocketManager."""
-    from app.api.websockets import get_ws_manager
+    from app.services.websocket_service import get_ws_manager
 
     mock_user = MagicMock()
     mock_user.id = 'ws-cleanup-user'
     mock_user.is_active = True
 
     monkeypatch.setattr(
-        'app.api.websockets.UserRepository.get_by_id',
+        'app.services.websocket_service.UserRepository.get_by_id',
         AsyncMock(return_value=mock_user),
     )
 
@@ -197,7 +197,7 @@ async def test_websocket_force_disconnect_closes_socket_with_code_4001() -> (
     None
 ):
     """Test that force_disconnect=True sends code 4001 and cleans up connection."""
-    from app.api.websockets import WebSocketManager
+    from app.services.websocket_service import WebSocketManager
 
     manager = WebSocketManager()
     mock_ws = AsyncMock()
@@ -229,7 +229,10 @@ async def test_redis_ws_listener_handles_force_disconnect(
     """Test Redis WS listener receiving a message with force_disconnect=True."""
     import json
 
-    from app.api.websockets import WebSocketManager, start_redis_ws_listener
+    from app.services.websocket_service import (
+        WebSocketManager,
+        start_redis_ws_listener,
+    )
 
     manager = WebSocketManager()
     mock_ws = AsyncMock()
@@ -258,7 +261,7 @@ async def test_redis_ws_listener_handles_force_disconnect(
     mock_redis.pubsub.return_value = mock_pubsub
 
     monkeypatch.setattr(
-        'app.api.websockets.get_redis_client', lambda: mock_redis
+        'app.services.websocket_service.get_redis_client', lambda: mock_redis
     )
 
     await start_redis_ws_listener(manager)
@@ -272,8 +275,8 @@ async def test_ws_event_handlers_publish_force_disconnect(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Test event handlers for DEACTIVATED, PASSWORD_CHANGED, and ROLES_CHANGED."""
-    from app.api.websockets import setup_ws_event_handlers
     from app.core.events import Event, UserEvents, get_event_bus
+    from app.services.websocket_service import setup_ws_event_handlers
 
     published_events = []
 
@@ -287,9 +290,11 @@ async def test_ws_event_handlers_publish_force_disconnect(
 
     manager = AsyncMock()
     manager.publish_message = mock_publish
-    monkeypatch.setattr('app.api.websockets.get_ws_manager', lambda: manager)
     monkeypatch.setattr(
-        'app.api.websockets.start_redis_ws_listener', AsyncMock()
+        'app.services.websocket_service.get_ws_manager', lambda: manager
+    )
+    monkeypatch.setattr(
+        'app.services.websocket_service.start_redis_ws_listener', AsyncMock()
     )
 
     await setup_ws_event_handlers()

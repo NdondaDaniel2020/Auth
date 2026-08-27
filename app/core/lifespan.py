@@ -2,10 +2,6 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api.websockets import (
-    setup_ws_event_handlers,
-    teardown_ws_event_handlers,
-)
 from app.core.broker import broker_lifespan, get_broker_config_from_settings
 from app.core.config import get_settings
 from app.core.observability import setup_logging
@@ -27,6 +23,10 @@ from app.services.cleanup_service import (
 from app.services.notification_service import (
     setup_notifications,
     teardown_notifications,
+)
+from app.services.websocket_service import (
+    setup_ws_event_handlers,
+    teardown_ws_event_handlers,
 )
 
 

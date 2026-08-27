@@ -8,10 +8,8 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
 
 from app.api.dependencies.rate_limit import rate_limit
-from app.api.websockets import (
-    authenticate_websocket,
-    get_ws_manager,
-)
+from app.api.dependencies.websocket import authenticate_websocket
+from app.services.websocket_service import get_ws_manager
 
 router = APIRouter(prefix='/ws', tags=['websockets'])
 
