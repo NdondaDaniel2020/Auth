@@ -258,6 +258,8 @@ async def update_profile(db, user: User, data: UserUpdate) -> UserRead:
     if updates:
         old_values = {k: getattr(user, k) for k in updates}
         user = await UserRepository(db).update(user, updates)
+        await db.commit()
+        await db.refresh(user)
         new_values = {k: getattr(user, k) for k in updates}
 
         # Publish user.updated event
