@@ -273,3 +273,70 @@ async def test_request_password_reset_for_unknown_email_is_noop(
 
         rows = (await session.execute(select(PasswordResetToken))).all()
         assert rows == []
+
+
+@pytest.mark.asyncio
+async def test_request_password_reset_bg_uses_isolated_session(
+    isolated_session_factory,
+) -> None:
+    from unittest.mock import patch
+
+    async with isolated_session_factory() as session:
+        user = await _make_user(session, email='bg_reset@example.com')
+        await session.commit()
+
+    with patch(
+        'app.services.auth_service.get_session_factory',
+        return_value=isolated_session_factory,
+    ):
+        await auth_service.request_password_reset_bg('bg_reset@example.com')
+
+    async with isolated_session_factory() as session:
+        rows = (
+            (
+                await session.execute(
+                    select(PasswordResetToken).where(
+                        PasswordResetToken.user_id == user.id
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert len(rows) == 1
+
+
+@pytest.mark.asyncio
+async def test_resend_verification_email_bg_uses_isolated_session(
+    isolated_session_factory,
+) -> None:
+    from unittest.mock import patch
+
+    from app.models.email_verification_token import EmailVerificationToken
+
+    async with isolated_session_factory() as session:
+        user = await _make_user(session, email='bg_verify@example.com')
+        await session.commit()
+
+    with patch(
+        'app.services.auth_service.get_session_factory',
+        return_value=isolated_session_factory,
+    ):
+        await auth_service.resend_verification_email_bg('bg_verify@example.com')
+
+    async with isolated_session_factory() as session:
+        rows = (
+            (
+                await session.execute(
+                    select(EmailVerificationToken).where(
+                        EmailVerificationToken.user_id == user.id
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert len(rows) == 1
+
+
+
