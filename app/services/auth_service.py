@@ -8,7 +8,6 @@ from typing import Any
 from uuid import uuid4
 
 import jwt as pyjwt
-from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -19,6 +18,8 @@ from app.core.events import (
     get_event_bus,
 )
 from app.core.exceptions import (
+    InvalidMfaChallengeError,
+    InvalidMfaPendingTokenError,
     InvalidOrExpiredTokenError,
     InvalidRefreshTokenError,
     TokenAlreadyUsedError,
@@ -164,25 +165,16 @@ async def authenticate_mfa_challenge(
     try:
         payload = decode_mfa_pending_token(mfa_pending_token)
     except pyjwt.PyJWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail='Token MFA expirado ou inválido.',
-        )
+        raise InvalidMfaPendingTokenError('Token MFA expirado ou inválido.')
 
     user_id = payload.get('sub')
     if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail='Token MFA inválido.',
-        )
+        raise InvalidMfaPendingTokenError('Token MFA inválido.')
 
     repository = UserRepository(db)
     user = await repository.get_by_id(user_id)
     if not user or not user.is_active or not user.mfa_enabled:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail='Usuário inválido ou MFA não ativado.',
-        )
+        raise InvalidMfaPendingTokenError('Usuário inválido ou MFA não ativado.')
 
     mfa_repo = MfaRepository(db)
     mfa_method = await mfa_repo.get_active_by_user_and_type(
@@ -190,10 +182,7 @@ async def authenticate_mfa_challenge(
     )
 
     if not mfa_method:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail='Método MFA não configurado.',
-        )
+        raise InvalidMfaPendingTokenError('Método MFA não configurado.')
 
     totp_valid = (
         MfaService.verify_totp_code(mfa_method.secret, code)
@@ -228,10 +217,7 @@ async def authenticate_mfa_challenge(
 
     if not totp_valid and not backup_valid:
         log_security_event('LOGIN_MFA_FAILED', user_id=user.id)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail='Código TOTP ou código de backup inválido.',
-        )
+        raise InvalidMfaChallengeError('Código TOTP ou código de backup inválido.')
 
     tokens = await create_token_pair(db, user, amr=['pwd', 'mfa'])
     log_security_event(

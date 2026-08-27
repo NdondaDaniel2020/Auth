@@ -391,6 +391,20 @@ class InvalidMfaChallengeError(AppError):
         )
 
 
+class InvalidMfaPendingTokenError(AppError):
+    def __init__(
+        self,
+        message: str = 'Token MFA expirado ou inválido.',
+        payload: dict[str, Any] | None = None,
+    ):
+        super().__init__(
+            message=message,
+            status_code=401,
+            payload=payload,
+            code='INVALID_MFA_PENDING_TOKEN',
+        )
+
+
 class MfaBackupCodeAlreadyUsedError(AppError):
     def __init__(
         self,
