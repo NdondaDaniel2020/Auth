@@ -32,7 +32,7 @@ async def test_websocket_connection_within_rate_limit(
     mock_user.is_active = True
 
     monkeypatch.setattr(
-        'app.api.websockets.UserRepository.get_by_id',
+        'app.services.websocket_service.UserRepository.get_by_id',
         AsyncMock(return_value=mock_user),
     )
 
