@@ -55,7 +55,11 @@ async def verify_password_async(
 
 import uuid
 
-from app.core.redis import cache_get, cache_set, get_redis_client
+from app.core.infrastructure.redis import (
+    cache_get,
+    cache_set,
+    get_redis_client,
+)
 
 _in_memory_token_blacklist: dict[str, float] = {}
 

@@ -5,17 +5,18 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from app.core.rate_limiter import request_rate_limiter
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
-from app.core.rate_limiter import request_rate_limiter
 from app.services.auth_service import create_ws_ticket
 
 
 def _make_ws_app() -> FastAPI:
-    from app.api.routers.websockets import router as ws_router
     from app.core.error_handlers import register_exception_handlers
+
+    from app.api.routers.websockets import router as ws_router
 
     app = FastAPI()
     register_exception_handlers(app)

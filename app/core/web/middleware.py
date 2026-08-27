@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
-from app.core.logging import get_logger
+from app.core.observability.logging import get_logger
 
 
 def setup_cors_middleware(app: FastAPI) -> None:

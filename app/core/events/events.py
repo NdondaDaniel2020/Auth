@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-from app.core.redis import get_redis_client
+from app.core.infrastructure.redis import get_redis_client
 
 logger = logging.getLogger(__name__)
 

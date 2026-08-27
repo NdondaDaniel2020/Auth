@@ -18,12 +18,12 @@ from fastapi import Request
 
 from app.core.config import get_settings
 from app.core.exceptions import RateLimitExceededError
-from app.core.rate_limiter import (
+from app.core.infrastructure.redis import get_redis_client
+from app.core.security.rate_limiter import (
     parse_rate_limit,
     redis_check_and_consume,
     request_rate_limiter,
 )
-from app.core.redis import get_redis_client
 
 _REQUEST_SENTINEL: Any = object()
 
