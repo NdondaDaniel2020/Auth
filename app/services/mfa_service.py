@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import secrets
 import string
+from datetime import UTC, datetime
+from typing import Any
 
 import pyotp
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -77,34 +79,81 @@ class MfaService:
         return sorted(codes)
 
     @staticmethod
-    def hash_backup_codes(codes: list[str]) -> list[str]:
-        """Hash a list of plain-text backup codes for storage."""
-        return [hash_password(code) for code in codes]
+    def hash_backup_codes(codes: list[str]) -> list[dict[str, Any]]:
+        """Hash a list of plain-text backup codes with metadata for storage."""
+        now_iso = datetime.now(UTC).isoformat()
+        return [
+            {
+                'code_hash': hash_password(code),
+                'used_at': None,
+                'created_at': now_iso,
+            }
+            for code in codes
+        ]
 
     @staticmethod
     def verify_and_consume_backup_code(
         plain_code: str,
-        hashed_codes: list[str],
-    ) -> tuple[bool, list[str]]:
-        """Verify a backup code against a list of hashed codes.
+        hashed_codes: list[Any],
+    ) -> tuple[bool, list[dict[str, Any]], int]:
+        """Verify a backup code against a list of structured or legacy hashed codes.
 
-        If valid, returns (True, updated_hashed_codes) with the consumed code removed.
-        Otherwise returns (False, original_hashed_codes).
+        If valid, marks the code with used_at=timestamp (Burn on Use) and returns
+        (True, updated_hashed_codes, remaining_active_count).
         """
         if not plain_code or not hashed_codes:
-            return False, hashed_codes
+            return False, [], 0
 
         cleaned_input = plain_code.strip().upper()
-        # Ensure code is formatted correctly if hyphen was omitted
         if len(cleaned_input) == 10 and '-' not in cleaned_input:
             cleaned_input = f'{cleaned_input[:5]}-{cleaned_input[5:]}'
 
-        for idx, hashed_code in enumerate(hashed_codes):
-            if verify_password(cleaned_input, hashed_code):
-                remaining = hashed_codes[:idx] + hashed_codes[idx + 1 :]
-                return True, remaining
+        updated_list: list[dict[str, Any]] = []
+        code_matched = False
+        now_iso = datetime.now(UTC).isoformat()
 
-        return False, hashed_codes
+        for item in hashed_codes:
+            if isinstance(item, dict):
+                code_hash = item.get('code_hash', '')
+                used_at = item.get('used_at')
+                created_at = item.get('created_at', now_iso)
+                if (
+                    not code_matched
+                    and used_at is None
+                    and verify_password(cleaned_input, code_hash)
+                ):
+                    code_matched = True
+                    updated_list.append({
+                        'code_hash': code_hash,
+                        'used_at': now_iso,
+                        'created_at': created_at,
+                    })
+                else:
+                    updated_list.append({
+                        'code_hash': code_hash,
+                        'used_at': used_at,
+                        'created_at': created_at,
+                    })
+            elif isinstance(item, str):
+                # Legacy format support
+                if not code_matched and verify_password(cleaned_input, item):
+                    code_matched = True
+                    updated_list.append({
+                        'code_hash': item,
+                        'used_at': now_iso,
+                        'created_at': now_iso,
+                    })
+                else:
+                    updated_list.append({
+                        'code_hash': item,
+                        'used_at': None,
+                        'created_at': now_iso,
+                    })
+
+        remaining_active = sum(
+            1 for item in updated_list if item.get('used_at') is None
+        )
+        return code_matched, updated_list, remaining_active
 
     @classmethod
     async def setup_totp(
@@ -158,6 +207,40 @@ class MfaService:
         )
 
     @classmethod
+    async def regenerate_backup_codes(
+        cls,
+        db: AsyncSession,
+        user: User,
+        password: str,
+    ) -> MfaEnableResponse:
+        """Invalida os códigos de backup antigos e gera um novo lote após confirmação de senha."""
+        if not user.hashed_password or not await verify_password_async(
+            password, user.hashed_password
+        ):
+            raise InvalidCredentialsError(message='Senha incorreta.')
+
+        mfa_repo = MfaRepository(db)
+        mfa_method = await mfa_repo.get_by_user_and_type(user.id, type='totp')
+
+        if not user.mfa_enabled or not mfa_method or not mfa_method.is_active:
+            raise MfaNotActiveError()
+
+        plain_backup_codes = cls.generate_backup_codes(count=8)
+        hashed_backup_codes = cls.hash_backup_codes(plain_backup_codes)
+
+        await mfa_repo.activate_method(
+            mfa_method, data={'backup_codes': hashed_backup_codes}
+        )
+
+        log_security_event('MFA_BACKUP_CODES_REGENERATED', user_id=user.id)
+        await db.commit()
+
+        return MfaEnableResponse(
+            message='Novos códigos de backup gerados com sucesso',
+            backup_codes=plain_backup_codes,
+        )
+
+    @classmethod
     async def disable_totp(
         cls,
         db: AsyncSession,
@@ -186,9 +269,11 @@ class MfaService:
         backup_valid = False
         if not totp_valid and mfa_method.data:
             hashed_codes = mfa_method.data.get('backup_codes', [])
-            backup_valid, _ = cls.verify_and_consume_backup_code(
-                code, hashed_codes
+            backup_valid, updated_codes, _ = (
+                cls.verify_and_consume_backup_code(code, hashed_codes)
             )
+            if backup_valid:
+                mfa_method.data = {'backup_codes': updated_codes}
 
         if not totp_valid and not backup_valid:
             raise InvalidMfaConfirmationError()

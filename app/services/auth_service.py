@@ -203,13 +203,27 @@ async def authenticate_mfa_challenge(
     backup_valid = False
     if not totp_valid and mfa_method.data:
         hashed_codes = mfa_method.data.get('backup_codes', [])
-        backup_valid, remaining_codes = (
+        backup_valid, updated_codes, remaining_count = (
             MfaService.verify_and_consume_backup_code(code, hashed_codes)
         )
         if backup_valid:
-            mfa_method.data = {'backup_codes': remaining_codes}
-            log_security_event('MFA_BACKUP_CODE_USED', user_id=user.id)
+            mfa_method.data = {'backup_codes': updated_codes}
+            log_security_event(
+                'MFA_BACKUP_CODE_USED',
+                user_id=user.id,
+                metadata={'remaining_codes': remaining_count},
+            )
             await db.commit()
+            try:
+                await email_service.send_backup_code_used_email(
+                    user.email, remaining_count
+                )
+            except Exception:
+                logger.warning(
+                    'Falha ao enviar e-mail de alerta de código de backup para %s',
+                    user.email,
+                    exc_info=True,
+                )
 
     if not totp_valid and not backup_valid:
         log_security_event('LOGIN_MFA_FAILED', user_id=user.id)

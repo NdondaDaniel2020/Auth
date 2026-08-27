@@ -12,6 +12,7 @@ from app.schemas.pagination import PaginatedResponse
 from app.schemas.user import UserPublic, UserRead, UserRoleUpdate, UserUpdate
 from app.services.user_service import (
     activate_user,
+    admin_disable_user_mfa,
     deactivate_user,
     get_user,
     list_users,
@@ -122,4 +123,20 @@ async def replace_user_roles(
         user_id=str(user_id),
         role_ids=data.role_ids,
         actor=admin_user,
+    )
+
+
+@router.delete('/{user_id}/mfa', response_model=UserRead)
+async def admin_disable_mfa(
+    db: SessionDep,
+    admin_user: AdminUserDep,
+    user_id: uuid.UUID,
+) -> UserRead:
+    """Desativa administrativamente o MFA de um usuário (apenas superusuários/admins).
+
+    Utilizado em suporte para perda total de acesso. Registra obrigatoriamente
+    a ação na tabela audit_logs.
+    """
+    return await admin_disable_user_mfa(
+        db, user_id=str(user_id), actor=admin_user
     )

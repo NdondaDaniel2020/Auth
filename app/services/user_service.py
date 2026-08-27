@@ -31,6 +31,7 @@ from app.models.user import User
 from app.repositories.email_verification_repository import (
     EmailVerificationTokenRepository,
 )
+from app.repositories.mfa_repository import MfaRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth import UserRBACMetadata
 from app.schemas.pagination import PaginatedResponse
@@ -425,5 +426,46 @@ async def update_user_roles(
             },
         )
     )
+
+    return UserRead.model_validate(user)
+
+
+async def admin_disable_user_mfa(
+    db,
+    *,
+    user_id: str,
+    actor: User,
+) -> UserRead:
+    """Disable MFA for a user (admin scope).
+
+    Deactivates any active MfaMethod, resets user.mfa_enabled to False,
+    and logs the action in audit_logs.
+    """
+    repository = UserRepository(db)
+    user = await repository.get_by_id(user_id)
+    if user is None:
+        raise UserNotFoundError()
+
+    mfa_repo = MfaRepository(db)
+    mfa_method = await mfa_repo.get_by_user_and_type(user.id, type='totp')
+    if mfa_method:
+        await mfa_repo.deactivate_method(mfa_method)
+
+    user.mfa_enabled = False
+    user.mfa_type = None
+
+    await record_admin_action(
+        db,
+        actor_user_id=actor.id,
+        action='ADMIN_DISABLE_MFA',
+        resource_type='user',
+        resource_id=user_id,
+        details={'target_email': user.email},
+    )
+    log_security_event(
+        'ADMIN_MFA_DISABLED', user_id=user.id, metadata={'actor_id': actor.id}
+    )
+    await db.commit()
+    await db.refresh(user)
 
     return UserRead.model_validate(user)

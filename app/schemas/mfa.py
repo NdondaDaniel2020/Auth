@@ -55,3 +55,10 @@ class MfaChallengeRequest(BaseModel):
         ...,
         description='Código TOTP de 6 dígitos ou código de backup de recuperação',
     )
+
+
+class MfaRegenerateRequest(BaseModel):
+    password: str = Field(
+        ...,
+        description='Senha atual do usuário para confirmação de segurança',
+    )

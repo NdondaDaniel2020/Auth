@@ -49,26 +49,31 @@ def test_mfa_service_backup_codes():
 
     # Verify and consume the first code
     first_code = codes[0]
-    valid, remaining = MfaService.verify_and_consume_backup_code(
+    valid, remaining, count = MfaService.verify_and_consume_backup_code(
         first_code, hashed
     )
     assert valid is True
-    assert len(remaining) == 7
+    assert count == 7
+    assert len(remaining) == 8
 
     # Trying to reuse the same code should fail
-    valid_again, remaining_again = MfaService.verify_and_consume_backup_code(
-        first_code, remaining
+    valid_again, remaining_again, count_again = (
+        MfaService.verify_and_consume_backup_code(first_code, remaining)
     )
     assert valid_again is False
-    assert len(remaining_again) == 7
+    assert count_again == 7
+    assert len(remaining_again) == 8
 
     # Verify input formatting (without hyphen)
     second_code_no_hyphen = codes[1].replace('-', '')
-    valid_second, remaining_second = MfaService.verify_and_consume_backup_code(
-        second_code_no_hyphen, remaining
+    valid_second, remaining_second, count_second = (
+        MfaService.verify_and_consume_backup_code(
+            second_code_no_hyphen, remaining
+        )
     )
     assert valid_second is True
-    assert len(remaining_second) == 6
+    assert count_second == 6
+    assert len(remaining_second) == 8
 
 
 def test_mfa_schemas_instantiation():
