@@ -187,13 +187,11 @@ async def logout(
 async def request_password_reset(
     data: PasswordResetRequest,
     request: Request,
-    db: SessionDep,
     background_tasks: BackgroundTasks,
 ) -> dict[str, str]:
     client_ip = request.client.host if request.client else None
     background_tasks.add_task(
-        auth_service.request_password_reset,
-        db,
+        auth_service.request_password_reset_bg,
         data.email,
         client_ip=client_ip,
     )
@@ -235,11 +233,10 @@ async def verify_email(
 )
 async def resend_verification(
     data: ResendVerificationRequest,
-    db: SessionDep,
     background_tasks: BackgroundTasks,
 ) -> dict[str, str]:
     background_tasks.add_task(
-        auth_service.resend_verification_email, db, data.email
+        auth_service.resend_verification_email_bg, data.email
     )
     return {
         'message': 'If the e-mail is registered and unverified, a new link has been sent.'

@@ -41,6 +41,7 @@ from app.core.security import (
     hash_password_async,
 )
 from app.core.security_logger import log_security_event
+from app.db.session import get_session_factory
 from app.models.user import User
 from app.repositories.email_verification_repository import (
     EmailVerificationTokenRepository,
@@ -401,6 +402,15 @@ async def request_password_reset(
     )
 
 
+async def request_password_reset_bg(
+    email: str, *, client_ip: str | None = None
+) -> None:
+    """Background task entry point for requesting password reset with an isolated DB session."""
+    session_factory = get_session_factory()
+    async with session_factory() as session:
+        await request_password_reset(session, email, client_ip=client_ip)
+
+
 async def reset_password(
     db: AsyncSession,
     token: str,
@@ -550,3 +560,11 @@ async def resend_verification_email(db: AsyncSession, email: str) -> None:
         return
 
     await send_verification_email_for_user(db, user)
+
+
+async def resend_verification_email_bg(email: str) -> None:
+    """Background task entry point for resending verification email with an isolated DB session."""
+    session_factory = get_session_factory()
+    async with session_factory() as session:
+        await resend_verification_email(session, email)
+
