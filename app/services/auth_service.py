@@ -174,7 +174,9 @@ async def authenticate_mfa_challenge(
     repository = UserRepository(db)
     user = await repository.get_by_id(user_id)
     if not user or not user.is_active or not user.mfa_enabled:
-        raise InvalidMfaPendingTokenError('Usuário inválido ou MFA não ativado.')
+        raise InvalidMfaPendingTokenError(
+            'Usuário inválido ou MFA não ativado.'
+        )
 
     mfa_repo = MfaRepository(db)
     mfa_method = await mfa_repo.get_active_by_user_and_type(
@@ -217,7 +219,9 @@ async def authenticate_mfa_challenge(
 
     if not totp_valid and not backup_valid:
         log_security_event('LOGIN_MFA_FAILED', user_id=user.id)
-        raise InvalidMfaChallengeError('Código TOTP ou código de backup inválido.')
+        raise InvalidMfaChallengeError(
+            'Código TOTP ou código de backup inválido.'
+        )
 
     tokens = await create_token_pair(db, user, amr=['pwd', 'mfa'])
     log_security_event(
