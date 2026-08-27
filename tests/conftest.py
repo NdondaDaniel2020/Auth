@@ -135,6 +135,7 @@ def _prevent_real_smtp_calls(monkeypatch) -> Iterator[None]:
 @pytest_asyncio.fixture
 async def isolated_session_factory(
     tmp_path: pytest.TempPathFactory,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> AsyncIterator[async_sessionmaker[AsyncSession]]:
     """Async session factory bound to an isolated SQLite database."""
     database_path = tmp_path / 'isolated.db'
@@ -149,10 +150,16 @@ async def isolated_session_factory(
         expire_on_commit=False,
     )
 
+    monkeypatch.setattr('app.db.session.get_session_factory', lambda: factory)
+    monkeypatch.setattr(
+        'app.services.auth_service.get_session_factory', lambda: factory
+    )
+
     try:
         yield factory
     finally:
         await engine.dispose()
+
 
 
 @pytest.fixture
