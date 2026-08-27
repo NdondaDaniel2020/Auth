@@ -33,7 +33,8 @@ class BaseRepository[ModelT]:
         self,
         data: Mapping[str, Any],
         *,
-        commit: bool = True,
+        commit: bool = False,
+        flush: bool = True,
         refresh: bool = True,
     ) -> ModelT:
         db_object = self.model(**dict(data))
@@ -41,6 +42,8 @@ class BaseRepository[ModelT]:
 
         if commit:
             await self.session.commit()
+        elif flush:
+            await self.session.flush()
 
         if refresh:
             await self.session.refresh(db_object)
@@ -52,7 +55,8 @@ class BaseRepository[ModelT]:
         db_object: ModelT,
         data: Mapping[str, Any],
         *,
-        commit: bool = True,
+        commit: bool = False,
+        flush: bool = True,
         refresh: bool = True,
     ) -> ModelT:
         for field, value in data.items():
@@ -60,6 +64,8 @@ class BaseRepository[ModelT]:
 
         if commit:
             await self.session.commit()
+        elif flush:
+            await self.session.flush()
 
         if refresh:
             await self.session.refresh(db_object)
@@ -70,9 +76,12 @@ class BaseRepository[ModelT]:
         self,
         db_object: ModelT,
         *,
-        commit: bool = True,
+        commit: bool = False,
+        flush: bool = True,
     ) -> None:
         await self.session.delete(db_object)
 
         if commit:
             await self.session.commit()
+        elif flush:
+            await self.session.flush()
