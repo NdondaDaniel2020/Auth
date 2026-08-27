@@ -322,7 +322,9 @@ async def test_resend_verification_email_bg_uses_isolated_session(
         'app.services.auth_service.get_session_factory',
         return_value=isolated_session_factory,
     ):
-        await auth_service.resend_verification_email_bg('bg_verify@example.com')
+        await auth_service.resend_verification_email_bg(
+            'bg_verify@example.com'
+        )
 
     async with isolated_session_factory() as session:
         rows = (
@@ -337,6 +339,3 @@ async def test_resend_verification_email_bg_uses_isolated_session(
             .all()
         )
         assert len(rows) == 1
-
-
-

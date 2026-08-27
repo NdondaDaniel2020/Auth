@@ -161,7 +161,6 @@ async def isolated_session_factory(
         await engine.dispose()
 
 
-
 @pytest.fixture
 def isolated_db_path(
     isolated_session_factory: async_sessionmaker[AsyncSession],
