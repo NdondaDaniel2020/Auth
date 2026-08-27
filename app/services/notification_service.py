@@ -6,7 +6,7 @@ import logging
 from typing import Any
 
 from app.core.config import get_settings
-from app.core.events import (
+from app.core.events.events import (
     AuthEvents,
     UserEvents,
     get_event_bus,

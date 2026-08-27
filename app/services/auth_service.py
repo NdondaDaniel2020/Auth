@@ -11,7 +11,7 @@ import jwt as pyjwt
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
-from app.core.events import (
+from app.core.events.events import (
     AuthEvents,
     Event,
     UserEvents,
@@ -24,15 +24,15 @@ from app.core.exceptions import (
     InvalidRefreshTokenError,
     TokenAlreadyUsedError,
 )
-from app.core.rate_limiter import (
+from app.core.infrastructure.redis import get_redis_client
+from app.core.security.rate_limiter import (
     build_email_login_key,
     build_ip_login_key,
     build_login_key,
     redis_reset,
     reset_login_attempts_async,
 )
-from app.core.redis import get_redis_client
-from app.core.security import (
+from app.core.security.security import (
     blacklist_access_token,
     create_access_token,
     create_refresh_token,
@@ -41,7 +41,7 @@ from app.core.security import (
     decode_refresh_token,
     hash_password_async,
 )
-from app.core.security_logger import log_security_event
+from app.core.security.security_logger import log_security_event
 from app.db.session import get_session_factory
 from app.models.user import User
 from app.repositories.email_verification_repository import (

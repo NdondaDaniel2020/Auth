@@ -19,8 +19,8 @@ from app.core.exceptions import (
     GoogleLoginDisabledError,
     InvalidGoogleTokenError,
 )
-from app.core.security import create_signed_token, decode_token
-from app.core.security_logger import log_security_event
+from app.core.security.security import create_signed_token, decode_token
+from app.core.security.security_logger import log_security_event
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth import Token
