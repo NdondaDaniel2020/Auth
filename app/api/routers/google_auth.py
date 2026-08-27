@@ -55,4 +55,3 @@ async def google_callback(
     return await google_auth_service.google_login(
         db, data=data, client_ip=client_ip
     )
-

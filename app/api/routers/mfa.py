@@ -77,4 +77,3 @@ async def disable_totp_mfa(
     """Desativa o MFA do usuário mediante confirmação da senha e código TOTP ou de backup."""
     await MfaService.disable_totp(db, user, data.password, data.code)
     return {'message': 'MFA desativado com sucesso'}
-
