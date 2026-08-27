@@ -9,8 +9,8 @@ from typing import Any
 
 from fastapi import WebSocket
 
-from app.core.events import UserEvents, get_event_bus
-from app.core.redis import get_redis_client
+from app.core.events.events import UserEvents, get_event_bus
+from app.core.infrastructure.redis import get_redis_client
 from app.db.session import get_session_factory
 from app.repositories.user_repository import UserRepository
 from app.services.auth_service import consume_ws_ticket

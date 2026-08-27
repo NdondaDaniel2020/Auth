@@ -12,8 +12,8 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from app.core.error_handlers import register_exception_handlers
-from app.core.security import create_access_token, hash_password
+from app.core.security.security import create_access_token, hash_password
+from app.core.web.error_handlers import register_exception_handlers
 from app.db.session import get_db
 from app.models.refresh_token import RefreshToken
 from app.models.role import Role

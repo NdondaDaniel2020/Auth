@@ -8,7 +8,10 @@ from collections.abc import Iterator
 
 import pytest
 
-from app.core.security_logger import SECURITY_LOGGER_NAME, get_security_logger
+from app.core.security.security_logger import (
+    SECURITY_LOGGER_NAME,
+    get_security_logger,
+)
 
 
 class _RecordHandler(logging.Handler):

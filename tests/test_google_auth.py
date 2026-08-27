@@ -22,8 +22,11 @@ from app.core.exceptions import (
     GoogleAuthError,
     InvalidGoogleTokenError,
 )
-from app.core.security import decode_access_token
-from app.core.security_logger import SECURITY_LOGGER_NAME, get_security_logger
+from app.core.security.security import decode_access_token
+from app.core.security.security_logger import (
+    SECURITY_LOGGER_NAME,
+    get_security_logger,
+)
 from app.models.user import User
 from tests.conftest import run_in_isolated_db
 

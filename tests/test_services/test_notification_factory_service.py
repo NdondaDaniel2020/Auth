@@ -14,7 +14,7 @@ from app.schemas.notification import (
     UserRolesChangedPayload,
     UserUpdatedPayload,
 )
-from app.services.notification_factory_service import (
+from app.services.notification_service import (
     create_deactivation_email,
     create_password_changed_email,
     create_password_reset_completed_email,

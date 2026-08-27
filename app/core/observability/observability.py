@@ -19,7 +19,6 @@ from pythonjsonlogger import jsonlogger
 from sqlalchemy import text
 
 from app.core.config import get_settings
-from app.db.session import get_session_factory
 
 
 class JSONFormatter(jsonlogger.JsonFormatter):
@@ -114,6 +113,8 @@ class MetricsMiddleware:
 
 async def get_health_status() -> dict[str, Any]:
     """Comprehensive health check including DB connectivity."""
+    from app.db.session import get_session_factory
+
     health: dict[str, Any] = {
         'status': 'ok',
         'checks': {},

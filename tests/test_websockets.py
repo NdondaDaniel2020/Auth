@@ -16,8 +16,9 @@ from tests.conftest import run_in_isolated_db
 
 
 def _make_ws_app() -> FastAPI:
-    from app.api.routers.websockets import router as ws_router
     from app.core.error_handlers import register_exception_handlers
+
+    from app.api.routers.websockets import router as ws_router
 
     app = FastAPI()
     register_exception_handlers(app)
@@ -329,3 +330,39 @@ async def test_ws_event_handlers_publish_force_disconnect(
 
     assert published_events[2]['user_id'] == 'user-3'
     assert published_events[2]['force_disconnect'] is True
+
+
+@pytest.mark.asyncio
+async def test_websocket_manager_broadcast_and_publish() -> None:
+    """Test WebSocketManager publish_message, send_personal_message, and broadcast methods."""
+    from app.services.websocket_service import WebSocketManager
+
+    manager = WebSocketManager()
+
+    mock_ws1 = AsyncMock()
+    mock_ws2 = AsyncMock()
+
+    manager._connections['u1'] = mock_ws1
+    manager._connections['u2'] = mock_ws2
+
+    # Broadcast excluding u2
+    count = await manager.broadcast({'type': 'announcement'}, exclude={'u2'})
+    assert count == 1
+    mock_ws1.send_json.assert_called_once_with({'type': 'announcement'})
+
+    # Send personal message
+    res = await manager.send_personal_message('u1', {'type': 'direct'})
+    assert res is True
+    assert mock_ws1.send_json.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_websocket_teardown_event_handlers() -> None:
+    """Test teardown_ws_event_handlers cleanly unsubscribes event bus listeners."""
+    from app.services.websocket_service import (
+        setup_ws_event_handlers,
+        teardown_ws_event_handlers,
+    )
+
+    await setup_ws_event_handlers()
+    await teardown_ws_event_handlers()

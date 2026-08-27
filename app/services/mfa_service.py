@@ -16,12 +16,12 @@ from app.core.exceptions import (
     MfaNotActiveError,
     MfaNotSetupError,
 )
-from app.core.security import (
+from app.core.security.security import (
     hash_password,
     verify_password,
     verify_password_async,
 )
-from app.core.security_logger import log_security_event
+from app.core.security.security_logger import log_security_event
 from app.models.user import User
 from app.repositories.mfa_repository import MfaRepository
 from app.schemas.mfa import MfaEnableResponse, MfaSetupResponse

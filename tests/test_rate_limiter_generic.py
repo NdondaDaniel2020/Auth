@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from app.core.rate_limiter import parse_rate_limit, request_rate_limiter
+from app.core.security.rate_limiter import (
+    parse_rate_limit,
+    request_rate_limiter,
+)
 
 
 class _FakeRateLimitSettings:

@@ -205,7 +205,7 @@ def api_client(
     from fastapi import FastAPI
 
     from app.api.routers.auth import router as auth_router
-    from app.core.error_handlers import register_exception_handlers
+    from app.core.web.error_handlers import register_exception_handlers
     from app.db.session import get_db
 
     app = FastAPI()
@@ -235,7 +235,7 @@ def full_client(
 
     from app.api.routers.auth import router as auth_router
     from app.api.routers.users import router as users_router
-    from app.core.error_handlers import register_exception_handlers
+    from app.core.web.error_handlers import register_exception_handlers
     from app.db.session import get_db
 
     app = FastAPI()
@@ -266,7 +266,7 @@ def google_client(
 
     from app.api.routers.auth import router as auth_router
     from app.api.routers.google_auth import router as google_router
-    from app.core.error_handlers import register_exception_handlers
+    from app.core.web.error_handlers import register_exception_handlers
     from app.db.session import get_db
 
     app = FastAPI()

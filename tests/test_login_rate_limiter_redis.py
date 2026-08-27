@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from redis.exceptions import RedisError
 
-from app.core.rate_limiter import (
+from app.core.security.rate_limiter import (
     LOGIN_ATTEMPTS_PREFIX,
     LOGIN_BLOCKED_PREFIX,
     check_login_blocked_async,
