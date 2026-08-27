@@ -567,4 +567,3 @@ async def resend_verification_email_bg(email: str) -> None:
     session_factory = get_session_factory()
     async with session_factory() as session:
         await resend_verification_email(session, email)
-
