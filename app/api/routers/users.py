@@ -8,6 +8,11 @@ from app.api.dependencies.auth import CurrentUserDep
 from app.api.dependencies.database import SessionDep
 from app.api.dependencies.pagination import PaginationParamsDep
 from app.api.dependencies.permissions import AdminUserDep
+from app.api.responses import (
+    COMMON_FORBIDDEN_RESPONSES,
+    COMMON_NOT_FOUND_RESPONSES,
+    COMMON_UNAUTHORIZED_RESPONSES,
+)
 from app.schemas.pagination import PaginatedResponse
 from app.schemas.user import UserPublic, UserRead, UserRoleUpdate, UserUpdate
 from app.services.user_service import (
@@ -23,7 +28,11 @@ from app.services.user_service import (
 router = APIRouter(prefix='/users', tags=['users'])
 
 
-@router.get('/me', response_model=UserPublic)
+@router.get(
+    '/me',
+    response_model=UserPublic,
+    responses={**COMMON_UNAUTHORIZED_RESPONSES, **COMMON_FORBIDDEN_RESPONSES},
+)
 async def read_current_user(user: CurrentUserDep) -> UserPublic:
     """Return the profile of the currently authenticated user.
 
@@ -33,7 +42,11 @@ async def read_current_user(user: CurrentUserDep) -> UserPublic:
     return UserPublic.model_validate(user)
 
 
-@router.patch('/me', response_model=UserRead)
+@router.patch(
+    '/me',
+    response_model=UserRead,
+    responses={**COMMON_UNAUTHORIZED_RESPONSES, **COMMON_FORBIDDEN_RESPONSES},
+)
 async def update_current_user(
     user: CurrentUserDep,
     data: UserUpdate,
@@ -48,7 +61,11 @@ async def update_current_user(
     return await update_profile(db, user, data)
 
 
-@router.get('', response_model=PaginatedResponse[UserRead])
+@router.get(
+    '',
+    response_model=PaginatedResponse[UserRead],
+    responses={**COMMON_UNAUTHORIZED_RESPONSES, **COMMON_FORBIDDEN_RESPONSES},
+)
 async def list_all_users(
     db: SessionDep,
     admin_user: AdminUserDep,
@@ -66,7 +83,15 @@ async def list_all_users(
     )
 
 
-@router.get('/{user_id}', response_model=UserRead)
+@router.get(
+    '/{user_id}',
+    response_model=UserRead,
+    responses={
+        **COMMON_UNAUTHORIZED_RESPONSES,
+        **COMMON_FORBIDDEN_RESPONSES,
+        **COMMON_NOT_FOUND_RESPONSES,
+    },
+)
 async def get_user_by_id(
     db: SessionDep,
     admin_user: AdminUserDep,
@@ -80,7 +105,15 @@ async def get_user_by_id(
     return await get_user(db, user_id=str(user_id))
 
 
-@router.patch('/{user_id}/deactivate', response_model=UserRead)
+@router.patch(
+    '/{user_id}/deactivate',
+    response_model=UserRead,
+    responses={
+        **COMMON_UNAUTHORIZED_RESPONSES,
+        **COMMON_FORBIDDEN_RESPONSES,
+        **COMMON_NOT_FOUND_RESPONSES,
+    },
+)
 async def deactivate_user_account(
     db: SessionDep,
     admin_user: AdminUserDep,
@@ -95,7 +128,15 @@ async def deactivate_user_account(
     return await deactivate_user(db, user_id=str(user_id), actor=admin_user)
 
 
-@router.patch('/{user_id}/activate', response_model=UserRead)
+@router.patch(
+    '/{user_id}/activate',
+    response_model=UserRead,
+    responses={
+        **COMMON_UNAUTHORIZED_RESPONSES,
+        **COMMON_FORBIDDEN_RESPONSES,
+        **COMMON_NOT_FOUND_RESPONSES,
+    },
+)
 async def activate_user_account(
     db: SessionDep,
     admin_user: AdminUserDep,
@@ -105,7 +146,15 @@ async def activate_user_account(
     return await activate_user(db, user_id=str(user_id), actor=admin_user)
 
 
-@router.put('/{user_id}/roles', response_model=UserRead)
+@router.put(
+    '/{user_id}/roles',
+    response_model=UserRead,
+    responses={
+        **COMMON_UNAUTHORIZED_RESPONSES,
+        **COMMON_FORBIDDEN_RESPONSES,
+        **COMMON_NOT_FOUND_RESPONSES,
+    },
+)
 async def replace_user_roles(
     db: SessionDep,
     admin_user: AdminUserDep,
@@ -126,7 +175,15 @@ async def replace_user_roles(
     )
 
 
-@router.delete('/{user_id}/mfa', response_model=UserRead)
+@router.delete(
+    '/{user_id}/mfa',
+    response_model=UserRead,
+    responses={
+        **COMMON_UNAUTHORIZED_RESPONSES,
+        **COMMON_FORBIDDEN_RESPONSES,
+        **COMMON_NOT_FOUND_RESPONSES,
+    },
+)
 async def admin_disable_mfa(
     db: SessionDep,
     admin_user: AdminUserDep,
