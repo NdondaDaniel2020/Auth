@@ -8,8 +8,8 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.core.error_handlers import register_exception_handlers
-from app.core.security import create_access_token
+from app.core.security.security import create_access_token
+from app.core.web.error_handlers import register_exception_handlers
 from app.db.session import get_db
 from app.models.user import User
 from tests.conftest import run_in_isolated_db

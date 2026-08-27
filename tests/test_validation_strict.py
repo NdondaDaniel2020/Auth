@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.core.error_handlers import register_exception_handlers
+from app.core.web.error_handlers import register_exception_handlers
 from app.db.session import get_db
 
 

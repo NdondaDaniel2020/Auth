@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.core.config import BaseAppSettings, ProductionSettings
-from app.core.middleware import setup_cors_middleware
+from app.core.web.middleware import setup_cors_middleware
 
 
 class _FakeSettings:

@@ -13,7 +13,7 @@ from tests.conftest import run_in_isolated_db
 
 
 def _make_notifications_app(isolated_session_factory) -> FastAPI:
-    from app.core.error_handlers import register_exception_handlers
+    from app.core.web.error_handlers import register_exception_handlers
     from app.db.session import get_db
 
     app = FastAPI()

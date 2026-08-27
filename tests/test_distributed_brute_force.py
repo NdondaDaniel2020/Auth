@@ -10,8 +10,8 @@ from app.core.exceptions import (
     InvalidCredentialsError,
     TooManyLoginAttemptsError,
 )
-from app.core.rate_limiter import rate_limiter
-from app.core.security import hash_password
+from app.core.security.rate_limiter import rate_limiter
+from app.core.security.security import hash_password
 from app.repositories.user_repository import UserRepository
 from app.services.user_service import authenticate_user
 

@@ -10,9 +10,9 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from app.core.config import ProductionSettings
-from app.core.events import AuthEvents
-from app.core.middleware import setup_security_headers_middleware
-from app.core.redis import rate_limit_check
+from app.core.events.events import AuthEvents
+from app.core.infrastructure.redis import rate_limit_check
+from app.core.web.middleware import setup_security_headers_middleware
 from app.schemas.user import UserCreate
 from app.services import auth_service, user_service
 
