@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 
+import pytest
 from sqlalchemy import select
 
 from app.models.email_verification_token import EmailVerificationToken
@@ -113,3 +115,46 @@ def test_cleanup_expired_tokens_deletes_expired_and_retains_valid(
             assert verifies[0].token_hash == hash_token('active-verify')
 
     run_in_isolated_db(isolated_db_path, _run_cleanup)
+
+
+@pytest.mark.asyncio
+async def test_start_and_stop_token_cleanup_loop() -> None:
+    """Test start_token_cleanup_loop and stop_token_cleanup_loop functions."""
+    from unittest.mock import AsyncMock, patch
+
+    from app.services.cleanup_service import (
+        start_token_cleanup_loop,
+        stop_token_cleanup_loop,
+    )
+
+    mock_session = AsyncMock()
+    mock_factory = AsyncMock()
+    mock_factory.return_value.__aenter__.return_value = mock_session
+
+    with (
+        patch('app.services.cleanup_service.get_settings') as mock_settings,
+        patch(
+            'app.services.cleanup_service.get_session_factory',
+            return_value=mock_factory,
+        ),
+        patch(
+            'app.services.cleanup_service.cleanup_expired_tokens',
+            new_callable=AsyncMock,
+        ),
+    ):
+        mock_settings.return_value.TOKEN_CLEANUP_INTERVAL_MINUTES = 60
+        await start_token_cleanup_loop()
+        await asyncio.sleep(0.05)
+        await stop_token_cleanup_loop()
+
+
+@pytest.mark.asyncio
+async def test_start_token_cleanup_loop_disabled() -> None:
+    """Test start_token_cleanup_loop when interval is <= 0."""
+    from unittest.mock import patch
+
+    from app.services.cleanup_service import start_token_cleanup_loop
+
+    with patch('app.services.cleanup_service.get_settings') as mock_settings:
+        mock_settings.return_value.TOKEN_CLEANUP_INTERVAL_MINUTES = 0
+        await start_token_cleanup_loop()

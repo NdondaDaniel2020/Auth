@@ -1,7 +1,7 @@
+from app.core.error_handlers import register_exception_handlers
 from fastapi import Body, FastAPI
 from fastapi.testclient import TestClient
 
-from app.core.error_handlers import register_exception_handlers
 from app.core.exceptions import BusinessRuleError, NotFoundError
 
 
@@ -72,3 +72,14 @@ def test_generic_exception_hides_details():
     assert body['error']['message'] == 'Internal server error'
     # should not include exception text in the public error message
     assert 'boom' not in body['error']['message']
+
+
+def test_json_safe_helper():
+    from app.core.web.error_handlers import _json_safe
+
+    res = _json_safe({
+        'exc': ValueError('test err'),
+        'items': [1, Exception('sub err')],
+    })
+    assert res['exc'] == 'test err'
+    assert res['items'][1] == 'sub err'
