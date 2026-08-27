@@ -15,6 +15,11 @@ from fastapi.security import OAuth2PasswordRequestForm
 from app.api.dependencies.auth import CurrentUserDep, oauth2_scheme
 from app.api.dependencies.database import SessionDep
 from app.api.dependencies.rate_limit import rate_limit
+from app.api.responses import (
+    COMMON_FORBIDDEN_RESPONSES,
+    COMMON_RATE_LIMIT_RESPONSES,
+    COMMON_UNAUTHORIZED_RESPONSES,
+)
 from app.core import security
 from app.schemas.auth import (
     AuthResponse,
@@ -40,13 +45,18 @@ router = APIRouter(prefix='/auth', tags=['auth'])
     response_model=UserRead,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(rate_limit('RATE_LIMIT_REGISTER'))],
+    responses={**COMMON_RATE_LIMIT_RESPONSES},
 )
 async def register(data: UserCreate, db: SessionDep) -> UserRead:
     user = await user_service.register_user(db, data)
     return UserRead.model_validate(user)
 
 
-@router.post('/login', response_model=AuthResponse)
+@router.post(
+    '/login',
+    response_model=AuthResponse,
+    responses={**COMMON_UNAUTHORIZED_RESPONSES, **COMMON_RATE_LIMIT_RESPONSES},
+)
 async def login(
     data: LoginRequest, request: Request, db: SessionDep
 ) -> AuthResponse:
@@ -74,7 +84,11 @@ async def login(
     )
 
 
-@router.post('/login-form', response_model=AuthResponse)
+@router.post(
+    '/login-form',
+    response_model=AuthResponse,
+    responses={**COMMON_UNAUTHORIZED_RESPONSES, **COMMON_RATE_LIMIT_RESPONSES},
+)
 async def login_form(
     form: Annotated[OAuth2PasswordRequestForm, Depends()],
     request: Request,
@@ -104,7 +118,11 @@ async def login_form(
     )
 
 
-@router.post('/login/mfa-challenge', response_model=AuthResponse)
+@router.post(
+    '/login/mfa-challenge',
+    response_model=AuthResponse,
+    responses={**COMMON_UNAUTHORIZED_RESPONSES},
+)
 async def login_mfa_challenge(
     data: MfaChallengeRequest,
     db: SessionDep,
@@ -124,18 +142,30 @@ async def login_mfa_challenge(
     )
 
 
-@router.get('/me', response_model=UserRBACMetadata)
+@router.get(
+    '/me',
+    response_model=UserRBACMetadata,
+    responses={**COMMON_UNAUTHORIZED_RESPONSES, **COMMON_FORBIDDEN_RESPONSES},
+)
 async def get_auth_me(current_user: CurrentUserDep) -> UserRBACMetadata:
     """Return authenticated user profile and RBAC metadata for frontend rehydration."""
     return user_service.get_user_rbac_metadata(current_user)
 
 
-@router.post('/refresh', response_model=Token)
+@router.post(
+    '/refresh',
+    response_model=Token,
+    responses={**COMMON_UNAUTHORIZED_RESPONSES},
+)
 async def refresh(data: RefreshRequest, db: SessionDep) -> Token:
     return await auth_service.refresh_tokens(db, data.refresh_token)
 
 
-@router.post('/logout', status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    '/logout',
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={**COMMON_UNAUTHORIZED_RESPONSES},
+)
 async def logout(
     data: RefreshRequest,
     request: Request,
@@ -152,6 +182,7 @@ async def logout(
 @router.post(
     '/password-reset/request',
     dependencies=[Depends(rate_limit('RATE_LIMIT_PASSWORD_RESET'))],
+    responses={**COMMON_RATE_LIMIT_RESPONSES},
 )
 async def request_password_reset(
     data: PasswordResetRequest,
@@ -171,7 +202,10 @@ async def request_password_reset(
     }
 
 
-@router.post('/password-reset/confirm')
+@router.post(
+    '/password-reset/confirm',
+    responses={**COMMON_UNAUTHORIZED_RESPONSES},
+)
 async def confirm_password_reset(
     data: PasswordResetConfirm, request: Request, db: SessionDep
 ) -> dict[str, str]:
@@ -182,7 +216,10 @@ async def confirm_password_reset(
     return {'message': 'Password has been reset successfully.'}
 
 
-@router.post('/verify-email')
+@router.post(
+    '/verify-email',
+    responses={**COMMON_UNAUTHORIZED_RESPONSES},
+)
 async def verify_email(
     data: EmailVerificationConfirm, request: Request, db: SessionDep
 ) -> dict[str, str]:
@@ -194,6 +231,7 @@ async def verify_email(
 @router.post(
     '/verify-email/resend',
     dependencies=[Depends(rate_limit('RATE_LIMIT_EMAIL_RESEND'))],
+    responses={**COMMON_RATE_LIMIT_RESPONSES},
 )
 async def resend_verification(
     data: ResendVerificationRequest,
@@ -208,7 +246,11 @@ async def resend_verification(
     }
 
 
-@router.post('/ws-ticket', response_model=WSTicketResponse)
+@router.post(
+    '/ws-ticket',
+    response_model=WSTicketResponse,
+    responses={**COMMON_UNAUTHORIZED_RESPONSES, **COMMON_FORBIDDEN_RESPONSES},
+)
 async def request_ws_ticket(
     current_user: CurrentUserDep,
 ) -> WSTicketResponse:

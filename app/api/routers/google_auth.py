@@ -4,6 +4,10 @@ from fastapi import APIRouter, Depends, Request
 
 from app.api.dependencies.database import SessionDep
 from app.api.dependencies.rate_limit import rate_limit
+from app.api.responses import (
+    COMMON_FORBIDDEN_RESPONSES,
+    COMMON_RATE_LIMIT_RESPONSES,
+)
 from app.schemas.auth import Token
 from app.schemas.google import GoogleAuthUrlResponse, GoogleLoginRequest
 from app.services import google_auth_service
@@ -15,6 +19,7 @@ router = APIRouter(prefix='/auth/google', tags=['google-auth'])
     '/url',
     response_model=GoogleAuthUrlResponse,
     dependencies=[Depends(rate_limit('RATE_LIMIT_DEFAULT'))],
+    responses={**COMMON_FORBIDDEN_RESPONSES, **COMMON_RATE_LIMIT_RESPONSES},
 )
 async def google_auth_url() -> GoogleAuthUrlResponse:
     """Return the Google consent-screen URL plus the signed CSRF state.
@@ -36,6 +41,7 @@ async def google_auth_url() -> GoogleAuthUrlResponse:
     '/callback',
     response_model=Token,
     dependencies=[Depends(rate_limit('RATE_LIMIT_DEFAULT'))],
+    responses={**COMMON_FORBIDDEN_RESPONSES, **COMMON_RATE_LIMIT_RESPONSES},
 )
 async def google_callback(
     data: GoogleLoginRequest, request: Request, db: SessionDep
