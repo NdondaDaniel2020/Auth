@@ -4,7 +4,7 @@ import logging
 from datetime import timedelta
 
 from app.core.config import get_settings
-from app.core.events import (
+from app.core.events.events import (
     Event,
     UserEvents,
     get_event_bus,
@@ -18,15 +18,18 @@ from app.core.exceptions import (
     TooManyLoginAttemptsError,
     UserNotFoundError,
 )
-from app.core.rate_limiter import (
+from app.core.security.rate_limiter import (
     build_email_login_key,
     build_ip_login_key,
     check_login_blocked_async,
     register_failed_login_async,
     reset_login_attempts_async,
 )
-from app.core.security import hash_password_async, verify_password_async
-from app.core.security_logger import log_security_event
+from app.core.security.security import (
+    hash_password_async,
+    verify_password_async,
+)
+from app.core.security.security_logger import log_security_event
 from app.models.user import User
 from app.repositories.email_verification_repository import (
     EmailVerificationTokenRepository,

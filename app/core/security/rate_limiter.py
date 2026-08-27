@@ -6,7 +6,11 @@ import time
 from collections import deque
 
 from app.core.config import get_settings
-from app.core.redis import RedisError, get_redis_client, rate_limit_check
+from app.core.infrastructure.redis import (
+    RedisError,
+    get_redis_client,
+    rate_limit_check,
+)
 
 logger = logging.getLogger(__name__)
 

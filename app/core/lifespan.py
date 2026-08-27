@@ -6,10 +6,13 @@ from app.api.websockets import (
     setup_ws_event_handlers,
     teardown_ws_event_handlers,
 )
-from app.core.broker import broker_lifespan, get_broker_config_from_settings
 from app.core.config import get_settings
-from app.core.observability import setup_logging
-from app.core.redis import close_redis, init_redis
+from app.core.infrastructure.broker import (
+    broker_lifespan,
+    get_broker_config_from_settings,
+)
+from app.core.infrastructure.redis import close_redis, init_redis
+from app.core.observability.observability import setup_logging
 from app.db.init_db import init_db
 from app.db.session import get_engine
 from app.models import (

@@ -16,8 +16,9 @@ from tests.conftest import run_in_isolated_db
 
 
 def _make_ws_app() -> FastAPI:
-    from app.api.routers.websockets import router as ws_router
     from app.core.error_handlers import register_exception_handlers
+
+    from app.api.routers.websockets import router as ws_router
 
     app = FastAPI()
     register_exception_handlers(app)

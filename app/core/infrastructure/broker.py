@@ -22,7 +22,7 @@ if TYPE_CHECKING:
         AIOKafkaProducer,
     )
 
-from app.core.events import Event
+from app.core.events.events import Event
 
 logger = logging.getLogger(__name__)
 
