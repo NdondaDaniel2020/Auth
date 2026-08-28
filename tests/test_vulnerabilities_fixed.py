@@ -65,15 +65,15 @@ def test_security_headers_present() -> None:
 
 
 @pytest.mark.asyncio
-async def test_password_reset_event_does_not_contain_reset_token(
+async def test_password_reset_event_payload_contains_required_fields(
     isolated_session_factory,
 ) -> None:
-    """Ensure AuthEvents.PASSWORD_RESET_REQUESTED payload excludes reset_token."""
+    """Ensure AuthEvents.PASSWORD_RESET_REQUESTED payload contains all required fields for EmailConsumer."""
     async with isolated_session_factory() as session:
         user = await user_service.register_user(
             session,
             UserCreate(
-                email='reset-no-token@example.com',
+                email='reset-token-payload@example.com',
                 password='T3st!Password123',
             ),
         )
@@ -83,14 +83,16 @@ async def test_password_reset_event_does_not_contain_reset_token(
             'app.services.auth_service.get_event_bus', return_value=mock_bus
         ):
             await auth_service.request_password_reset(
-                session, 'reset-no-token@example.com'
+                session, 'reset-token-payload@example.com'
             )
 
         assert mock_bus.publish.called
         event = mock_bus.publish.call_args[0][0]
         assert event.type == AuthEvents.PASSWORD_RESET_REQUESTED
-        assert 'reset_token' not in event.payload
         assert event.payload['user_id'] == user.id
+        assert event.payload['email'] == 'reset-token-payload@example.com'
+        assert event.payload['reset_token'] is not None
+        assert 'expires_at' in event.payload
 
 
 @pytest.mark.asyncio

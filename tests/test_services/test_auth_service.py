@@ -276,22 +276,34 @@ async def test_request_password_reset_for_unknown_email_is_noop(
 
 
 @pytest.mark.asyncio
-async def test_request_password_reset_bg_uses_isolated_session(
+async def test_request_password_reset_publishes_event(
     isolated_session_factory,
 ) -> None:
-    from unittest.mock import patch
+    from unittest.mock import AsyncMock, patch
+
+    from app.messaging.events.auth_events import AuthEvents
+
+    mock_bus = AsyncMock()
 
     async with isolated_session_factory() as session:
-        user = await _make_user(session, email='bg_reset@example.com')
+        user = await _make_user(session, email='reset_event@example.com')
         await session.commit()
 
-    with patch(
-        'app.services.auth_service.get_session_factory',
-        return_value=isolated_session_factory,
-    ):
-        await auth_service.request_password_reset_bg('bg_reset@example.com')
+        with patch(
+            'app.services.auth_service.get_event_bus',
+            return_value=mock_bus,
+        ):
+            await auth_service.request_password_reset(
+                session, 'reset_event@example.com'
+            )
 
-    async with isolated_session_factory() as session:
+        assert mock_bus.publish.called
+        event = mock_bus.publish.call_args[0][0]
+        assert event.type == AuthEvents.PASSWORD_RESET_REQUESTED
+        assert event.payload['user_id'] == user.id
+        assert event.payload['email'] == 'reset_event@example.com'
+        assert event.payload['reset_token'] is not None
+
         rows = (
             (
                 await session.execute(
@@ -307,26 +319,35 @@ async def test_request_password_reset_bg_uses_isolated_session(
 
 
 @pytest.mark.asyncio
-async def test_resend_verification_email_bg_uses_isolated_session(
+async def test_resend_verification_email_publishes_event(
     isolated_session_factory,
 ) -> None:
-    from unittest.mock import patch
+    from unittest.mock import AsyncMock, patch
 
+    from app.messaging.events.auth_events import AuthEvents
     from app.models.email_verification_token import EmailVerificationToken
 
+    mock_bus = AsyncMock()
+
     async with isolated_session_factory() as session:
-        user = await _make_user(session, email='bg_verify@example.com')
+        user = await _make_user(session, email='verify_event@example.com')
         await session.commit()
 
-    with patch(
-        'app.services.auth_service.get_session_factory',
-        return_value=isolated_session_factory,
-    ):
-        await auth_service.resend_verification_email_bg(
-            'bg_verify@example.com'
-        )
+        with patch(
+            'app.services.auth_service.get_event_bus',
+            return_value=mock_bus,
+        ):
+            await auth_service.resend_verification_email(
+                session, 'verify_event@example.com'
+            )
 
-    async with isolated_session_factory() as session:
+        assert mock_bus.publish.called
+        event = mock_bus.publish.call_args[0][0]
+        assert event.type == AuthEvents.EMAIL_VERIFICATION_REQUESTED
+        assert event.payload['user_id'] == user.id
+        assert event.payload['email'] == 'verify_event@example.com'
+        assert event.payload['verify_token'] is not None
+
         rows = (
             (
                 await session.execute(

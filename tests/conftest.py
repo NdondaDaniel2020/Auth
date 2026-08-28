@@ -105,15 +105,19 @@ async def _clear_database_session_cache() -> AsyncIterator[None]:
 
 @pytest_asyncio.fixture(autouse=True)
 async def _setup_test_notifications() -> AsyncIterator[None]:
+    from app.messaging.consumers import get_email_consumer
     from app.services.notification_service import (
         setup_notifications,
         teardown_notifications,
     )
 
+    email_consumer = get_email_consumer()
+    await email_consumer.subscribe()
     await setup_notifications()
     try:
         yield
     finally:
+        await email_consumer.unsubscribe()
         await teardown_notifications()
 
 

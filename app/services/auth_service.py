@@ -36,7 +36,6 @@ from app.core.security.security import (
     hash_password_async,
 )
 from app.core.security.security_logger import log_security_event
-from app.db.session import get_session_factory
 from app.messaging import Event
 from app.messaging.buses import get_event_bus
 from app.messaging.events import AuthEvents, UserEvents
