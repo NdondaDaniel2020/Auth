@@ -33,6 +33,11 @@ class Event:
             'causation_id': self.causation_id,
         }
 
+    def __getitem__(self, key: str) -> Any:
+        if hasattr(self, key):
+            return getattr(self, key)
+        return self.to_dict()[key]
+
 
 @dataclass
 class DomainEvent(Event):

@@ -11,12 +11,9 @@ import jwt as pyjwt
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
-from app.core.events.events import (
-    AuthEvents,
-    Event,
-    UserEvents,
-    get_event_bus,
-)
+from app.messaging import Event
+from app.messaging.buses import get_event_bus
+from app.messaging.events import AuthEvents, UserEvents
 from app.core.exceptions import (
     InvalidMfaChallengeError,
     InvalidMfaPendingTokenError,

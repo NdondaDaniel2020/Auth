@@ -4,11 +4,9 @@ import logging
 from datetime import timedelta
 
 from app.core.config import get_settings
-from app.core.events.events import (
-    Event,
-    UserEvents,
-    get_event_bus,
-)
+from app.messaging import Event
+from app.messaging.buses import get_event_bus
+from app.messaging.events import UserEvents
 from app.core.exceptions import (
     EmailAlreadyExistsError,
     InvalidCredentialsError,

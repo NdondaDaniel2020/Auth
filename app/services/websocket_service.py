@@ -9,7 +9,8 @@ from typing import Any
 
 from fastapi import WebSocket
 
-from app.core.events.events import UserEvents, get_event_bus
+from app.messaging.buses import get_event_bus
+from app.messaging.events import UserEvents
 from app.core.infrastructure.redis import get_redis_client
 from app.db.session import get_session_factory
 from app.repositories.user_repository import UserRepository
