@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from app.core.events import Event, InMemoryEventBus
+from app.messaging import Event
+from app.messaging.buses import InMemoryEventBus
 
 
 @pytest.mark.asyncio
@@ -74,6 +75,7 @@ async def test_event_bus_exhausts_retries_and_pushes_to_dlq() -> None:
 @pytest.mark.asyncio
 async def test_event_bus_reprocess_dlq_events() -> None:
     bus = InMemoryEventBus(max_retries=2, initial_delay=0.01)
+    await bus.clear_dlq()
     should_fail = True
     processed = 0
 
