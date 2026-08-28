@@ -59,6 +59,7 @@ class KafkaEventBus(InMemoryEventBus):
                 topic,
                 value=event.to_dict(),
                 key=event.event_id,
+                # pyrefly: ignore [unexpected-keyword]
                 timestamp=int(event.timestamp.timestamp() * 1000),
             )
             logger.debug(

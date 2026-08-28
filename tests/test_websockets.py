@@ -276,7 +276,9 @@ async def test_ws_event_handlers_publish_force_disconnect(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Test event handlers for DEACTIVATED, PASSWORD_CHANGED, and ROLES_CHANGED."""
-    from app.core.events import Event, UserEvents, get_event_bus
+    from app.messaging import Event
+    from app.messaging.buses import get_event_bus
+    from app.messaging.events import UserEvents
     from app.services.websocket_service import setup_ws_event_handlers
 
     published_events = []
