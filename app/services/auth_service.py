@@ -368,11 +368,6 @@ async def request_password_reset(
         'PASSWORD_RESET_REQUESTED', user_id=user.id, ip=client_ip
     )
 
-    reset_link = (
-        f'{settings.APP_BASE_URL}/auth/password-reset/confirm?token={token}'
-    )
-    await email_service.send_password_reset_email(user.email, reset_link)
-
     # Publish auth.password_reset_requested event
     bus = get_event_bus()
 
@@ -382,20 +377,12 @@ async def request_password_reset(
             payload={
                 'user_id': user.id,
                 'email': user.email,
+                'reset_token': token,
                 'expires_at': expires_at.isoformat(),
                 'client_ip': client_ip,
             },
         )
     )
-
-
-async def request_password_reset_bg(
-    email: str, *, client_ip: str | None = None
-) -> None:
-    """Background task entry point for requesting password reset with an isolated DB session."""
-    session_factory = get_session_factory()
-    async with session_factory() as session:
-        await request_password_reset(session, email, client_ip=client_ip)
 
 
 async def reset_password(
@@ -516,9 +503,9 @@ async def verify_email(
 
 
 async def send_verification_email_for_user(
-    db: AsyncSession, user: User
+    db: AsyncSession, user: User, *, client_ip: str | None = None
 ) -> None:
-    """Create a verification token and e-mail it to the user (if unverified)."""
+    """Create a verification token and publish email verification event."""
     settings = get_settings()
 
     if user.is_verified:
@@ -535,22 +522,29 @@ async def send_verification_email_for_user(
     )
     await db.commit()
 
-    verify_link = f'{settings.APP_BASE_URL}/auth/verify-email?token={token}'
-    await email_service.send_verification_email(user.email, verify_link)
+    # Publish auth.email_verification_requested event
+    bus = get_event_bus()
+    await bus.publish(
+        Event(
+            type=AuthEvents.EMAIL_VERIFICATION_REQUESTED,
+            payload={
+                'user_id': user.id,
+                'email': user.email,
+                'verify_token': token,
+                'expires_at': expires_at.isoformat(),
+                'client_ip': client_ip,
+            },
+        )
+    )
 
 
-async def resend_verification_email(db: AsyncSession, email: str) -> None:
+async def resend_verification_email(
+    db: AsyncSession, email: str, *, client_ip: str | None = None
+) -> None:
     """Send a fresh verification link to a registered, unverified user."""
     user_repository = UserRepository(db)
     user = await user_repository.get_by_email(email)
     if user is None or user.is_verified or not user.is_active:
         return
 
-    await send_verification_email_for_user(db, user)
-
-
-async def resend_verification_email_bg(email: str) -> None:
-    """Background task entry point for resending verification email with an isolated DB session."""
-    session_factory = get_session_factory()
-    async with session_factory() as session:
-        await resend_verification_email(session, email)
+    await send_verification_email_for_user(db, user, client_ip=client_ip)
