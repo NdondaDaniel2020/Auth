@@ -155,9 +155,6 @@ async def isolated_session_factory(
     )
 
     monkeypatch.setattr('app.db.session.get_session_factory', lambda: factory)
-    monkeypatch.setattr(
-        'app.services.auth_service.get_session_factory', lambda: factory
-    )
 
     try:
         yield factory
