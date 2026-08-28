@@ -10,6 +10,7 @@ from app.messaging.events.auth_events import AuthEvents
 from app.messaging.events.user_events import UserEvents
 from app.schemas.notification import (
     EmailNotification,
+    EmailVerificationRequestedPayload,
     EmailVerifiedPayload,
     PasswordChangedPayload,
     PasswordResetCompletedPayload,
@@ -69,6 +70,10 @@ class EmailConsumer:
             AuthEvents.PASSWORD_RESET_COMPLETED,
             self._handle_password_reset_completed,
         )
+        await bus.subscribe(
+            AuthEvents.EMAIL_VERIFICATION_REQUESTED,
+            self._handle_email_verification_requested,
+        )
 
         self._subscribed = True
         logger.info('EmailConsumer subscribed to domain events')
@@ -101,6 +106,10 @@ class EmailConsumer:
         await bus.unsubscribe(
             AuthEvents.PASSWORD_RESET_COMPLETED,
             self._handle_password_reset_completed,
+        )
+        await bus.unsubscribe(
+            AuthEvents.EMAIL_VERIFICATION_REQUESTED,
+            self._handle_email_verification_requested,
         )
 
         self._subscribed = False
@@ -145,10 +154,19 @@ class EmailConsumer:
         logger.info('Email verified for user %s', payload.user_id)
 
     async def _handle_password_reset_requested(self, event: Event) -> None:
+        from app.core.config import get_settings
+        from app.services import email_service
+
         payload = PasswordResetRequestedPayload(**event.payload)
         logger.info(
-            'Password reset requested event logged for user %s',
+            'Sending password reset email for user %s',
             payload.user_id,
+        )
+        settings = get_settings()
+        base_url = getattr(settings, 'APP_BASE_URL', 'http://localhost:8000')
+        reset_link = f'{base_url}/auth/password-reset/confirm?token={payload.reset_token}'
+        await email_service.send_password_reset_email(
+            payload.email, reset_link
         )
 
     async def _handle_password_reset_completed(self, event: Event) -> None:
@@ -159,6 +177,22 @@ class EmailConsumer:
         )
         email = create_password_reset_completed_email(payload)
         await self._send_email(email)
+
+    async def _handle_email_verification_requested(self, event: Event) -> None:
+        from app.core.config import get_settings
+        from app.services import email_service
+
+        payload = EmailVerificationRequestedPayload(**event.payload)
+        logger.info(
+            'Sending email verification link for user %s',
+            payload.user_id,
+        )
+        settings = get_settings()
+        base_url = getattr(settings, 'APP_BASE_URL', 'http://localhost:8000')
+        verify_link = (
+            f'{base_url}/auth/verify-email?token={payload.verify_token}'
+        )
+        await email_service.send_verification_email(payload.email, verify_link)
 
     async def _send_email(self, email: EmailNotification) -> None:
         from app.services.email_service import _send_via_smtp, render_template

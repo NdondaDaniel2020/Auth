@@ -2,6 +2,7 @@
 
 from app.messaging.events.auth_events import (
     AuthEvents,
+    EmailVerificationRequestedEvent,
     PasswordResetCompletedEvent,
     PasswordResetRequestedEvent,
 )
@@ -17,6 +18,7 @@ from app.messaging.events.user_events import (
 
 __all__ = [
     'AuthEvents',
+    'EmailVerificationRequestedEvent',
     'EmailVerifiedEvent',
     'PasswordChangedEvent',
     'PasswordResetCompletedEvent',

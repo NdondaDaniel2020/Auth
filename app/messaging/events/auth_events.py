@@ -16,6 +16,7 @@ class AuthEvents:
     TOKEN_REFRESHED = 'auth.token_refreshed'
     PASSWORD_RESET_REQUESTED = 'auth.password_reset_requested'
     PASSWORD_RESET_COMPLETED = 'auth.password_reset_completed'
+    EMAIL_VERIFICATION_REQUESTED = 'auth.email_verification_requested'
     ACCOUNT_TEMPORARILY_LOCKED = 'auth.account_temporarily_locked'
 
 
@@ -31,3 +32,12 @@ class PasswordResetCompletedEvent(DomainEvent):
     """Event emitted when a password reset is completed successfully."""
 
     type: str = field(default=AuthEvents.PASSWORD_RESET_COMPLETED, init=False)
+
+
+@dataclass
+class EmailVerificationRequestedEvent(DomainEvent):
+    """Event emitted when an email verification link is requested."""
+
+    type: str = field(
+        default=AuthEvents.EMAIL_VERIFICATION_REQUESTED, init=False
+    )
