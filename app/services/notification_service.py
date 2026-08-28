@@ -10,6 +10,7 @@ from app.messaging.buses import get_event_bus
 from app.messaging.events import AuthEvents, UserEvents
 from app.schemas.notification import (
     EmailNotification,
+    EmailVerificationRequestedPayload,
     EmailVerifiedPayload,
     NotificationPriority,
     PasswordChangedPayload,
@@ -141,6 +142,30 @@ def create_password_reset_email(
             'reset_link': reset_link,
             'expires_at': reset.expires_at.isoformat(),
             'client_ip': reset.client_ip,
+        },
+    )
+
+
+def create_verification_requested_email(
+    verification: EmailVerificationRequestedPayload,
+) -> EmailNotification:
+    """Create email verification notification email."""
+    settings = get_settings()
+    base_url = getattr(settings, 'APP_BASE_URL', 'http://localhost:8000')
+    verify_link = (
+        f'{base_url}/auth/verify-email?token={verification.verify_token}'
+    )
+    return EmailNotification(
+        notification_id=f'email-verification-{verification.user_id}',
+        priority=NotificationPriority.HIGH,
+        recipient_id=verification.user_id,
+        to_email=verification.email,
+        subject='Verify your email',
+        template_id='account_created',
+        template_data={
+            'verify_link': verify_link,
+            'expires_at': verification.expires_at.isoformat(),
+            'client_ip': verification.client_ip,
         },
     )
 
