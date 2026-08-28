@@ -201,6 +201,18 @@ class PasswordResetRequestedPayload(BaseModel):
     client_ip: str | None = None
 
 
+class EmailVerificationRequestedPayload(BaseModel):
+    """Payload for auth.email_verification_requested event."""
+
+    model_config = ConfigDict(extra='forbid')
+
+    user_id: str
+    email: EmailStr
+    verify_token: str
+    expires_at: datetime
+    client_ip: str | None = None
+
+
 class PasswordResetCompletedPayload(BaseModel):
     """Payload for auth.password_reset_completed event."""
 
