@@ -10,7 +10,7 @@ from app.messaging.base import Event
 from app.messaging.buses.in_memory import InMemoryEventBus
 
 if TYPE_CHECKING:
-    from aiokafka import AIOKafkaProducer
+    from aiokafka import AIOKafkaProducer  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 

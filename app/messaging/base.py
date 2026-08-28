@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-EventHandler = Callable[['Event'], Awaitable[None]]
+EventHandler = Callable[[Any], Awaitable[None]]
 
 
 @dataclass

@@ -147,13 +147,15 @@ class EmailConsumer:
     async def _handle_password_reset_requested(self, event: Event) -> None:
         payload = PasswordResetRequestedPayload(**event.payload)
         logger.info(
-            'Password reset requested event logged for user %s', payload.user_id
+            'Password reset requested event logged for user %s',
+            payload.user_id,
         )
 
     async def _handle_password_reset_completed(self, event: Event) -> None:
         payload = PasswordResetCompletedPayload(**event.payload)
         logger.info(
-            'Sending password reset completed email for user %s', payload.user_id
+            'Sending password reset completed email for user %s',
+            payload.user_id,
         )
         email = create_password_reset_completed_email(payload)
         await self._send_email(email)
@@ -162,7 +164,7 @@ class EmailConsumer:
         from app.services.email_service import _send_via_smtp, render_template
 
         html_content = email.html_body
-        if not html_content and getattr(email, 'template_id', None):
+        if not html_content and email.template_id:
             template_data = getattr(email, 'template_data', {}) or {}
             html_content = render_template(email.template_id, **template_data)
 
