@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from app.messaging.base import Event
 from app.messaging.buses import get_event_bus
@@ -25,7 +24,6 @@ class WebSocketConsumer:
             return
 
         bus = get_event_bus()
-        manager = get_ws_manager()
 
         await bus.subscribe(UserEvents.UPDATED, self._handle_user_updated)
         await bus.subscribe(

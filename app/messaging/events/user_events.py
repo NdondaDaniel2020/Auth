@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
 
 from app.messaging.base import DomainEvent
 
@@ -13,6 +12,8 @@ class UserEvents:
 
     CREATED = 'user.created'
     UPDATED = 'user.updated'
+    DELETED = 'user.deleted'
+    ACTIVATED = 'user.activated'
     DEACTIVATED = 'user.deactivated'
     ROLES_CHANGED = 'user.roles_changed'
     PASSWORD_CHANGED = 'user.password_changed'

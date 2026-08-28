@@ -10,8 +10,13 @@ from app.messaging.base import DomainEvent
 class AuthEvents:
     """Constants for authentication event types."""
 
+    LOGIN = 'auth.login'
+    LOGOUT = 'auth.logout'
+    LOGIN_FAILED = 'auth.login_failed'
+    TOKEN_REFRESHED = 'auth.token_refreshed'
     PASSWORD_RESET_REQUESTED = 'auth.password_reset_requested'
     PASSWORD_RESET_COMPLETED = 'auth.password_reset_completed'
+    ACCOUNT_TEMPORARILY_LOCKED = 'auth.account_temporarily_locked'
 
 
 @dataclass

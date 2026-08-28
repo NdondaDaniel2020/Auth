@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import sys
 
-import app.messaging as messaging
 import app.messaging.buses as messaging_buses
 import app.messaging.events as messaging_events
+from app import messaging
 from app.core.infrastructure import redis
 from app.core.observability import logging, observability
 from app.core.security import rate_limiter, security, security_logger
 from app.core.web import error_handlers, middleware
+
 
 # Create legacy aliases for app.core.events and app.core.broker
 class LegacyEventsModule:
@@ -19,8 +20,14 @@ class LegacyEventsModule:
     InMemoryEventBus = messaging_buses.InMemoryEventBus
     UserEvents = messaging_events.UserEvents
     AuthEvents = messaging_events.AuthEvents
-    get_event_bus = messaging_buses.get_event_bus
-    set_event_bus = messaging_buses.set_event_bus
+
+    @staticmethod
+    def get_event_bus():
+        return messaging_buses.get_event_bus()
+
+    @staticmethod
+    def set_event_bus(bus):
+        return messaging_buses.set_event_bus(bus)
 
 
 legacy_events = LegacyEventsModule()

@@ -4,9 +4,6 @@ import logging
 from datetime import timedelta
 
 from app.core.config import get_settings
-from app.messaging import Event
-from app.messaging.buses import get_event_bus
-from app.messaging.events import UserEvents
 from app.core.exceptions import (
     EmailAlreadyExistsError,
     InvalidCredentialsError,
@@ -28,6 +25,9 @@ from app.core.security.security import (
     verify_password_async,
 )
 from app.core.security.security_logger import log_security_event
+from app.messaging import Event
+from app.messaging.buses import get_event_bus
+from app.messaging.events import UserEvents
 from app.models.user import User
 from app.repositories.email_verification_repository import (
     EmailVerificationTokenRepository,

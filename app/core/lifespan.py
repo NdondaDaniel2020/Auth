@@ -48,7 +48,7 @@ async def lifespan(app: FastAPI):
     await init_db()
 
     # Initialize messaging bus & consumers
-    bus = get_event_bus()
+    get_event_bus()
     email_consumer = get_email_consumer()
     ws_consumer = get_ws_consumer()
 

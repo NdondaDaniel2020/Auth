@@ -6,7 +6,7 @@ import json
 import logging
 from typing import TYPE_CHECKING
 
-from app.messaging.base import Event, EventBus, EventHandler
+from app.messaging.base import Event
 from app.messaging.buses.in_memory import InMemoryEventBus
 
 if TYPE_CHECKING:

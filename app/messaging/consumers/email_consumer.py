@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from app.messaging.base import Event
 from app.messaging.buses import get_event_bus
