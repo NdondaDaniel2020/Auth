@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.core.infrastructure.redis import get_redis_client
 from app.db.session import get_session_factory
 from app.repositories.email_verification_repository import (
     EmailVerificationTokenRepository,
@@ -62,9 +63,38 @@ async def _run_cleanup_loop(interval_minutes: int) -> None:
     try:
         while True:
             try:
-                session_factory = get_session_factory()
-                async with session_factory() as session:
-                    await cleanup_expired_tokens(session)
+                redis_client = get_redis_client()
+                if redis_client is not None:
+                    lock = redis_client.lock('lock:token_cleanup', timeout=300)
+                    acquired = False
+                    try:
+                        acquired = await lock.acquire(blocking=False)
+                    except Exception as e:  # noqa: BLE001
+                        logger.warning(
+                            'Failed to acquire token cleanup lock: %s', e
+                        )
+
+                    if not acquired:
+                        logger.debug(
+                            'Token cleanup lock already held by another instance; skipping iteration'
+                        )
+                    else:
+                        try:
+                            session_factory = get_session_factory()
+                            async with session_factory() as session:
+                                await cleanup_expired_tokens(session)
+                        finally:
+                            try:
+                                await lock.release()
+                            except Exception as lock_err:  # noqa: BLE001
+                                logger.warning(
+                                    'Failed to release token cleanup lock: %s',
+                                    lock_err,
+                                )
+                else:
+                    session_factory = get_session_factory()
+                    async with session_factory() as session:
+                        await cleanup_expired_tokens(session)
             except Exception as e:  # noqa: BLE001
                 logger.warning('Token cleanup loop execution failed: %s', e)
             await asyncio.sleep(interval_seconds)
