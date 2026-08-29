@@ -19,6 +19,7 @@ from pythonjsonlogger import jsonlogger
 from sqlalchemy import text
 
 from app.core.config import get_settings
+from app.core.observability.context import get_request_id, get_user_id
 
 
 class JSONFormatter(jsonlogger.JsonFormatter):
@@ -32,6 +33,14 @@ class JSONFormatter(jsonlogger.JsonFormatter):
         log_record.setdefault('level', record.levelname)
         log_record.setdefault('logger', record.name)
         log_record.setdefault('service', 'auth-api')
+
+        request_id = get_request_id()
+        if request_id:
+            log_record['request_id'] = request_id
+
+        user_id = get_user_id()
+        if user_id:
+            log_record['user_id'] = user_id
 
 
 def setup_logging() -> None:
