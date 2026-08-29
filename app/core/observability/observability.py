@@ -90,15 +90,20 @@ class MetricsMiddleware:
             return
 
         method = scope.get('method', 'UNKNOWN')
-        path = scope.get('path', '/')
         ACTIVE_REQUESTS.inc()
         start = time.perf_counter()
 
         async def send_wrapper(message):
             if message['type'] == 'http.response.start':
                 status = message['status']
+                route = scope.get('route')
+                endpoint_path = (
+                    getattr(route, 'path', 'unmatched_route')
+                    if route
+                    else 'unmatched_route'
+                )
                 REQUEST_COUNT.labels(
-                    method=method, endpoint=path, status=status
+                    method=method, endpoint=endpoint_path, status=status
                 ).inc()
             await send(message)
 
@@ -106,9 +111,15 @@ class MetricsMiddleware:
             await self.app(scope, receive, send_wrapper)
         finally:
             ACTIVE_REQUESTS.dec()
-            REQUEST_LATENCY.labels(method=method, endpoint=path).observe(
-                time.perf_counter() - start
+            route = scope.get('route')
+            endpoint_path = (
+                getattr(route, 'path', 'unmatched_route')
+                if route
+                else 'unmatched_route'
             )
+            REQUEST_LATENCY.labels(
+                method=method, endpoint=endpoint_path
+            ).observe(time.perf_counter() - start)
 
 
 async def get_health_status() -> dict[str, Any]:
