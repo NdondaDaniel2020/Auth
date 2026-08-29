@@ -90,7 +90,6 @@ class MetricsMiddleware:
             return
 
         method = scope.get('method', 'UNKNOWN')
-        raw_path = scope.get('path', '/')
         ACTIVE_REQUESTS.inc()
         start = time.perf_counter()
 
@@ -98,7 +97,11 @@ class MetricsMiddleware:
             if message['type'] == 'http.response.start':
                 status = message['status']
                 route = scope.get('route')
-                endpoint_path = getattr(route, 'path', raw_path)
+                endpoint_path = (
+                    getattr(route, 'path', 'unmatched_route')
+                    if route
+                    else 'unmatched_route'
+                )
                 REQUEST_COUNT.labels(
                     method=method, endpoint=endpoint_path, status=status
                 ).inc()
@@ -109,7 +112,11 @@ class MetricsMiddleware:
         finally:
             ACTIVE_REQUESTS.dec()
             route = scope.get('route')
-            endpoint_path = getattr(route, 'path', raw_path)
+            endpoint_path = (
+                getattr(route, 'path', 'unmatched_route')
+                if route
+                else 'unmatched_route'
+            )
             REQUEST_LATENCY.labels(
                 method=method, endpoint=endpoint_path
             ).observe(time.perf_counter() - start)
