@@ -257,4 +257,3 @@ async def test_token_cleanup_loop_with_redis_lock_not_acquired() -> None:
     mock_cleanup.assert_not_called()
     mock_factory.assert_not_called()
     mock_lock.release.assert_not_called()
-
