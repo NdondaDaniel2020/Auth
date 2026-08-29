@@ -7,6 +7,7 @@ import logging
 from collections import defaultdict
 from typing import Any
 
+from app.core.observability.context import request_id_ctx, set_request_id
 from app.messaging.base import Event, EventBus, EventHandler
 from app.messaging.dlq.redis_dlq import get_dlq_manager
 
@@ -38,6 +39,7 @@ class InMemoryEventBus(EventBus):
         dlq_manager = get_dlq_manager()
         for handler in handlers:
             for attempt in range(1, self.max_retries + 1):
+                token = set_request_id(event.correlation_id)
                 try:
                     await handler(event)
                     break
@@ -73,6 +75,8 @@ class InMemoryEventBus(EventBus):
                             ),
                             error=str(e),
                         )
+                finally:
+                    request_id_ctx.reset(token)
 
     async def subscribe(self, event_type: str, handler: EventHandler) -> None:
         if handler not in self._handlers[event_type]:
