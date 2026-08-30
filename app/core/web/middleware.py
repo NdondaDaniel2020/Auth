@@ -105,3 +105,14 @@ def setup_security_headers_middleware(app: FastAPI) -> None:
             'max-age=31536000; includeSubDomains'
         )
         return response
+
+
+def setup_middlewares(app: FastAPI) -> None:
+    """Register all application middlewares in the correct execution order."""
+    from app.core.observability.observability import MetricsMiddleware
+
+    app.add_middleware(MetricsMiddleware)
+    setup_security_headers_middleware(app)
+    setup_cors_middleware(app)
+    setup_request_logging_middleware(app)
+    setup_correlation_id_middleware(app)
