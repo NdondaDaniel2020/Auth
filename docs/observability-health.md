@@ -6,18 +6,28 @@ Documento de referência para monitoramento, métricas de performance, verifica�
 
 ## 1. Endpoints de Monitoramento
 
-A aplicação expõe dois endpoints essenciais para orquestradores (Kubernetes, AWS ECS, Docker Swarm) e plataformas de monitoramento (Prometheus, Grafana, Datadog):
+A aplicação expõe três endpoints essenciais para orquestradores (Kubernetes, AWS ECS, Docker Swarm) e plataformas de monitoramento (Prometheus, Grafana, Datadog):
 
 | Endpoint | Protocolo | Autenticação | Descrição |
 | :--- | :--- | :--- | :--- |
-| `GET /api/health` | HTTP | Pública | Healthcheck da API e dependências (DB e Redis) |
+| `GET /live` (ou `/api/live`) | HTTP | Pública | **Liveness Probe** (*shallow check* em memória para o processo ASGI) |
+| `GET /api/health` | HTTP | Pública | **Readiness Probe** (*deep check* das dependências: DB e Redis) |
 | `GET /metrics` | HTTP | Pública (ou restrita via proxy) | Métricas no formato Prometheus |
 
 ---
 
-## 2. Healthcheck (`GET /api/health`)
+## 2. Liveness Probe (`GET /live`)
 
-O endpoint [`/api/health`](file:///spot/NdDaniel/Code/Estudo/Auth/app/main.py#L43-L45) realiza checagens ativas e assíncronas nas dependências críticas do sistema.
+O endpoint `/live` é um *shallow check* que responde imediatamente com `{"status": "alive"}` (`200 OK`) sem realizar nenhuma consulta externa.
+
+*   **Objetivo:** Informar ao orquestrador apenas se o processo Python / FastAPI continua vivo e responsivo.
+*   **Ação em caso de falha:** O orquestrador reinicia o contêiner (pois indica travamento real de processo ou deadlock).
+
+---
+
+## 3. Readiness Probe e Healthcheck (`GET /api/health`)
+
+O endpoint [`/api/health`](file:///spot/NdDaniel/Code/Estudo/Auth/app/main.py) realiza checagens ativas e assíncronas nas dependências críticas do sistema (PostgreSQL via `SELECT 1` e Redis).
 
 ### Exemplo de Resposta Saudável (`200 OK`):
 
@@ -55,9 +65,9 @@ O endpoint [`/api/health`](file:///spot/NdDaniel/Code/Estudo/Auth/app/main.py#L4
 }
 ```
 
-> **Nota para Liveness e Readiness Probes:**
-> * **Liveness Probe (Kubernetes):** Pode apontar para `/api/health` para reiniciar contêineres que travaram.
-> * **Readiness Probe:** Garante que o tráfego só chegue após o banco de dados responder com sucesso.
+> **⚠️ Diretrizes para Configuração de Sondas (Probes):**
+> * **Liveness Probe (Kubernetes / Docker Swarm):** Deve apontar **obrigatoriamente para `/live`**. Nunca aponte para `/api/health`, pois oscilações no banco de dados farão o orquestrador reiniciar todos os contêineres ao mesmo tempo (*Thundering Herd*).
+> * **Readiness Probe:** Deve apontar para `/api/health`. Se o banco cair, a instância é apenas removida do pool do Load Balancer sem reiniciar o processo da aplicação.
 
 ---
 
