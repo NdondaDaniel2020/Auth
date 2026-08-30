@@ -4,17 +4,11 @@ from app.api.router import api_router
 from app.core.config import get_settings
 from app.core.lifespan import lifespan
 from app.core.observability.observability import (
-    MetricsMiddleware,
     get_health_status,
     metrics_response,
 )
 from app.core.web.error_handlers import register_exception_handlers
-from app.core.web.middleware import (
-    setup_correlation_id_middleware,
-    setup_cors_middleware,
-    setup_request_logging_middleware,
-    setup_security_headers_middleware,
-)
+from app.core.web.middleware import setup_middlewares
 
 
 def create_app() -> FastAPI:
@@ -28,11 +22,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    app.add_middleware(MetricsMiddleware)
-    setup_security_headers_middleware(app)
-    setup_cors_middleware(app)
-    setup_request_logging_middleware(app)
-    setup_correlation_id_middleware(app)
+    setup_middlewares(app)
     register_exception_handlers(app)
 
     app.include_router(api_router, prefix='/api')
