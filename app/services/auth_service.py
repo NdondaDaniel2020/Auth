@@ -121,6 +121,11 @@ async def create_token_pair(
     db: AsyncSession,
     user: User,
     amr: list[str] | None = None,
+    *,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
+    device_name: str | None = None,
+    location: str | None = None,
 ) -> Token:
     """Issue an access token and a persistable, revocable refresh token."""
     settings = get_settings()
@@ -135,7 +140,14 @@ async def create_token_pair(
     expires_at = utcnow() + timedelta(days=settings.JWT_REFRESH_DAYS)
     refresh_repository = RefreshTokenRepository(db)
     await refresh_repository.create(
-        jti=jti, user_id=user.id, expires_at=expires_at
+        jti=jti,
+        user_id=user.id,
+        expires_at=expires_at,
+        ip_address=ip_address,
+        user_agent=user_agent,
+        device_name=device_name,
+        location=location,
+        last_seen_at=utcnow(),
     )
 
     refresh_token = create_refresh_token(
@@ -152,6 +164,10 @@ async def authenticate_mfa_challenge(
     *,
     mfa_pending_token: str,
     code: str,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
+    device_name: str | None = None,
+    location: str | None = None,
 ) -> tuple[Token, User]:
     """Validate an intermediate mfa_pending token and TOTP or backup code.
 
@@ -219,7 +235,15 @@ async def authenticate_mfa_challenge(
             'Código TOTP ou código de backup inválido.'
         )
 
-    tokens = await create_token_pair(db, user, amr=['pwd', 'mfa'])
+    tokens = await create_token_pair(
+        db,
+        user,
+        amr=['pwd', 'mfa'],
+        ip_address=ip_address,
+        user_agent=user_agent,
+        device_name=device_name,
+        location=location,
+    )
     log_security_event(
         'LOGIN_SUCCESS', user_id=user.id, metadata={'mfa': True}
     )
@@ -238,7 +262,15 @@ async def revoke_all_user_sessions(db: AsyncSession, user_id: str) -> None:
     await RefreshTokenRepository(db).revoke_all_for_user(user_id)
 
 
-async def refresh_tokens(db: AsyncSession, refresh_token: str) -> Token:
+async def refresh_tokens(
+    db: AsyncSession,
+    refresh_token: str,
+    *,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
+    device_name: str | None = None,
+    location: str | None = None,
+) -> Token:
     """Rotate a refresh token and issue a fresh pair.
 
     The used refresh token is revoked and replaced. If a revoked/rotated
@@ -290,7 +322,14 @@ async def refresh_tokens(db: AsyncSession, refresh_token: str) -> Token:
         raise InvalidRefreshTokenError()
 
     await refresh_repository.revoke(jti)
-    return await create_token_pair(db, user)
+    return await create_token_pair(
+        db,
+        user,
+        ip_address=ip_address or record.ip_address,
+        user_agent=user_agent or record.user_agent,
+        device_name=device_name or record.device_name,
+        location=location or record.location,
+    )
 
 
 async def logout(
