@@ -87,7 +87,8 @@ class RefreshTokenRepository(BaseRepository[RefreshToken]):
             )
             .values(revoked=True, revoked_at=datetime.now(UTC))
         )
-        return (result.rowcount or 0) > 0
+        rowcount: int = result.rowcount  # type: ignore[attr-defined]
+        return (rowcount or 0) > 0
 
     async def revoke_other_sessions(
         self, user_id: str, current_jti: str
@@ -102,7 +103,7 @@ class RefreshTokenRepository(BaseRepository[RefreshToken]):
             )
             .values(revoked=True, revoked_at=datetime.now(UTC))
         )
-        return result.rowcount or 0
+        return result.rowcount or 0  # type: ignore[attr-defined]
 
     async def revoke_all_for_user(self, user_id: str) -> None:
         await self.session.execute(
