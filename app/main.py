@@ -42,7 +42,6 @@ def create_app() -> FastAPI:
         data, content_type = metrics_response()
         return Response(content=data, media_type=content_type)
 
-    @app.get('/live', include_in_schema=False)
     @app.get('/api/live', include_in_schema=False)
     async def live():
         return {'status': 'alive'}

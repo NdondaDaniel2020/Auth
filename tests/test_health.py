@@ -12,12 +12,6 @@ def client():
     return TestClient(app)
 
 
-def test_liveness_probe_root_live(client):
-    response = client.get('/live')
-    assert response.status_code == 200
-    assert response.json() == {'status': 'alive'}
-
-
 def test_liveness_probe_api_live(client):
     response = client.get('/api/live')
     assert response.status_code == 200
