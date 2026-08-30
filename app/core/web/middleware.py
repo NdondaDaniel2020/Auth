@@ -1,8 +1,38 @@
+import uuid
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
+from app.core.observability.context import (
+    get_request_id,
+    request_id_ctx,
+    set_request_id,
+    set_user_id,
+    user_id_ctx,
+)
 from app.core.observability.logging import get_logger
+
+
+def setup_correlation_id_middleware(app: FastAPI) -> None:
+    """Register Correlation ID (X-Request-ID) middleware on the FastAPI app.
+
+    Extracts X-Request-ID from incoming request headers or generates a new UUID4.
+    Sets the ID into contextvars and injects X-Request-ID into response headers.
+    """
+
+    @app.middleware('http')
+    async def _handle_correlation_id(request, call_next):
+        request_id = request.headers.get('X-Request-ID') or uuid.uuid4().hex
+        token_req = set_request_id(request_id)
+        token_user = set_user_id(None)
+        try:
+            response = await call_next(request)
+            response.headers['X-Request-ID'] = request_id
+            return response
+        finally:
+            request_id_ctx.reset(token_req)
+            user_id_ctx.reset(token_user)
 
 
 def setup_cors_middleware(app: FastAPI) -> None:
@@ -44,13 +74,15 @@ def setup_request_logging_middleware(app: FastAPI) -> None:
         client = (
             request.client.host if getattr(request, 'client', None) else None
         )
+        request_id = get_request_id()
         logger.info(
-            '%s %s %s %.3fs client=%s',
+            '%s %s %s %.3fs client=%s request_id=%s',
             request.method,
             request.url.path,
             response.status_code,
             elapsed,
             client,
+            request_id,
         )
 
         return response

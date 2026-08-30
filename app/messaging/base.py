@@ -9,6 +9,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
+from app.core.observability.context import get_request_id
+
 EventHandler = Callable[[Any], Awaitable[None]]
 
 
@@ -20,7 +22,7 @@ class Event:
     payload: dict[str, Any]
     event_id: str = field(default_factory=lambda: uuid.uuid4().hex)
     timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
-    correlation_id: str | None = None
+    correlation_id: str | None = field(default_factory=get_request_id)
     causation_id: str | None = None
 
     def to_dict(self) -> dict[str, Any]:

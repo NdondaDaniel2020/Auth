@@ -13,6 +13,7 @@ from app.core.exceptions import (
     TokenExpiredError,
     TokenInvalidError,
 )
+from app.core.observability.context import set_user_id
 from app.core.security.security import (
     decode_access_token,
     is_access_token_blacklisted,
@@ -63,6 +64,7 @@ async def get_current_user(
     if user is None or not user.is_active:
         raise AccountInactiveError()
 
+    set_user_id(str(user.id))
     return user
 
 
