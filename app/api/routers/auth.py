@@ -20,6 +20,7 @@ from app.api.responses import (
     COMMON_UNAUTHORIZED_RESPONSES,
 )
 from app.core import security
+from app.core.device import extract_client_ip, parse_user_agent
 from app.schemas.auth import (
     AuthResponse,
     EmailVerificationConfirm,
@@ -59,7 +60,10 @@ async def register(data: UserCreate, db: SessionDep) -> UserRead:
 async def login(
     data: LoginRequest, request: Request, db: SessionDep
 ) -> AuthResponse:
-    client_ip = request.client.host if request.client else None
+    client_ip = extract_client_ip(request)
+    ua_header = request.headers.get('user-agent')
+    device_name = parse_user_agent(ua_header)
+
     user = await user_service.authenticate_user(
         db,
         email=data.email,
@@ -73,7 +77,13 @@ async def login(
             mfa_pending_token=pending_token,
         )
 
-    tokens = await auth_service.create_token_pair(db, user)
+    tokens = await auth_service.create_token_pair(
+        db,
+        user,
+        ip_address=client_ip,
+        user_agent=ua_header,
+        device_name=device_name,
+    )
     user_metadata = user_service.get_user_rbac_metadata(user)
     return AuthResponse(
         access_token=tokens.access_token,
@@ -93,7 +103,10 @@ async def login_form(
     request: Request,
     db: SessionDep,
 ) -> AuthResponse:
-    client_ip = request.client.host if request.client else None
+    client_ip = extract_client_ip(request)
+    ua_header = request.headers.get('user-agent')
+    device_name = parse_user_agent(ua_header)
+
     user = await user_service.authenticate_user(
         db,
         email=form.username,
@@ -107,7 +120,13 @@ async def login_form(
             mfa_pending_token=pending_token,
         )
 
-    tokens = await auth_service.create_token_pair(db, user)
+    tokens = await auth_service.create_token_pair(
+        db,
+        user,
+        ip_address=client_ip,
+        user_agent=ua_header,
+        device_name=device_name,
+    )
     user_metadata = user_service.get_user_rbac_metadata(user)
     return AuthResponse(
         access_token=tokens.access_token,
@@ -124,13 +143,21 @@ async def login_form(
 )
 async def login_mfa_challenge(
     data: MfaChallengeRequest,
+    request: Request,
     db: SessionDep,
 ) -> AuthResponse:
     """Valida o token intermediário mfa_pending e o código TOTP ou de backup, emitindo o par final de tokens JWT."""
+    client_ip = extract_client_ip(request)
+    ua_header = request.headers.get('user-agent')
+    device_name = parse_user_agent(ua_header)
+
     tokens, user = await auth_service.authenticate_mfa_challenge(
         db,
         mfa_pending_token=data.mfa_pending_token,
         code=data.code,
+        ip_address=client_ip,
+        user_agent=ua_header,
+        device_name=device_name,
     )
     user_metadata = user_service.get_user_rbac_metadata(user)
     return AuthResponse(
@@ -156,8 +183,19 @@ async def get_auth_me(current_user: CurrentUserDep) -> UserRBACMetadata:
     response_model=Token,
     responses={**COMMON_UNAUTHORIZED_RESPONSES},
 )
-async def refresh(data: RefreshRequest, db: SessionDep) -> Token:
-    return await auth_service.refresh_tokens(db, data.refresh_token)
+async def refresh(
+    data: RefreshRequest, request: Request, db: SessionDep
+) -> Token:
+    client_ip = extract_client_ip(request)
+    ua_header = request.headers.get('user-agent')
+    device_name = parse_user_agent(ua_header)
+    return await auth_service.refresh_tokens(
+        db,
+        data.refresh_token,
+        ip_address=client_ip,
+        user_agent=ua_header,
+        device_name=device_name,
+    )
 
 
 @router.post(

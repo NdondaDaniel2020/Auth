@@ -32,11 +32,39 @@ class RefreshTokenRepository(BaseRepository[RefreshToken]):
         jti: str,
         user_id: str,
         expires_at: datetime,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+        device_name: str | None = None,
+        location: str | None = None,
+        last_seen_at: datetime | None = None,
     ) -> RefreshToken:
-        token = RefreshToken(jti=jti, user_id=user_id, expires_at=expires_at)
+        token = RefreshToken(
+            jti=jti,
+            user_id=user_id,
+            expires_at=expires_at,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            device_name=device_name,
+            location=location,
+            last_seen_at=last_seen_at,
+        )
         self.session.add(token)
         await self.session.flush()
         return token
+
+    async def list_active_by_user(self, user_id: str) -> list[RefreshToken]:
+        """Retorna todas as sessões ativas (não revogadas e não expiradas) do usuário."""
+        now = datetime.now(UTC)
+        result = await self.session.execute(
+            select(RefreshToken)
+            .where(
+                RefreshToken.user_id == user_id,
+                RefreshToken.revoked.is_(False),
+                RefreshToken.expires_at > now,
+            )
+            .order_by(RefreshToken.created_at.desc())
+        )
+        return list(result.scalars().all())
 
     async def revoke(self, jti: str) -> None:
         await self.session.execute(
@@ -47,6 +75,35 @@ class RefreshTokenRepository(BaseRepository[RefreshToken]):
             )
             .values(revoked=True, revoked_at=datetime.now(UTC))
         )
+
+    async def revoke_by_jti_and_user(self, jti: str, user_id: str) -> bool:
+        """Revoga uma sessão específica pertencente ao usuário. Retorna True se revogada com sucesso."""
+        result = await self.session.execute(
+            update(RefreshToken)
+            .where(
+                RefreshToken.jti == jti,
+                RefreshToken.user_id == user_id,
+                RefreshToken.revoked.is_(False),
+            )
+            .values(revoked=True, revoked_at=datetime.now(UTC))
+        )
+        rowcount: int = result.rowcount  # type: ignore[attr-defined]
+        return (rowcount or 0) > 0
+
+    async def revoke_other_sessions(
+        self, user_id: str, current_jti: str
+    ) -> int:
+        """Revoga todas as outras sessões ativas do usuário, exceto a atual."""
+        result = await self.session.execute(
+            update(RefreshToken)
+            .where(
+                RefreshToken.user_id == user_id,
+                RefreshToken.jti != current_jti,
+                RefreshToken.revoked.is_(False),
+            )
+            .values(revoked=True, revoked_at=datetime.now(UTC))
+        )
+        return result.rowcount or 0  # type: ignore[attr-defined]
 
     async def revoke_all_for_user(self, user_id: str) -> None:
         await self.session.execute(

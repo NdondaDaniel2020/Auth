@@ -14,7 +14,9 @@ from app.api.responses import (
     COMMON_UNAUTHORIZED_RESPONSES,
 )
 from app.schemas.pagination import PaginatedResponse
+from app.schemas.session import SessionListResponse, SessionRevokeResponse
 from app.schemas.user import UserPublic, UserRead, UserRoleUpdate, UserUpdate
+from app.services import auth_service, session_service
 from app.services.user_service import (
     activate_user,
     admin_disable_user_mfa,
@@ -172,6 +174,63 @@ async def replace_user_roles(
         user_id=str(user_id),
         role_ids=data.role_ids,
         actor=admin_user,
+    )
+
+
+@router.get(
+    '/me/sessions',
+    response_model=SessionListResponse,
+    responses={**COMMON_UNAUTHORIZED_RESPONSES, **COMMON_FORBIDDEN_RESPONSES},
+)
+async def read_current_user_sessions(
+    user: CurrentUserDep,
+    db: SessionDep,
+) -> SessionListResponse:
+    """Lista todas as sessões ativas (dispositivos conectados) do usuário autenticado."""
+    return await session_service.list_user_sessions(db, user_id=user.id)
+
+
+@router.delete(
+    '/me/sessions/{jti}',
+    response_model=SessionRevokeResponse,
+    responses={
+        **COMMON_UNAUTHORIZED_RESPONSES,
+        **COMMON_FORBIDDEN_RESPONSES,
+        **COMMON_NOT_FOUND_RESPONSES,
+    },
+)
+async def revoke_current_user_session(
+    jti: str,
+    user: CurrentUserDep,
+    db: SessionDep,
+) -> SessionRevokeResponse:
+    """Encerra remotamente uma sessão ativa específica do usuário autenticado."""
+    return await session_service.revoke_user_session(
+        db, user_id=user.id, target_jti=jti
+    )
+
+
+@router.delete(
+    '/me/sessions',
+    response_model=SessionRevokeResponse,
+    responses={**COMMON_UNAUTHORIZED_RESPONSES, **COMMON_FORBIDDEN_RESPONSES},
+)
+async def revoke_other_user_sessions(
+    user: CurrentUserDep,
+    db: SessionDep,
+    current_jti: str | None = None,
+) -> SessionRevokeResponse:
+    """Encerra todas as outras sessões ativas do usuário, preservando a atual se fornecida."""
+    if current_jti:
+        return await session_service.revoke_all_other_sessions(
+            db, user_id=user.id, current_jti=current_jti
+        )
+    # Se não especificou current_jti, revoga todas
+    await auth_service.revoke_all_user_sessions(db, user_id=user.id)
+    await db.commit()
+    return SessionRevokeResponse(
+        message='Todas as sessões foram revogadas com sucesso.',
+        revoked_count=1,
     )
 
 

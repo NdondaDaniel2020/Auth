@@ -62,6 +62,16 @@ class RoleNotFoundError(NotFoundError):
         self.code = 'ROLE_NOT_FOUND'
 
 
+class SessionNotFoundError(NotFoundError):
+    def __init__(
+        self,
+        message: str = 'Sessão não encontrada ou já encerrada.',
+        payload: dict[str, Any] | None = None,
+    ):
+        super().__init__(message=message, payload=payload)
+        self.code = 'SESSION_NOT_FOUND'
+
+
 class PermissionDeniedError(AppError):
     def __init__(
         self,
