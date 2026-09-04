@@ -441,3 +441,19 @@ class InvalidMfaPasswordError(AppError):
             payload=payload,
             code='INVALID_MFA_PASSWORD',
         )
+
+
+class AuditImmutabilityError(AppError):
+    """Raised when an operation attempts to modify or delete an audit log."""
+
+    def __init__(
+        self,
+        message: str = 'A tabela audit_logs é append-only. Operações de UPDATE ou DELETE são proibidas.',
+        payload: dict[str, Any] | None = None,
+    ):
+        super().__init__(
+            message=message,
+            status_code=403,
+            payload=payload,
+            code='AUDIT_LOG_IMMUTABLE',
+        )

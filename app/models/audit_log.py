@@ -4,7 +4,16 @@ from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Index, String, func
+from sqlalchemy import (
+    DDL,
+    JSON,
+    DateTime,
+    ForeignKey,
+    Index,
+    String,
+    event,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -50,6 +59,15 @@ class AuditLog(Base):
         nullable=False,
         server_default=func.now(),
     )
+    previous_hash: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+    )
+    hash: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+        index=True,
+    )
 
     def __repr__(self) -> str:  # pragma: no cover
         return (
@@ -57,3 +75,75 @@ class AuditLog(Base):
             f'resource={self.resource_type}:{self.resource_id} '
             f'result={self.result!r}>'
         )
+
+
+sqlite_prevent_update = DDL("""
+CREATE TRIGGER IF NOT EXISTS prevent_audit_log_update
+BEFORE UPDATE ON audit_logs
+BEGIN
+    SELECT RAISE(ABORT, 'A tabela audit_logs é append-only. Operações de UPDATE são proibidas.');
+END;
+""")
+
+sqlite_prevent_delete = DDL("""
+CREATE TRIGGER IF NOT EXISTS prevent_audit_log_delete
+BEFORE DELETE ON audit_logs
+BEGIN
+    SELECT RAISE(ABORT, 'A tabela audit_logs é append-only. Operações de DELETE são proibidas.');
+END;
+""")
+
+pg_prevent_mutation_func = DDL("""
+CREATE OR REPLACE FUNCTION block_audit_log_mutation()
+RETURNS TRIGGER AS $$
+BEGIN
+    RAISE EXCEPTION 'A tabela audit_logs é append-only. Operações de UPDATE ou DELETE são proibidas.';
+END;
+$$ LANGUAGE plpgsql;
+""")
+
+pg_prevent_mutation_trigger = DDL("""
+CREATE TRIGGER prevent_audit_log_mutation
+BEFORE UPDATE OR DELETE ON audit_logs
+FOR EACH ROW
+EXECUTE FUNCTION block_audit_log_mutation();
+""")
+
+event.listen(
+    AuditLog.__table__,
+    'after_create',
+    sqlite_prevent_update.execute_if(dialect='sqlite'),
+)
+event.listen(
+    AuditLog.__table__,
+    'after_create',
+    sqlite_prevent_delete.execute_if(dialect='sqlite'),
+)
+event.listen(
+    AuditLog.__table__,
+    'after_create',
+    pg_prevent_mutation_func.execute_if(dialect='postgresql'),
+)
+event.listen(
+    AuditLog.__table__,
+    'after_create',
+    pg_prevent_mutation_trigger.execute_if(dialect='postgresql'),
+)
+
+
+@event.listens_for(AuditLog, 'before_update')
+def _block_audit_log_orm_update(mapper, connection, target):
+    from app.core.exceptions import AuditImmutabilityError
+
+    raise AuditImmutabilityError(
+        'A tabela audit_logs é append-only. Operações de UPDATE são proibidas.'
+    )
+
+
+@event.listens_for(AuditLog, 'before_delete')
+def _block_audit_log_orm_delete(mapper, connection, target):
+    from app.core.exceptions import AuditImmutabilityError
+
+    raise AuditImmutabilityError(
+        'A tabela audit_logs é append-only. Operações de DELETE são proibidas.'
+    )
