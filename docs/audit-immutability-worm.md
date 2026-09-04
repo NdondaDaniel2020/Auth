@@ -32,7 +32,7 @@ Qualquer chamada explícita aos métodos `update()` ou `delete()` da classe `Aud
 
 ```python
 await audit_repo.update(record, {...})  # Lança AuditImmutabilityError
-await audit_repo.delete(record)         # Lança AuditImmutabilityError
+await audit_repo.delete(record)  # Lança AuditImmutabilityError
 ```
 
 ### 1.2. Camada de Eventos ORM (`app/models/audit_log.py`)
@@ -88,7 +88,9 @@ from app.services.audit_service import verify_audit_trail_integrity
 
 is_valid, errors = await verify_audit_trail_integrity(db)
 if not is_valid:
-    logger.critical("Violação de integridade nos logs de auditoria: %s", errors)
+    logger.critical(
+        'Violação de integridade nos logs de auditoria: %s', errors
+    )
 ```
 
 A rotina verifica:
