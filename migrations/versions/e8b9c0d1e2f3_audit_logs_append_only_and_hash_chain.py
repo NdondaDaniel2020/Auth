@@ -6,17 +6,16 @@ Create Date: 2026-09-04 19:00:00.000000
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = 'e8b9c0d1e2f3'
-down_revision: Union[str, Sequence[str], None] = '12a7942e3290'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = '12a7942e3290'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -46,15 +45,19 @@ def upgrade() -> None:
                 RAISE EXCEPTION 'A tabela audit_logs é append-only. Operações de UPDATE ou DELETE são proibidas.';
             END;
             $func$ LANGUAGE plpgsql;
-
-            DROP TRIGGER IF EXISTS prevent_audit_log_mutation ON audit_logs;
+            """
+        )
+        op.execute(
+            'DROP TRIGGER IF EXISTS prevent_audit_log_mutation ON audit_logs;'
+        )
+        op.execute(
+            """
             CREATE TRIGGER prevent_audit_log_mutation
             BEFORE UPDATE OR DELETE ON audit_logs
             FOR EACH ROW
             EXECUTE FUNCTION block_audit_log_mutation();
             """
         )
-
         op.execute(
             """
             DO $$
@@ -93,11 +96,9 @@ def downgrade() -> None:
     bind = op.get_bind()
     if bind.dialect.name == 'postgresql':
         op.execute(
-            """
-            DROP TRIGGER IF EXISTS prevent_audit_log_mutation ON audit_logs;
-            DROP FUNCTION IF EXISTS block_audit_log_mutation();
-            """
+            'DROP TRIGGER IF EXISTS prevent_audit_log_mutation ON audit_logs;'
         )
+        op.execute('DROP FUNCTION IF EXISTS block_audit_log_mutation();')
     elif bind.dialect.name == 'sqlite':
         op.execute('DROP TRIGGER IF EXISTS prevent_audit_log_update;')
         op.execute('DROP TRIGGER IF EXISTS prevent_audit_log_delete;')
@@ -106,4 +107,3 @@ def downgrade() -> None:
         batch_op.drop_index('ix_audit_logs_hash')
         batch_op.drop_column('hash')
         batch_op.drop_column('previous_hash')
-
