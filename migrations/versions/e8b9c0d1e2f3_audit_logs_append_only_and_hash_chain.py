@@ -21,27 +21,25 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    op.add_column(
-        'audit_logs',
-        sa.Column('previous_hash', sa.String(length=64), nullable=True),
-    )
-    op.add_column(
-        'audit_logs',
-        sa.Column(
-            'hash', sa.String(length=64), nullable=False, server_default=''
-        ),
-    )
-    op.create_index(
-        'ix_audit_logs_hash',
-        'audit_logs',
-        ['hash'],
-        unique=False,
-    )
+    with op.batch_alter_table('audit_logs') as batch_op:
+        batch_op.add_column(
+            sa.Column('previous_hash', sa.String(length=64), nullable=True)
+        )
+        batch_op.add_column(
+            sa.Column(
+                'hash', sa.String(length=64), nullable=False, server_default=''
+            )
+        )
+        batch_op.create_index(
+            'ix_audit_logs_hash',
+            ['hash'],
+            unique=False,
+        )
 
-    op.execute(
-        """
-        DO $$
-        BEGIN
+    bind = op.get_bind()
+    if bind.dialect.name == 'postgresql':
+        op.execute(
+            """
             CREATE OR REPLACE FUNCTION block_audit_log_mutation()
             RETURNS TRIGGER AS $func$
             BEGIN
@@ -54,41 +52,58 @@ def upgrade() -> None:
             BEFORE UPDATE OR DELETE ON audit_logs
             FOR EACH ROW
             EXECUTE FUNCTION block_audit_log_mutation();
-        EXCEPTION
-            WHEN undefined_function THEN
-                NULL;
-        END $$;
-        """
-    )
+            """
+        )
 
-    op.execute(
-        """
-        DO $$
-        BEGIN
-            IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'app_user') THEN
-                REVOKE ALL ON TABLE audit_logs FROM app_user;
-                GRANT INSERT, SELECT ON TABLE audit_logs TO app_user;
-            END IF;
-        END
-        $$;
-        """
-    )
+        op.execute(
+            """
+            DO $$
+            BEGIN
+                IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'app_user') THEN
+                    REVOKE ALL ON TABLE audit_logs FROM app_user;
+                    GRANT INSERT, SELECT ON TABLE audit_logs TO app_user;
+                END IF;
+            END
+            $$;
+            """
+        )
+    elif bind.dialect.name == 'sqlite':
+        op.execute(
+            """
+            CREATE TRIGGER IF NOT EXISTS prevent_audit_log_update
+            BEFORE UPDATE ON audit_logs
+            BEGIN
+                SELECT RAISE(ABORT, 'A tabela audit_logs é append-only. Operações de UPDATE são proibidas.');
+            END;
+            """
+        )
+        op.execute(
+            """
+            CREATE TRIGGER IF NOT EXISTS prevent_audit_log_delete
+            BEFORE DELETE ON audit_logs
+            BEGIN
+                SELECT RAISE(ABORT, 'A tabela audit_logs é append-only. Operações de DELETE são proibidas.');
+            END;
+            """
+        )
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    op.execute(
-        """
-        DO $$
-        BEGIN
+    bind = op.get_bind()
+    if bind.dialect.name == 'postgresql':
+        op.execute(
+            """
             DROP TRIGGER IF EXISTS prevent_audit_log_mutation ON audit_logs;
             DROP FUNCTION IF EXISTS block_audit_log_mutation();
-        EXCEPTION
-            WHEN undefined_function THEN
-                NULL;
-        END $$;
-        """
-    )
-    op.drop_index('ix_audit_logs_hash', table_name='audit_logs')
-    op.drop_column('audit_logs', 'hash')
-    op.drop_column('audit_logs', 'previous_hash')
+            """
+        )
+    elif bind.dialect.name == 'sqlite':
+        op.execute('DROP TRIGGER IF EXISTS prevent_audit_log_update;')
+        op.execute('DROP TRIGGER IF EXISTS prevent_audit_log_delete;')
+
+    with op.batch_alter_table('audit_logs') as batch_op:
+        batch_op.drop_index('ix_audit_logs_hash')
+        batch_op.drop_column('hash')
+        batch_op.drop_column('previous_hash')
+
