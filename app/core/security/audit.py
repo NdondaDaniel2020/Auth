@@ -2,10 +2,19 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 GENESIS_HASH: str = '0' * 64
+
+
+def _normalize_timestamp(dt: datetime) -> str:
+    """Normalize datetime to UTC ISO-8601 string across dialects."""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    else:
+        dt = dt.astimezone(UTC)
+    return dt.isoformat()
 
 
 def compute_audit_hash(
@@ -27,6 +36,7 @@ def compute_audit_hash(
         else ''
     )
     timestamp_str = created_at.isoformat()
+    timestamp_str = _normalize_timestamp(created_at)
     prev_hash_str = (
         previous_hash if previous_hash is not None else GENESIS_HASH
     )

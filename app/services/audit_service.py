@@ -7,6 +7,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security.audit import compute_audit_hash
+from app.models.audit_log import AuditLog
 from app.repositories.audit_repository import AuditRepository
 
 
@@ -38,6 +39,8 @@ async def record_admin_action(
 
 async def verify_audit_trail_integrity(
     db: AsyncSession,
+    *,
+    records: list[AuditLog] | None = None,
 ) -> tuple[bool, list[str]]:
     """Verify cryptographic integrity and continuity of the audit trail.
 
@@ -45,7 +48,8 @@ async def verify_audit_trail_integrity(
         (True, []) if the hash chain is fully intact.
         (False, errors) if any record was tampered with, deleted or out-of-order.
     """
-    records = await AuditRepository(db).list_all_chronological()
+    if records is None:
+        records = await AuditRepository(db).list_all_chronological()
     errors: list[str] = []
     expected_previous_hash: str | None = None
 

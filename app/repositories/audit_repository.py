@@ -39,6 +39,7 @@ class AuditRepository(BaseRepository[AuditLog]):
         result: str = 'success',
         details: dict[str, Any] | None = None,
     ) -> AuditLog:
+        """Create an audit record within the caller's transaction."""
         """Create an audit record with cryptographic hash chain."""
         # Query the latest hash in the audit chain
         last_hash_stmt = (
