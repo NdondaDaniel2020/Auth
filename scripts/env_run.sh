@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Script para carregar e exportar variáveis de ambiente do .env para o ambiente do SO.
-# Simula com precisão o ambiente de produção (Vercel/Docker/K8s) onde as variáveis são injetadas no SO.
+# Simula com precisão o ambiente de produção (Docker/K8s) onde as variáveis são injetadas no SO.
 #
 # Uso:
 #   ./scripts/env_run.sh <comando> [argumentos...]
