@@ -142,7 +142,7 @@ Documentação completa do banco (migrações, seeds, testes):
 
 ### Simulação de ambiente de produção (`./scripts/env_run.sh`)
 
-Em ambientes de produção (como Vercel, Docker ou Kubernetes), as variáveis são injetadas diretamente no ambiente do sistema operacional (`os.environ`), e as configurações de produção (`ProductionSettings`) ignoram a leitura de arquivos `.env` locais por segurança.
+Em ambientes de produção (como Docker ou Kubernetes), as variáveis são injetadas diretamente no ambiente do sistema operacional (`os.environ`), e as configurações de produção (`ProductionSettings`) ignoram a leitura de arquivos `.env` locais por segurança.
 
 O utilitário [`./scripts/env_run.sh`](scripts/env_run.sh) exporta as variáveis de um arquivo `.env` diretamente para as variáveis do processo antes da execução, permitindo simular com precisão o comportamento de produção localmente (incluindo conexões remotas com Supabase e Upstash):
 
@@ -288,29 +288,6 @@ Guia para reaproveitar esta base em novos projetos (o que manter, o que
 adaptar, como adicionar entidades e rotas protegidas):
 [docs/boilerplate-guide.md](docs/boilerplate-guide.md).
 
-## Deploy na Vercel
-
-O projeto está pré-configurado para deploy Serverless na Vercel através dos arquivos `api/index.py` e `vercel.json`.
-
-### Passo a passo para o deploy:
-
-1. **Instalar a CLI da Vercel (opcional para deploy manual):**
-   ```bash
-   npm i -g vercel
-   ```
-
-2. **Deploy via CLI ou GitHub Integration:**
-   - Conecte o repositório no dashboard da Vercel ou execute `vercel --prod` na raiz do projeto.
-
-3. **Configuração de Variáveis de Ambiente:**
-   Cadastre as variáveis necessárias no painel da Vercel (**Project Settings -> Environment Variables**):
-   - `DATABASE_URL` (PostgreSQL em nuvem, ex: Supabase / Neon — use a URL do *Connection Pooler IPv4*)
-   - `REDIS_URL` (Redis gerenciado, ex: Upstash com prefixo `rediss://`)
-   - `SECRET_KEY`
-   - `REFRESH_SECRET_KEY`
-   - DEMAIS variáveis listadas em `.env.example`
-
----
 
 ## Contribuição
 
