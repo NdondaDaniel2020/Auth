@@ -53,6 +53,6 @@ REDIS_MAX_CONNECTIONS=10
 
 ## 4. Provedor Gratuito Recomendado: Upstash Redis
 
-Para deploys Serverless (como Vercel, AWS Lambda ou Docker):
+Para deploys em nuvem ou containers (como Docker ou AWS Lambda):
 * **Cadastro:** [upstash.com](https://upstash.com/) (10.000 requisições/dia gratuitas, sem cartão de crédito).
 * **Conexão:** Use sempre a URL com prefixo `rediss://` (TLS habilitado).
