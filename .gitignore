@@ -37,3 +37,5 @@ architecture.md
 .coverage
 .agents
 secrets/
+*.mp4
+.portfolio/raw-captures/
