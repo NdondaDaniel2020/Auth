@@ -1,0 +1,74 @@
+{
+  "id": "auth",
+  "name": "Auth (FastAPI Service)",
+  "tagline": {
+    "pt": "API de Autenticação e Autorização Assíncrona com FastAPI, RBAC Granular, Tokens JWT Rotativos e Rate Limiting no Redis",
+    "en": "Asynchronous Authentication & Authorization Microservice with FastAPI, Granular RBAC, Rotating JWTs, and Distributed Redis Rate Limiting"
+  },
+  "category": "backend",
+  "featured": true,
+  "architecture_type": "Async Event-Driven Hexagonal Architecture (FastAPI, SQLAlchemy 2.0, PostgreSQL, Redis, RabbitMQ)",
+  "about": {
+    "pt": "O Auth API é um microsserviço corporativo de autenticação, autorização e gestão de identidades construído com FastAPI assíncrono e SQLAlchemy 2.0. Desenvolvido para atuar como autoridade central de identidade (IdP), o sistema implementa fluxo completo de registro e login com hashing Argon2id, emissão de tokens JWT com estratégia de Refresh Token Rotation (RTR), proteção contra ataques de força bruta com rate limiting distribuído em janela deslizante (Sliding Window) no Redis, autorização baseada em papéis (RBAC) com dependências injetadas sem queries N+1, autenticação social OAuth2/OpenID Connect com Google, mensageria de eventos de auditoria e segurança via RabbitMQ/Kafka e observabilidade completa com métricas Prometheus.",
+    "en": "Auth API is an enterprise-grade identity and access management (IAM) microservice built with asynchronous FastAPI and SQLAlchemy 2.0. Designed as a central identity provider, the system features complete user registration and authentication workflows with Argon2id password hashing, rotating JWT session management with Refresh Token Rotation (RTR), distributed sliding-window rate limiting via Redis against brute-force attacks, role-based access control (RBAC) with clean dependency injection eliminating N+1 queries, Google OAuth2/OpenID Connect social sign-in, security event streaming with RabbitMQ/Kafka, and full Prometheus observability."
+  },
+  "highlights": [
+    "Autenticação assíncrona robusta com FastAPI e hashing criptográfico Argon2id de última geração",
+    "Gestão segura de sessões com JWT rotativo (Refresh Token Rotation - RTR) e revogação instantânea via Redis",
+    "Controle de Acesso Baseado em Papéis (RBAC) com permissões granulares e injeção de dependências sem queries N+1",
+    "Rate Limiting distribuído em janela deslizante (Sliding Window Counter) gerenciado pelo Redis",
+    "Login social unificado integrando OAuth2 e OpenID Connect (Google Auth) com vínculo de identidade híbrida",
+    "Persistência assíncrona com PostgreSQL e SQLAlchemy 2.0 (AsyncSession) e migrações estruturadas via Alembic",
+    "Disparo de eventos de auditoria e segurança em segundo plano via mensageria assíncrona (RabbitMQ / Kafka)",
+    "Observabilidade corporativa com endpoint Prometheus (/metrics) e logs estruturados em formato JSON",
+    "Documentação interativa automática com Swagger UI (OpenAPI 3.1) e ReDoc",
+    "Ambiente de desenvolvimento e testes ultrarrápido gerenciado com uv (Python 3.14)"
+  ],
+  "technologies": [
+    "FastAPI",
+    "Python",
+    "SQLAlchemy",
+    "PostgreSQL",
+    "Redis",
+    "Docker",
+    "RabbitMQ",
+    "Alembic",
+    "Argon2",
+    "JWT",
+    "Prometheus",
+    "Pydantic",
+    "uv"
+  ],
+  "media": {
+    "cover": "cover.webp",
+    "gallery": [
+      {
+        "type": "image",
+        "src": "gallery/01-swagger-ui.webp",
+        "caption": "Swagger UI Interativo com Documentação OpenAPI 3.1 dos Endpoints de Autenticação e RBAC"
+      },
+      {
+        "type": "image",
+        "src": "gallery/02-redoc-spec.webp",
+        "caption": "ReDoc com Especificação Técnica Detalhada dos Schemas Pydantic e Payloads"
+      },
+      {
+        "type": "image",
+        "src": "gallery/03-api-response.webp",
+        "caption": "Estrutura Padrão de Resposta JSON da API"
+      }
+    ],
+    "videos": [
+      {
+        "id": "demo-auth",
+        "file": "01-demo-auth.mp4",
+        "title": "Navegação no Swagger UI e Fluxos de Autenticação",
+        "description": "Demonstração interativa dos endpoints da API no Swagger UI: registro de usuário, login com obtenção de tokens JWT, validação de rotas protegidas por RBAC e visualização da documentação OpenAPI.",
+        "category": "backend",
+        "duration": "63s",
+        "size_mb": 6.1,
+        "src": "videos/01-demo-auth.mp4"
+      }
+    ]
+  }
+}
